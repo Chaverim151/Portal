@@ -1,0 +1,1221 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="trk-version" content="1.01">
+<meta name="theme-color" content="#ffffff">
+<title>Compliance Tracker</title>
+<style>
+/* Basic look — same colours as CallDashboard / HCAD "Basic" (white background, simple buttons) */
+:root{
+  color-scheme:light;
+  --bg:#ffffff; --card:#ffffff; --soft:#f6f7f9; --soft2:#f3f4f6; --line:#d8dde3; --field:#c4cad3;
+  --accent:#1d3f72; --accent-dk:#163259; --pick:#0b5cad;
+  --text:#1f2328; --gray:#5c6672;
+  --ok:#167a3e; --warn:#8a5a00; --bad:#b42318; --info:#0b5cad; --na:#8a929c;
+  --dot-ok:#2e9e57; --dot-warn:#e0a200; --dot-bad:#d93025; --dot-info:#1a73e8; --dot-na:#a7afba;
+}
+*{box-sizing:border-box}
+html,body{margin:0;background:var(--bg);color:var(--text);font:16px/1.4 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif}
+button{font:inherit;cursor:pointer}
+input,select,textarea{font:inherit;color:var(--text);background:#fff;border:1px solid var(--field);border-radius:6px;padding:10px;width:100%}
+input::placeholder,textarea::placeholder{color:#8a929c}
+input[type=checkbox],input[type=radio]{accent-color:var(--accent)}
+textarea{min-height:70px}
+label{display:block;font-size:.8rem;font-weight:700;color:var(--text);margin:12px 0 4px}
+[hidden]{display:none!important}
+.btn{background:#fff;color:var(--text);border:1px solid var(--field);border-radius:6px;padding:10px 14px;font-weight:600;box-shadow:inset 0 0 0 1px rgba(31,35,40,.32)}
+.btn:hover:not(:disabled){filter:brightness(.97)}
+.btn.gold{background:var(--accent);color:#fff;border-color:var(--accent);box-shadow:inset 0 0 0 1px rgba(0,0,0,.25)}
+.btn.gold:hover:not(:disabled){background:var(--accent-dk);filter:none}
+.btn.red{background:#fff;color:var(--bad);border-color:#e3a6a0}
+.btn.green{background:#fff;color:var(--ok);border-color:#9fd3b2}
+.btn.sm{padding:6px 10px;font-size:.85rem}
+.btn:disabled{opacity:.5;cursor:default}
+.row{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+.grow{flex:1}
+.muted{color:var(--gray);font-size:.85rem}
+.card{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:14px;margin:0 0 12px;box-shadow:0 1px 3px rgba(0,0,0,.08)}
+.card h3{margin:0 0 6px;font-size:1rem;color:var(--accent)}
+h2{font-size:1.1rem;margin:18px 0 10px;color:var(--accent)}
+.pill{display:inline-block;border-radius:999px;padding:2px 10px;font-size:.78rem;font-weight:700;white-space:nowrap;border:1px solid transparent}
+.p-ok{background:#eaf6ee;color:var(--ok);border-color:#9fd3b2}
+.p-warn{background:#fff4d6;color:var(--warn);border-color:#e2c27a}
+.p-bad{background:#fdecea;color:var(--bad);border-color:#e3a6a0}
+.p-info{background:#eaf2fb;color:var(--info);border-color:#a9c7ea}
+.p-na{background:var(--soft2);color:var(--gray);border-color:var(--line)}
+
+/* sign in */
+#login{max-width:380px;margin:12vh auto 0;padding:0 16px}
+#login .card{padding:22px}
+#login h1{font-size:1.3rem;margin:0 0 4px;color:var(--accent)}
+#login-err{color:var(--bad);min-height:1.2em;margin-top:8px;font-size:.9rem}
+
+/* app shell */
+#topbar{position:sticky;top:0;z-index:20;background:#fff;border-bottom:1px solid var(--line);
+  padding:calc(10px + env(safe-area-inset-top)) 16px 10px;display:flex;align-items:center;gap:10px}
+#topbar .title{font-weight:800;color:var(--accent)}
+#topbar .who{font-size:.85rem;color:var(--gray)}
+#bell{position:relative;background:#fff;border:1px solid var(--field);color:var(--text);border-radius:6px;width:42px;height:40px;font-size:1.15rem;box-shadow:inset 0 0 0 1px rgba(31,35,40,.32)}
+#bell .badge{position:absolute;top:-6px;right:-6px;background:var(--bad);color:#fff;border-radius:999px;font-size:.7rem;font-weight:800;min-width:20px;height:20px;line-height:20px;padding:0 5px}
+#tabs{display:flex;gap:6px;overflow-x:auto;padding:10px 16px;border-bottom:1px solid var(--line);background:var(--soft);scrollbar-width:none}
+#tabs button{flex:0 0 auto;background:#fff;border:1px solid var(--field);color:var(--text);border-radius:6px;padding:8px 14px;font-size:.9rem;font-weight:600;box-shadow:inset 0 0 0 1px rgba(31,35,40,.32)}
+#tabs button.on{background:var(--accent);color:#fff;border-color:var(--accent);box-shadow:inset 0 0 0 1px rgba(0,0,0,.25)}
+#view{max-width:1100px;margin:0 auto;padding:12px 16px 80px}
+#banner:empty{display:none}
+.banner{margin:12px 16px 0;padding:12px 14px;border-radius:10px;background:#fdecea;border:1px solid #e3a6a0;color:#7a1810}
+.banner.warn{background:#fff4d6;border-color:#e2c27a;color:#5c3c00}
+.banner b{display:block;margin-bottom:2px}
+
+/* notification panel */
+#panel-bg{position:fixed;inset:0;background:rgba(0,0,0,.25);z-index:40}
+#panel{position:fixed;top:0;right:0;bottom:0;width:min(420px,100%);background:#fff;border-left:1px solid var(--line);z-index:41;
+  display:flex;flex-direction:column;padding-top:env(safe-area-inset-top);box-shadow:-4px 0 16px rgba(0,0,0,.08)}
+#panel header{display:flex;align-items:center;padding:14px 16px;border-bottom:1px solid var(--line)}
+#panel header b{flex:1;font-size:1.05rem;color:var(--accent)}
+#panel-list{overflow-y:auto;padding:10px 12px}
+.nitem{display:flex;gap:10px;align-items:flex-start;width:100%;text-align:left;background:#fff;border:1px solid var(--line);border-left-width:4px;border-radius:8px;padding:10px 12px;margin-bottom:8px;color:var(--text)}
+.nitem:hover{background:var(--soft)}
+.nitem.bad{border-left-color:var(--dot-bad)} .nitem.warn{border-left-color:var(--dot-warn)} .nitem.info{border-left-color:var(--dot-info)}
+.nitem small{display:block;color:var(--gray)}
+
+/* document cards */
+.docs{display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:12px}
+.doc .top{display:flex;gap:8px;align-items:flex-start}
+.doc .top h3{flex:1}
+.kv{display:grid;grid-template-columns:110px 1fr;gap:2px 8px;font-size:.88rem;margin:8px 0}
+.kv span:nth-child(odd){color:var(--gray)}
+.thumbs{display:flex;gap:6px;flex-wrap:wrap;margin:8px 0}
+.thumbs a{display:block;width:64px;height:64px;border-radius:6px;border:1px solid var(--line);overflow:hidden;background:var(--soft);color:var(--gray);font-size:.7rem;text-align:center;line-height:64px;text-decoration:none}
+.thumbs img{width:100%;height:100%;object-fit:cover}
+.note{font-size:.85rem;background:#fdecea;border:1px solid #f2c4bf;color:#7a1810;border-radius:6px;padding:6px 8px;margin:6px 0}
+
+/* pop-up */
+#modal-bg{position:fixed;inset:0;background:rgba(0,0,0,.35);z-index:50;display:flex;align-items:flex-end;justify-content:center}
+#modal{background:#fff;border:1px solid var(--line);border-radius:14px 14px 0 0;width:min(720px,100%);max-height:94vh;display:flex;flex-direction:column;box-shadow:0 8px 30px rgba(0,0,0,.15)}
+@media (min-width:760px){#modal-bg{align-items:center}#modal{border-radius:14px}}
+#modal header{display:flex;align-items:center;gap:8px;padding:14px 16px;border-bottom:1px solid var(--line)}
+#modal header b{flex:1;font-size:1.05rem;color:var(--accent)}
+#modal .body{overflow-y:auto;padding:4px 16px 16px}
+#modal footer{padding:12px 16px calc(12px + env(safe-area-inset-bottom));border-top:1px solid var(--line);background:var(--soft);display:flex;gap:8px;justify-content:flex-end;flex-wrap:wrap}
+.x{background:none;border:none;color:var(--gray);font-size:1.4rem;padding:0 6px}
+.x:hover{color:var(--bad)}
+
+/* checklists */
+.sec{border:1px solid var(--line);border-radius:10px;margin:12px 0;overflow:hidden}
+.sec-h{display:flex;align-items:center;gap:8px;background:var(--soft2);padding:10px 12px}
+.sec-h b{flex:1;color:var(--accent)}
+.item{display:flex;align-items:center;gap:8px;padding:8px 12px;border-top:1px solid var(--line)}
+.item .nm{flex:1;font-size:.92rem}
+.item .par{color:var(--gray);font-size:.78rem}
+.tog{display:flex;gap:4px}
+.tog button{width:46px;height:38px;border-radius:6px;border:1px solid var(--field);background:#fff;color:var(--gray);font-weight:800;box-shadow:inset 0 0 0 1px rgba(31,35,40,.32)}
+.tog button.ok.on{background:var(--ok);border-color:var(--ok);color:#fff}
+.tog button.bad.on{background:var(--bad);border-color:var(--bad);color:#fff}
+.item-note{padding:0 12px 10px;border-top:none}
+.item-note input{padding:8px}
+
+/* tables */
+.tbl-wrap{overflow-x:auto;border:1px solid var(--line);border-radius:10px}
+table{border-collapse:collapse;width:100%;font-size:.88rem}
+th,td{padding:8px 10px;border-bottom:1px solid var(--line);text-align:left;white-space:nowrap}
+th{background:var(--soft2);position:sticky;top:0;font-size:.78rem;color:var(--gray)}
+td.c{text-align:center}
+tbody tr:hover{background:var(--soft)}
+.dot{display:inline-block;width:14px;height:14px;border-radius:50%;vertical-align:middle;border:none;padding:0}
+.d-ok{background:var(--dot-ok)} .d-warn{background:var(--dot-warn)} .d-bad{background:var(--dot-bad)} .d-info{background:var(--dot-info)} .d-na{background:var(--dot-na)} .d-missing{background:transparent;border:2px solid var(--dot-bad)}
+.subtabs{display:flex;gap:6px;flex-wrap:wrap;margin:6px 0 12px}
+.subtabs button{background:#fff;border:1px solid var(--field);color:var(--text);border-radius:6px;padding:7px 12px;font-size:.85rem;font-weight:600;box-shadow:inset 0 0 0 1px rgba(31,35,40,.32)}
+.subtabs button.on{background:var(--pick);border-color:var(--pick);color:#fff}
+.legend{display:flex;gap:14px;flex-wrap:wrap;font-size:.8rem;color:var(--gray);margin:8px 0}
+.legend span{display:flex;align-items:center;gap:5px}
+
+#toast{position:fixed;left:50%;bottom:calc(20px + env(safe-area-inset-bottom));transform:translateX(-50%);background:#1f2328;color:#fff;padding:10px 16px;border-radius:8px;z-index:60;max-width:90vw;box-shadow:0 4px 14px rgba(0,0,0,.2)}
+.big-num{font-size:1.8rem;font-weight:800;color:var(--text)}
+.stats{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:10px;margin-bottom:12px}
+/* home tiles: like the CAD's home tiles — 16px corners, gold edge, one soft shadow */
+.stats .card{margin:0;text-align:left;cursor:pointer;color:var(--text);font:inherit;border:1px solid #dcc78f;border-radius:16px;box-shadow:0 1px 4px rgba(0,0,0,.08)}
+.stats .card:hover{background:var(--soft)}
+.empty{color:var(--gray);text-align:center;padding:24px}
+.dtype{display:grid;grid-template-columns:1fr 130px 110px auto auto auto auto;gap:6px;align-items:center;margin-bottom:6px}
+.dtype label{margin:0;display:flex;gap:4px;align-items:center;font-weight:400;color:var(--text);font-size:.8rem}
+.dtype input[type=checkbox]{width:auto}
+@media (max-width:700px){.dtype{grid-template-columns:1fr 1fr;}}
+</style>
+</head>
+<body>
+
+<!-- ═══════════ SIGN IN ═══════════ -->
+<div id="login" hidden>
+  <div class="card">
+    <h1>Compliance Tracker</h1>
+    <div class="muted">Sign in with your unit number and your CallDashboard password.</div>
+    <label for="li-unit">Unit number</label>
+    <input id="li-unit" autocomplete="username" autocapitalize="characters" placeholder="MC-16">
+    <label for="li-pw">Password</label>
+    <input id="li-pw" type="password" autocomplete="current-password">
+    <div id="login-err"></div>
+    <button class="btn gold" style="width:100%;margin-top:10px" id="li-btn" onclick="App.signIn()">Sign in</button>
+  </div>
+</div>
+<div id="boot" class="empty" style="margin-top:20vh">Signing in…</div>
+
+<!-- ═══════════ APP ═══════════ -->
+<div id="app" hidden>
+  <div id="topbar">
+    <div class="grow">
+      <div class="title">Compliance Tracker</div>
+      <div class="who" id="who"></div>
+    </div>
+    <button id="bell" onclick="App.openPanel()" aria-label="Notifications">🔔<span class="badge" id="bell-n" hidden></span></button>
+    <button class="btn sm" onclick="App.signOut()">Sign out</button>
+  </div>
+  <div id="banner"></div>
+  <nav id="tabs"></nav>
+  <main id="view"></main>
+</div>
+
+<div id="panel-bg" hidden onclick="App.closePanel()"></div>
+<aside id="panel" hidden>
+  <header><b>🔔 Notifications</b><button class="x" onclick="App.closePanel()" aria-label="Close">✕</button></header>
+  <div id="panel-list"></div>
+</aside>
+
+<div id="modal-bg" hidden>
+  <div id="modal" role="dialog" aria-modal="true">
+    <header><b id="m-title"></b><button class="x" onclick="App.closeModal()" aria-label="Close">✕</button></header>
+    <div class="body" id="m-body"></div>
+    <footer id="m-foot"></footer>
+  </div>
+</div>
+<div id="toast" hidden></div>
+
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-storage-compat.js"></script>
+<script>
+/* ════════════════════════════════════════════════════════════════════════
+   SETUP — the only part you need to change
+   ════════════════════════════════════════════════════════════════════════ */
+var TRK_CONFIG = {
+  // Copy the firebaseConfig block from index.html (CallDashboard) and paste it here.
+  firebaseConfig: {
+    apiKey: "PASTE-FROM-INDEX.HTML",
+    authDomain: "hvac-ops.firebaseapp.com",
+    projectId: "hvac-ops",
+    storageBucket: "PASTE-FROM-INDEX.HTML",
+    messagingSenderId: "PASTE-FROM-INDEX.HTML",
+    appId: "PASTE-FROM-INDEX.HTML"
+  },
+  // Where your Cloud Functions live (same address CallDashboard calls sendSms / sendEmail on).
+  functionsBase: "https://us-central1-hvac-ops.cloudfunctions.net",
+  unitPrefix: "MC-"
+};
+
+// How a text / email is handed to your existing sendSms / sendEmail functions.
+// If CallDashboard sends them with different field names, change only these two lines.
+function trkSmsPayload(phones, message, units){ return { to: phones, message: message, log: { kind: "Compliance reminder", phoneUnits: units } }; }
+function trkEmailPayload(emails, subject, html){ return { to: emails, subject: subject, html: html }; }
+
+/* ════════════════════════════════════════════════════════════════════════ */
+var TRK_VERSION = "1.01";
+
+var DEFAULT_SETTINGS = {
+  docTypes: [
+    { id: "dl",   name: "Driver's License",       cat: "document",      scope: "member",  expires: true, number: true,  required: true },
+    { id: "emt",  name: "EMT Certification",      cat: "certification", scope: "member",  expires: true, number: true,  required: true },
+    { id: "cpr",  name: "CPR Certification",      cat: "certification", scope: "member",  expires: true, number: false, required: true },
+    { id: "elp",  name: "Emergency Light Permit", cat: "document",      scope: "member",  expires: true, number: true,  required: true },
+    { id: "cevo", name: "CEVO Certification",     cat: "certification", scope: "member",  expires: true, number: false, required: true },
+    { id: "ins",  name: "Vehicle Insurance",      cat: "document",      scope: "vehicle", expires: true, number: true,  required: true },
+    { id: "reg",  name: "Vehicle Registration",   cat: "document",      scope: "vehicle", expires: true, number: false, required: true }
+  ],
+  warnDays: 30,
+  bagIntervalDays: 30,
+  bagRoles: ["responder", "captain", "chief", "backup"],
+  rigIntervalDays: 7,
+  rigIds: null,                 // null = every ambulance found in Fleet
+  rigInspection: [
+    "Headlights, tail lights, turn signals", "Emergency lights", "Siren", "Horn",
+    "Tires (pressure / tread)", "Fuel level", "Oil / fluid leaks", "Wipers & washer fluid",
+    "Mirrors & windows", "Doors & compartments latch", "Stretcher operates & locks",
+    "Portable suction works", "Onboard suction works", "Main O2 pressure", "AED checked & charged",
+    "Radio check", "Patient compartment clean", "Cab clean"
+  ],
+  reminderCooldownDays: 7,
+  templates: {
+    sms: "{org} Compliance reminder for {unit}:\n{items}\nPlease update them in the Compliance Tracker:\n{link}\n{time}",
+    emailSubject: "{org} Compliance reminder for {unit}",
+    emailBody: "Hi {name},\n\nThese items need your attention:\n{items}\n\nPlease update them in the Compliance Tracker:\n{link}\n\n{time}"
+  }
+};
+
+var DEFAULT_JUMPBAG = [
+  { name: "Jump Bag", items: [ {n:"BP cuff - Adult", par:"1"}, {n:"Stethoscope", par:"1"}, {n:"Pulse oximeter", par:"1"},
+    {n:"NRB - Adult", par:"2"}, {n:"Nasal cannula - Adult", par:"2"}, {n:"BVM - Adult", par:"1"}, {n:"OPA set", par:"1"},
+    {n:"4x4 gauze", par:"10"}, {n:"Trauma dressing", par:"2"}, {n:"Tourniquet", par:"2"}, {n:"Gloves", par:"1 box"},
+    {n:"O2 Tank - Regular - Secured - w/min 1000 psi", par:"1"} ] },
+  { name: "AED", items: [ {n:"AED", par:"1"}, {n:"Pads - Adult", par:"2"}, {n:"Pads - Pediatric", par:"1"}, {n:"Razor", par:"1"} ] }
+];
+var DEFAULT_RIG_SUPPLIES = [
+  { name: "Airway", items: [ {n:"NRB - Adult", par:"4"}, {n:"Nasal cannula - Adult", par:"4"}, {n:"BVM - Adult", par:"2"} ] },
+  { name: "Trauma", items: [ {n:"Trauma dressing", par:"4"}, {n:"Tourniquet", par:"2"}, {n:"Cervical collars", par:"1 set"} ] }
+];
+
+/* ════════════════════════════════════════════════════════════════════════
+   FIREBASE
+   ════════════════════════════════════════════════════════════════════════ */
+firebase.initializeApp(TRK_CONFIG.firebaseConfig);
+var auth = firebase.auth();
+var db = firebase.firestore();
+var storage = firebase.storage();
+auth.setPersistence(firebase.auth.Auth.Persistence.LOCAL).catch(function(){});
+
+/* ════════════════════════════════════════════════════════════════════════
+   STATE
+   ════════════════════════════════════════════════════════════════════════ */
+var S = {
+  user: null, me: null, isAdmin: false, isLogistics: false,
+  settings: clone(DEFAULT_SETTINGS), org: {}, restock: null,
+  myRecords: {}, myVehicles: [], myBag: null,
+  users: [], allRecords: {}, allVehicles: [], allBags: {}, rigStatus: {}, fleet: [], reminderLog: {},
+  tab: "home", adminTab: "grid", gridOnlyProblems: false,
+  unsubs: [], check: null
+};
+
+/* ════════════════════════════════════════════════════════════════════════
+   SMALL HELPERS
+   ════════════════════════════════════════════════════════════════════════ */
+function clone(o){ return JSON.parse(JSON.stringify(o)); }
+function $(id){ return document.getElementById(id); }
+function esc(s){ return String(s == null ? "" : s).replace(/[&<>"']/g, function(c){ return {"&":"&amp;","<":"&lt;",">":"&gt;","\"":"&quot;","'":"&#39;"}[c]; }); }
+function toast(msg, ms){ var t = $("toast"); t.textContent = msg; t.hidden = false; clearTimeout(toast._t); toast._t = setTimeout(function(){ t.hidden = true; }, ms || 3200); }
+function pad(n){ return (n < 10 ? "0" : "") + n; }
+function todayStr(){ var d = new Date(); return d.getFullYear() + "-" + pad(d.getMonth()+1) + "-" + pad(d.getDate()); }
+function daysUntil(ymd){
+  if (!ymd) return null;
+  var p = ymd.split("-"); var d = new Date(+p[0], +p[1]-1, +p[2]);
+  var t = new Date(); t.setHours(0,0,0,0);
+  return Math.round((d - t) / 86400000);
+}
+function fmtDate(ymd){ if (!ymd) return ""; var p = ymd.split("-"); return p[1] + "/" + p[2] + "/" + p[0]; }
+function fmtTs(ms){
+  if (!ms) return "Never";
+  var d = new Date(ms);
+  return pad(d.getMonth()+1) + "/" + pad(d.getDate()) + "/" + d.getFullYear() + " " + pad(d.getHours()) + ":" + pad(d.getMinutes());
+}
+// The same footer every CallDashboard text ends with: "Date: MM/DD/YYYY  Time: HH:MM" (New Jersey time)
+function smsStamp(){
+  var parts = {};
+  new Intl.DateTimeFormat("en-US", { timeZone: "America/New_York", year: "numeric", month: "2-digit", day: "2-digit", hour: "2-digit", minute: "2-digit", hourCycle: "h23" })
+    .formatToParts(new Date()).forEach(function(p){ parts[p.type] = p.value; });
+  return "Date: " + parts.month + "/" + parts.day + "/" + parts.year + "  Time: " + parts.hour + ":" + parts.minute;
+}
+function normUnit(u){
+  u = String(u || "").trim().toUpperCase().replace(/\s+/g, "");
+  var pre = TRK_CONFIG.unitPrefix.toUpperCase();
+  var bare = pre.replace(/-$/, "");
+  if (/^\d+$/.test(u)) return pre + (u.length < 2 ? "0" + u : u);
+  if (u.indexOf(bare) === 0 && u.indexOf(pre) !== 0) u = pre + u.slice(bare.length).replace(/^-/, "");
+  return u;
+}
+function unitNum(u){ var m = String(u || "").match(/(\d+)/); return m ? +m[1] : 9999; }
+function daysAgo(ms){ return ms ? Math.floor((Date.now() - ms) / 86400000) : null; }
+function orgName(){ return S.org.textName || S.org.shortName || "MC Hatzolah"; }
+function pageLink(){ return location.origin + location.pathname; }
+function docTypes(scope){ return (S.settings.docTypes || []).filter(function(t){ return !scope || t.scope === scope; }); }
+function typeById(id){ return (S.settings.docTypes || []).filter(function(t){ return t.id === id; })[0]; }
+function userByUid(uid){ return S.users.filter(function(u){ return u.uid === uid; })[0]; }
+function rolesOf(u){ var r = (u && u.roles) || []; if (u && u.role && r.indexOf(u.role) < 0) r = r.concat([u.role]); return r; }
+
+/* ════════════════════════════════════════════════════════════════════════
+   STATUS RULES
+   ════════════════════════════════════════════════════════════════════════ */
+// Record key: member docs  "<uid>__<type>"   personal vehicle "v_<vehicleDocId>__<type>"   rig "org_<vehicleId>__<type>"
+function recKey(owner, type){ return owner + "__" + type; }
+
+function recStatus(rec, type){
+  if (!rec) return type && type.required === false ? { k: "na", lbl: "Optional — not uploaded", lvl: "na" } : { k: "missing", lbl: "Missing", lvl: "bad" };
+  if (rec.status === "na") return { k: "na", lbl: "Not required", lvl: "na" };
+  if (rec.status === "rejected") return { k: "rejected", lbl: "Needs a new copy", lvl: "bad" };
+  if (type && type.expires && rec.expires){
+    var d = daysUntil(rec.expires);
+    if (d < 0) return { k: "expired", lbl: "Expired", lvl: "bad", days: d };
+    if (d <= (S.settings.warnDays || 30)) return { k: "expiring", lbl: "Expires in " + d + " day" + (d === 1 ? "" : "s"), lvl: "warn", days: d };
+  }
+  if (rec.status === "pending") return { k: "pending", lbl: "Waiting for review", lvl: "info" };
+  return { k: "ok", lbl: "Valid", lvl: "ok" };
+}
+function pillFor(st){ return '<span class="pill p-' + st.lvl + '">' + esc(st.lbl) + '</span>'; }
+function dotFor(st, title){ var cls = st.k === "missing" ? "d-missing" : "d-" + st.lvl; return '<span class="dot ' + cls + '" title="' + esc(title || st.lbl) + '"></span>'; }
+
+function bagRequired(u){
+  var need = S.settings.bagRoles || [];
+  return rolesOf(u).some(function(r){ return need.indexOf(r) >= 0; }) || (u && u.role === "admin" && need.indexOf("admin") >= 0);
+}
+function bagState(bag){
+  var iv = S.settings.bagIntervalDays || 30;
+  if (!bag || !bag.lastAt) return { k: "due", lbl: "Never checked", lvl: "bad", dueIn: -1 };
+  var dueIn = iv - daysAgo(bag.lastAt);
+  if (dueIn < 0) return { k: "overdue", lbl: "Overdue by " + (-dueIn) + " day" + (dueIn === -1 ? "" : "s"), lvl: "bad", dueIn: dueIn };
+  if (dueIn === 0) return { k: "due", lbl: "Due today", lvl: "bad", dueIn: 0 };
+  if (bag.missing && bag.missing.length) return { k: "missing", lbl: bag.missing.length + " item" + (bag.missing.length === 1 ? "" : "s") + " missing", lvl: "warn", dueIn: dueIn };
+  if (dueIn <= 3) return { k: "soon", lbl: "Due in " + dueIn + " day" + (dueIn === 1 ? "" : "s"), lvl: "warn", dueIn: dueIn };
+  return { k: "ok", lbl: "Checked " + fmtTs(bag.lastAt).split(" ")[0], lvl: "ok", dueIn: dueIn };
+}
+function rigState(rs){
+  var iv = S.settings.rigIntervalDays || 7;
+  if (!rs || !rs.lastAt) return { k: "due", lbl: "Never checked", lvl: "bad" };
+  var dueIn = iv - daysAgo(rs.lastAt);
+  if (rs.problems && rs.problems.length) return { k: "problems", lbl: rs.problems.length + " problem" + (rs.problems.length === 1 ? "" : "s"), lvl: "bad", dueIn: dueIn };
+  if (dueIn <= 0) return { k: "due", lbl: dueIn === 0 ? "Check due today" : "Overdue by " + (-dueIn) + " day" + (dueIn === -1 ? "" : "s"), lvl: "bad", dueIn: dueIn };
+  if (dueIn <= 1) return { k: "soon", lbl: "Due tomorrow", lvl: "warn", dueIn: dueIn };
+  return { k: "ok", lbl: "Checked " + fmtTs(rs.lastAt).split(" ")[0], lvl: "ok", dueIn: dueIn };
+}
+
+// Everything a member must fix: their own documents, their vehicles' documents, their jump bag.
+function memberIssues(u, records, vehicles, bag){
+  var out = [];
+  docTypes("member").forEach(function(t){
+    var st = recStatus(records[recKey(u.uid, t.id)], t);
+    if (st.lvl === "bad" || st.lvl === "warn"){
+      var rec = records[recKey(u.uid, t.id)];
+      var txt = t.name + ": " + (st.k === "expired" ? "expired " + fmtDate(rec.expires) : st.k === "expiring" ? "expires " + fmtDate(rec.expires) : st.k === "missing" ? "not on file" : st.lbl.toLowerCase());
+      out.push({ lvl: st.lvl, text: txt, tab: "docs" });
+    }
+  });
+  vehicles.forEach(function(v){
+    docTypes("vehicle").forEach(function(t){
+      var key = recKey("v_" + v.id, t.id), st = recStatus(records[key], t);
+      if (st.lvl === "bad" || st.lvl === "warn"){
+        var rec = records[key];
+        var txt = (v.name || "Vehicle") + " — " + t.name + ": " + (st.k === "expired" ? "expired " + fmtDate(rec.expires) : st.k === "expiring" ? "expires " + fmtDate(rec.expires) : st.k === "missing" ? "not on file" : st.lbl.toLowerCase());
+        out.push({ lvl: st.lvl, text: txt, tab: "vehicles" });
+      }
+    });
+  });
+  if (bagRequired(u)){
+    var bs = bagState(bag);
+    if (bs.lvl === "bad") out.push({ lvl: "bad", text: "Jump bag check: " + bs.lbl.toLowerCase(), tab: "bag" });
+    else if (bs.k === "soon") out.push({ lvl: "warn", text: "Jump bag check: " + bs.lbl.toLowerCase(), tab: "bag" });
+    else if (bs.k === "missing") out.push({ lvl: "warn", text: "Jump bag: " + bs.lbl, tab: "bag" });
+  }
+  return out;
+}
+
+/* ════════════════════════════════════════════════════════════════════════
+   SIGN IN / OUT
+   ════════════════════════════════════════════════════════════════════════ */
+async function signIn(){
+  var unit = normUnit($("li-unit").value), pw = $("li-pw").value;
+  $("login-err").textContent = "";
+  if (!unit || !pw){ $("login-err").textContent = "Enter your unit number and password."; return; }
+  $("li-btn").disabled = true; $("li-btn").textContent = "Signing in…";
+  try {
+    var snap = await db.collection("unitLookup").doc(unit).get();
+    var email = snap.exists ? (snap.data().email || snap.data().authEmail) : null;
+    if (!email) throw { code: "no-unit" };
+    await auth.signInWithEmailAndPassword(email, pw);
+  } catch (e){
+    var c = e && e.code;
+    $("login-err").textContent = c === "no-unit" ? "We couldn't find unit " + unit + "."
+      : (c === "auth/wrong-password" || c === "auth/invalid-credential" || c === "auth/invalid-login-credentials") ? "Wrong password. Use your CallDashboard password."
+      : c === "auth/too-many-requests" ? "Too many tries. Wait a few minutes and try again."
+      : "Couldn't sign in (" + (c || (e && e.message) || "unknown") + ").";
+  }
+  $("li-btn").disabled = false; $("li-btn").textContent = "Sign in";
+}
+function signOut(){ stopListeners(); auth.signOut(); }
+$("li-pw").addEventListener("keydown", function(e){ if (e.key === "Enter") signIn(); });
+
+auth.onAuthStateChanged(async function(user){
+  stopListeners();
+  $("boot").hidden = true;
+  if (!user){ $("app").hidden = true; $("login").hidden = false; S.user = null; return; }
+  S.user = user;
+  try {
+    var snap = await db.collection("users").doc(user.uid).get();
+    if (!snap.exists){ toast("No member record for this account. Ask an admin."); auth.signOut(); return; }
+    S.me = Object.assign({ uid: user.uid }, snap.data());
+  } catch (e){
+    $("boot").hidden = false; $("boot").textContent = "Couldn't load your profile — check your connection. Retrying…";
+    setTimeout(function(){ if (auth.currentUser) location.reload(); }, 5000);
+    return;
+  }
+  S.isAdmin = S.me.role === "admin" || rolesOf(S.me).indexOf("admin") >= 0;
+  S.isLogistics = rolesOf(S.me).indexOf("logistics") >= 0;
+  $("login").hidden = true; $("app").hidden = false;
+  $("who").textContent = (S.me.unit || "") + (S.me.name ? " · " + S.me.name : "") + (S.isAdmin ? " · Admin" : S.isLogistics ? " · Logistics" : "");
+  startListeners();
+  render();
+});
+
+/* ════════════════════════════════════════════════════════════════════════
+   LIVE DATA
+   ════════════════════════════════════════════════════════════════════════ */
+function stopListeners(){ S.unsubs.forEach(function(f){ try { f(); } catch (e){} }); S.unsubs = []; }
+function listen(ref, fn){
+  S.unsubs.push(ref.onSnapshot(fn, function(err){ console.warn("listener", err); if (err.code === "permission-denied") toast("Some data couldn't load (permission). Have the tracker rules been published?", 6000); }));
+}
+var renderSoon = (function(){ var t; return function(){ clearTimeout(t); t = setTimeout(render, 60); }; })();
+
+function startListeners(){
+  var uid = S.user.uid;
+  listen(db.collection("trk_settings").doc("main"), function(d){
+    var s = clone(DEFAULT_SETTINGS);
+    if (d.exists){ var x = d.data(); Object.keys(x).forEach(function(k){ s[k] = x[k]; }); s.templates = Object.assign({}, DEFAULT_SETTINGS.templates, x.templates || {}); }
+    S.settings = s; renderSoon();
+  });
+  listen(db.collection("appdata").doc("restockList"), function(d){ S.restock = d.exists ? d.data() : null; renderSoon(); });
+  db.collection("appdata").doc("org").get().then(function(d){ if (d.exists) S.org = d.data(); }).catch(function(){});
+
+  listen(db.collection("trk_records").where("uid", "==", uid), function(q){
+    S.myRecords = {}; q.forEach(function(d){ S.myRecords[d.id] = Object.assign({ id: d.id }, d.data()); }); renderSoon();
+  });
+  listen(db.collection("trk_myVehicles").where("uid", "==", uid), function(q){
+    S.myVehicles = []; q.forEach(function(d){ S.myVehicles.push(Object.assign({ id: d.id }, d.data())); });
+    S.myVehicles.sort(function(a, b){ return (a.createdAt || 0) - (b.createdAt || 0); });
+    // vehicle documents are keyed by the vehicle, not the member, so listen to those too
+    listenMyVehicleRecords(); renderSoon();
+  });
+  listen(db.collection("trk_bagStatus").doc(uid), function(d){ S.myBag = d.exists ? d.data() : null; renderSoon(); });
+
+  if (S.isAdmin || S.isLogistics){
+    listen(db.collection("vehicles"), function(q){
+      S.fleet = []; q.forEach(function(d){ S.fleet.push(Object.assign({ id: d.id }, d.data())); }); renderSoon();
+    });
+    listen(db.collection("trk_rigStatus"), function(q){ S.rigStatus = {}; q.forEach(function(d){ S.rigStatus[d.id] = d.data(); }); renderSoon(); });
+    listen(db.collection("trk_bagStatus"), function(q){ S.allBags = {}; q.forEach(function(d){ S.allBags[d.id] = d.data(); }); renderSoon(); });
+  }
+  if (S.isAdmin){
+    listen(db.collection("users"), function(q){
+      S.users = []; q.forEach(function(d){ var u = d.data(); if (u && u.unit) S.users.push(Object.assign({ uid: d.id }, u)); });
+      S.users.sort(function(a, b){ return unitNum(a.unit) - unitNum(b.unit); }); renderSoon();
+    });
+    listen(db.collection("trk_records"), function(q){ S.allRecords = {}; q.forEach(function(d){ S.allRecords[d.id] = Object.assign({ id: d.id }, d.data()); }); renderSoon(); });
+    listen(db.collection("trk_myVehicles"), function(q){ S.allVehicles = []; q.forEach(function(d){ S.allVehicles.push(Object.assign({ id: d.id }, d.data())); }); renderSoon(); });
+    listen(db.collection("trk_reminderLog"), function(q){ S.reminderLog = {}; q.forEach(function(d){ S.reminderLog[d.id] = d.data(); }); renderSoon(); });
+  } else if (S.isLogistics){
+    listen(db.collection("trk_records").where("uid", "==", "org"), function(q){
+      Object.keys(S.allRecords).forEach(function(k){ if (S.allRecords[k].uid === "org") delete S.allRecords[k]; });
+      q.forEach(function(d){ S.allRecords[d.id] = Object.assign({ id: d.id }, d.data()); }); renderSoon();
+    });
+  }
+}
+// Vehicle documents are stored with the member's uid too, so they arrive with myRecords. Nothing extra to do.
+function listenMyVehicleRecords(){}
+
+// Records the signed-in person can see, merged
+function visibleRecords(){ return Object.assign({}, S.allRecords, S.myRecords); }
+
+/* ════════════════════════════════════════════════════════════════════════
+   FLEET (rigs come from CallDashboard's vehicles collection)
+   ════════════════════════════════════════════════════════════════════════ */
+function isEquipment(v){
+  var t = String(v.type || "").toLowerCase(), id = String(v.id || "").toLowerCase(), nm = String(v.name || "").toLowerCase();
+  return ["jumpbag", "storage", "other"].indexOf(t) >= 0 || /bag|jump bag|kit/.test(id) || /jump bag/.test(nm);
+}
+function isAmbulance(v){
+  var t = String(v.type || v.kind || "").toLowerCase();
+  if (/ambulance|rig/.test(t)) return true;
+  if (/erv|car|suv/.test(t)) return false;
+  return /9\d\d/.test(String(v.id) + " " + String(v.name || ""));
+}
+function rigList(){
+  var ids = S.settings.rigIds;
+  return S.fleet.filter(function(v){ return !isEquipment(v) && (ids ? ids.indexOf(v.id) >= 0 : isAmbulance(v)); })
+    .sort(function(a, b){ return String(a.name || a.id).localeCompare(String(b.name || b.id), undefined, { numeric: true }); });
+}
+function orgVehicles(){ return S.fleet.filter(function(v){ return !isEquipment(v); }).sort(function(a, b){ return String(a.name || a.id).localeCompare(String(b.name || b.id), undefined, { numeric: true }); }); }
+function vName(v){ return v.name || v.label || v.id; }
+
+function jumpbagList(){ var r = S.restock; return (r && r.jumpbag && r.jumpbag.length) ? r.jumpbag : DEFAULT_JUMPBAG; }
+function rigSupplyList(){ var r = S.restock; return (r && r.sections && r.sections.length) ? r.sections : DEFAULT_RIG_SUPPLIES; }
+
+/* ════════════════════════════════════════════════════════════════════════
+   NOTIFICATIONS (bell panel + banner)
+   ════════════════════════════════════════════════════════════════════════ */
+function notifications(){
+  var list = [];
+  var mine = memberIssues(S.me, S.myRecords, S.myVehicles, S.myBag);
+  mine.forEach(function(i){ list.push({ lvl: i.lvl, title: i.text, sub: "Tap to fix", tab: i.tab }); });
+
+  if (S.isAdmin){
+    var pend = Object.values(S.allRecords).filter(function(r){ return r.status === "pending"; });
+    if (pend.length) list.push({ lvl: "info", title: pend.length + " upload" + (pend.length === 1 ? "" : "s") + " waiting for review", sub: "Admin ▸ Review", tab: "admin", admin: "review" });
+    var bad = 0, warn = 0;
+    S.users.forEach(function(u){
+      var iss = memberIssues(u, S.allRecords, S.allVehicles.filter(function(v){ return v.uid === u.uid; }), S.allBags[u.uid]);
+      if (iss.some(function(i){ return i.lvl === "bad"; })) bad++; else if (iss.length) warn++;
+    });
+    if (bad) list.push({ lvl: "bad", title: bad + " member" + (bad === 1 ? " has" : "s have") + " expired, missing or overdue items", sub: "Admin ▸ Compliance", tab: "admin", admin: "grid" });
+    if (warn) list.push({ lvl: "warn", title: warn + " member" + (warn === 1 ? " has" : "s have") + " items expiring soon", sub: "Admin ▸ Compliance", tab: "admin", admin: "grid" });
+  }
+  if (S.isAdmin || S.isLogistics){
+    rigList().forEach(function(v){
+      var st = rigState(S.rigStatus[v.id]);
+      if (st.lvl !== "ok") list.push({ lvl: st.lvl, title: vName(v) + ": " + st.lbl, sub: "Rig Checks", tab: "rigs" });
+    });
+    orgVehicles().forEach(function(v){
+      docTypes("vehicle").forEach(function(t){
+        var st = recStatus(S.allRecords[recKey("org_" + v.id, t.id)], t);
+        if (st.lvl === "bad" || st.lvl === "warn") list.push({ lvl: st.lvl, title: vName(v) + " — " + t.name + ": " + st.lbl.toLowerCase(), sub: "Rig Checks ▸ Paperwork", tab: "rigs" });
+      });
+    });
+    var bagMiss = Object.values(S.allBags).filter(function(b){ return b.missing && b.missing.length; });
+    if (bagMiss.length) list.push({ lvl: "warn", title: bagMiss.length + " jump bag" + (bagMiss.length === 1 ? " is" : "s are") + " missing items", sub: bagMiss.map(function(b){ return b.unit; }).join(", "), tab: S.isAdmin ? "admin" : "rigs", admin: "bags" });
+  }
+  var order = { bad: 0, warn: 1, info: 2 };
+  return list.sort(function(a, b){ return order[a.lvl] - order[b.lvl]; });
+}
+function renderBell(){
+  var n = notifications(), count = n.filter(function(x){ return x.lvl !== "info" || S.isAdmin; }).length;
+  var b = $("bell-n"); b.hidden = !count; b.textContent = count > 99 ? "99+" : count;
+  if (!$("panel").hidden) renderPanel(n);
+  // banner: only the member's own urgent items
+  var mine = memberIssues(S.me, S.myRecords, S.myVehicles, S.myBag);
+  var urgent = mine.filter(function(i){ return i.lvl === "bad"; });
+  var soon = mine.filter(function(i){ return i.lvl === "warn"; });
+  $("banner").innerHTML = urgent.length
+    ? '<div class="banner"><b>⚠ ' + urgent.length + ' item' + (urgent.length === 1 ? " needs" : "s need") + ' your attention</b>' + urgent.map(function(i){ return esc(i.text); }).join("<br>") + '</div>'
+    : soon.length ? '<div class="banner warn"><b>Coming up soon</b>' + soon.map(function(i){ return esc(i.text); }).join("<br>") + '</div>' : "";
+}
+function renderPanel(n){
+  n = n || notifications();
+  $("panel-list").innerHTML = n.length ? n.map(function(x, i){
+    return '<button class="nitem ' + x.lvl + '" onclick="App.goNotif(' + i + ')"><div>' + (x.lvl === "bad" ? "🔴" : x.lvl === "warn" ? "🟡" : "🔵") + '</div><div>' + esc(x.title) + '<small>' + esc(x.sub || "") + '</small></div></button>';
+  }).join("") : '<div class="empty">✅ You\'re all caught up.</div>';
+  S._notifs = n;
+}
+function openPanel(){ $("panel").hidden = false; $("panel-bg").hidden = false; renderPanel(); }
+function closePanel(){ $("panel").hidden = true; $("panel-bg").hidden = true; }
+function goNotif(i){ var x = S._notifs[i]; closePanel(); if (!x) return; if (x.admin) S.adminTab = x.admin; setTab(x.tab); }
+
+/* ════════════════════════════════════════════════════════════════════════
+   RENDER
+   ════════════════════════════════════════════════════════════════════════ */
+function tabsList(){
+  var t = [["home", "🏠 Home"], ["docs", "📄 My Documents"], ["vehicles", "🚗 My Vehicles"], ["bag", "🎒 Jump Bag"]];
+  if (S.isAdmin || S.isLogistics) t.push(["rigs", "🚑 Rig Checks"]);
+  if (S.isAdmin) t.push(["admin", "⚙ Admin"]);
+  return t;
+}
+function setTab(t){ S.tab = t; render(); window.scrollTo(0, 0); }
+function render(){
+  if (!S.me) return;
+  $("tabs").innerHTML = tabsList().map(function(t){ return '<button class="' + (S.tab === t[0] ? "on" : "") + '" onclick="App.setTab(\'' + t[0] + '\')">' + t[1] + '</button>'; }).join("");
+  var v = $("view");
+  var f = { home: viewHome, docs: viewDocs, vehicles: viewVehicles, bag: viewBag, rigs: viewRigs, admin: viewAdmin }[S.tab] || viewHome;
+  // keep focus/typing safe: don't redraw a settings form someone is typing in
+  if (S.tab === "admin" && S.adminTab === "settings" && v.contains(document.activeElement) && /INPUT|TEXTAREA|SELECT/.test(document.activeElement.tagName)){ renderBell(); return; }
+  v.innerHTML = f();
+  renderBell();
+}
+
+/* ── Home ── */
+function viewHome(){
+  var mt = docTypes("member"), ok = 0, warn = 0, bad = 0;
+  mt.forEach(function(t){ var s = recStatus(S.myRecords[recKey(S.me.uid, t.id)], t); if (s.lvl === "ok" || s.lvl === "info" || s.lvl === "na") ok++; else if (s.lvl === "warn") warn++; else bad++; });
+  var bs = bagState(S.myBag);
+  var h = '<h2>Hi ' + esc((S.me.name || S.me.unit || "").split(" ")[0]) + '</h2><div class="stats">';
+  h += '<button class="card" onclick="App.setTab(\'docs\')"><div class="muted">My documents</div><div class="big-num">' + ok + '/' + mt.length + '</div>' + (bad ? '<span class="pill p-bad">' + bad + ' need attention</span>' : warn ? '<span class="pill p-warn">' + warn + ' expiring</span>' : '<span class="pill p-ok">All good</span>') + '</button>';
+  h += '<button class="card" onclick="App.setTab(\'vehicles\')"><div class="muted">My vehicles</div><div class="big-num">' + S.myVehicles.length + '</div><span class="muted">Insurance & registration</span></button>';
+  if (bagRequired(S.me)) h += '<button class="card" onclick="App.setTab(\'bag\')"><div class="muted">Jump bag</div><div class="big-num">' + (bs.dueIn > 0 ? bs.dueIn + 'd' : '!') + '</div>' + pillFor(bs) + '</button>';
+  if (S.isAdmin || S.isLogistics){
+    var rigs = rigList(), due = rigs.filter(function(v){ return rigState(S.rigStatus[v.id]).lvl !== "ok"; }).length;
+    h += '<button class="card" onclick="App.setTab(\'rigs\')"><div class="muted">Rig checks</div><div class="big-num">' + due + '</div><span class="muted">of ' + rigs.length + ' rigs need a check</span></button>';
+  }
+  h += '</div>';
+  var n = notifications();
+  h += '<h2>To do</h2>' + (n.length ? n.map(function(x, i){ return '<button class="nitem ' + x.lvl + '" onclick="App.goNotifHome(' + i + ')"><div>' + (x.lvl === "bad" ? "🔴" : x.lvl === "warn" ? "🟡" : "🔵") + '</div><div>' + esc(x.title) + '<small>' + esc(x.sub || "") + '</small></div></button>'; }).join("") : '<div class="card empty">✅ Nothing to do right now.</div>');
+  S._notifs = n;
+  return h;
+}
+
+/* ── Document cards (shared by member, vehicle and rig paperwork) ── */
+function docCard(ownerKey, t, rec, ctx){
+  var st = recStatus(rec, t);
+  var h = '<div class="card doc"><div class="top"><h3>' + esc(t.name) + '</h3>' + pillFor(st) + '</div>';
+  if (rec && rec.status !== "na"){
+    h += '<div class="kv">';
+    if (t.number && rec.number) h += '<span>Number</span><span>' + esc(rec.number) + '</span>';
+    if (rec.issued) h += '<span>Issued</span><span>' + fmtDate(rec.issued) + '</span>';
+    if (t.expires) h += '<span>Expires</span><span>' + (rec.expires ? fmtDate(rec.expires) : "—") + '</span>';
+    h += '<span>Updated</span><span>' + fmtTs(rec.updatedAt) + (rec.updatedBy ? " by " + esc(rec.updatedBy) : "") + '</span></div>';
+    h += thumbs(rec.files);
+    if (rec.status === "rejected" && rec.reviewNote) h += '<div class="note">Admin: ' + esc(rec.reviewNote) + '</div>';
+  } else if (!rec){
+    h += '<div class="muted" style="margin:6px 0 10px">Nothing uploaded yet.</div>';
+  }
+  h += '<div class="row"><button class="btn gold sm" data-k="' + esc(ownerKey) + '" data-t="' + esc(t.id) + '" data-c="' + esc(JSON.stringify(ctx)) + '" onclick="App.openUpload(this)">' + (rec ? "Update" : "Upload") + '</button>';
+  if (S.isAdmin && rec) h += '<button class="btn sm" data-id="' + esc(recKey(ownerKey, t.id)) + '" onclick="App.openRecord(this.dataset.id)">Admin…</button>';
+  h += '</div></div>';
+  return h;
+}
+function thumbs(files){
+  if (!files || !files.length) return "";
+  return '<div class="thumbs">' + files.map(function(f){
+    var img = /^image\//.test(f.type || "");
+    return '<a href="' + esc(f.url) + '" target="_blank" rel="noopener" title="' + esc(f.name || "") + '">' + (img ? '<img src="' + esc(f.url) + '" alt="" loading="lazy">' : "📄 PDF") + '</a>';
+  }).join("") + '</div>';
+}
+
+/* ── My Documents ── */
+function viewDocs(){
+  var uid = S.me.uid, h = "";
+  [["document", "📄 Documents"], ["certification", "🎓 Certifications"]].forEach(function(c){
+    var ts = docTypes("member").filter(function(t){ return t.cat === c[0]; });
+    if (!ts.length) return;
+    h += '<h2>' + c[1] + '</h2><div class="docs">';
+    ts.forEach(function(t){ h += docCard(uid, t, S.myRecords[recKey(uid, t.id)], { owner: uid, unit: S.me.unit, name: S.me.name || "" }); });
+    h += '</div>';
+  });
+  return h + '<p class="muted">Take a clear photo of each side, or upload a PDF. An admin checks each upload.</p>';
+}
+
+/* ── My Vehicles ── */
+function viewVehicles(){
+  var h = '<div class="row" style="margin-top:6px"><h2 class="grow" style="margin:8px 0">🚗 My Vehicles</h2><button class="btn gold" onclick="App.addVehicle()">+ Add a vehicle</button></div>';
+  if (!S.myVehicles.length) return h + '<div class="card empty">Add the vehicle you respond in, then upload its insurance card and registration.</div>';
+  S.myVehicles.forEach(function(v){
+    h += '<div class="card"><div class="row"><h3 class="grow">' + esc(v.name || "Vehicle") + (v.plate ? ' <span class="muted">· ' + esc(v.plate) + '</span>' : '') + '</h3>'
+      + '<button class="btn sm" data-id="' + esc(v.id) + '" onclick="App.editVehicle(this.dataset.id)">Edit</button></div><div class="docs" style="margin-top:10px">';
+    docTypes("vehicle").forEach(function(t){
+      h += docCard("v_" + v.id, t, S.myRecords[recKey("v_" + v.id, t.id)], { owner: S.me.uid, unit: S.me.unit, name: S.me.name || "", veh: "v_" + v.id, vehName: v.name || "" });
+    });
+    h += '</div></div>';
+  });
+  return h;
+}
+function addVehicle(){ vehicleForm(null); }
+function editVehicle(id){ vehicleForm(S.myVehicles.filter(function(v){ return v.id === id; })[0] || S.allVehicles.filter(function(v){ return v.id === id; })[0]); }
+function vehicleForm(v){
+  openModal(v ? "Edit vehicle" : "Add a vehicle",
+    '<label>Vehicle (year, make, model)</label><input id="vf-name" placeholder="2022 Ford Explorer" value="' + esc(v ? v.name : "") + '">'
+    + '<label>License plate</label><input id="vf-plate" autocapitalize="characters" value="' + esc(v ? v.plate : "") + '">',
+    (v ? '<button class="btn red" data-id="' + esc(v.id) + '" onclick="App.removeVehicle(this.dataset.id)">Remove</button><span class="grow"></span>' : '')
+    + '<button class="btn" onclick="App.closeModal()">Cancel</button><button class="btn gold" data-id="' + esc(v ? v.id : "") + '" onclick="App.saveVehicle(this.dataset.id)">Save</button>');
+}
+async function saveVehicle(id){
+  var name = $("vf-name").value.trim(), plate = $("vf-plate").value.trim().toUpperCase();
+  if (!name){ toast("Enter the vehicle."); return; }
+  try {
+    if (id) await db.collection("trk_myVehicles").doc(id).update({ name: name, plate: plate });
+    else await db.collection("trk_myVehicles").add({ uid: S.me.uid, unit: S.me.unit || "", name: name, plate: plate, createdAt: Date.now() });
+    closeModal(); toast("✓ Saved");
+  } catch (e){ toast("⚠ Not saved: " + e.message, 6000); }
+}
+async function removeVehicle(id){
+  if (!confirm("Remove this vehicle? Its uploaded papers stay on file for the admin.")) return;
+  try { await db.collection("trk_myVehicles").doc(id).delete(); closeModal(); toast("Removed"); } catch (e){ toast("⚠ " + e.message, 6000); }
+}
+
+/* ── Upload form ── */
+function openUpload(btn){
+  var ownerKey = btn.dataset.k, t = typeById(btn.dataset.t), ctx = JSON.parse(btn.dataset.c || "{}");
+  var key = recKey(ownerKey, t.id), rec = visibleRecords()[key] || null;
+  S.upload = { key: key, ownerKey: ownerKey, type: t, ctx: ctx, rec: rec };
+  var b = '';
+  if (ctx.vehName) b += '<div class="muted" style="margin-top:8px">' + esc(ctx.vehName) + '</div>';
+  if (t.number) b += '<label>Number on the document</label><input id="up-num" value="' + esc(rec ? rec.number : "") + '">';
+  b += '<label>Issue date (if shown)</label><input id="up-iss" type="date" value="' + esc(rec ? rec.issued : "") + '">';
+  if (t.expires) b += '<label>Expiration date</label><input id="up-exp" type="date" value="' + esc(rec ? rec.expires : "") + '">';
+  b += '<label>Photos or PDF ' + (rec && rec.files && rec.files.length ? '(leave empty to keep the current ones)' : '') + '</label>'
+    + '<input id="up-files" type="file" accept="image/*,application/pdf" multiple>'
+    + '<div class="muted" style="margin-top:6px">Front and back if there is a back. Photos are shrunk automatically.</div>'
+    + '<div id="up-prog" class="muted" style="margin-top:8px"></div>';
+  openModal((rec ? "Update " : "Upload ") + t.name, b, '<button class="btn" onclick="App.closeModal()">Cancel</button><button class="btn gold" id="up-save" onclick="App.saveUpload()">Save</button>');
+}
+async function shrinkImage(file){
+  if (!/^image\/(jpeg|png|webp|heic|heif)$/i.test(file.type)) return file;
+  try {
+    var bmp = await createImageBitmap(file);
+    var max = 2000, sc = Math.min(1, max / Math.max(bmp.width, bmp.height));
+    var c = document.createElement("canvas"); c.width = Math.round(bmp.width * sc); c.height = Math.round(bmp.height * sc);
+    c.getContext("2d").drawImage(bmp, 0, 0, c.width, c.height);
+    var blob = await new Promise(function(res){ c.toBlob(res, "image/jpeg", 0.85); });
+    return blob && blob.size < file.size ? new File([blob], file.name.replace(/\.\w+$/, "") + ".jpg", { type: "image/jpeg" }) : file;
+  } catch (e){ return file; }
+}
+async function saveUpload(){
+  var U = S.upload, t = U.type, rec = U.rec;
+  var number = t.number ? $("up-num").value.trim() : "";
+  var issued = $("up-iss").value || "";
+  var expires = t.expires ? ($("up-exp").value || "") : "";
+  var files = Array.from($("up-files").files || []);
+  if (t.expires && !expires){ toast("Enter the expiration date."); return; }
+  if (!files.length && !(rec && rec.files && rec.files.length)){ toast("Add a photo or PDF."); return; }
+  if (files.some(function(f){ return f.size > 15 * 1024 * 1024; })){ toast("Each file must be under 15 MB."); return; }
+  $("up-save").disabled = true;
+  try {
+    var owner = U.ctx.owner === "org" ? "org" : U.ctx.owner;
+    var stored = rec && rec.files ? rec.files : [];
+    if (files.length){
+      stored = [];
+      for (var i = 0; i < files.length; i++){
+        $("up-prog").textContent = "Uploading " + (i + 1) + " of " + files.length + "…";
+        var f = await shrinkImage(files[i]);
+        var path = "trk/" + owner + "/" + U.key + "/" + Date.now() + "_" + f.name.replace(/[^\w.\-]/g, "_").slice(-60);
+        var snap = await storage.ref(path).put(f, { contentType: f.type });
+        stored.push({ url: await snap.ref.getDownloadURL(), path: path, name: f.name, type: f.type, size: f.size });
+      }
+    }
+    var byAdmin = S.isAdmin;
+    var data = {
+      uid: owner, unit: U.ctx.unit || "", memberName: U.ctx.name || "", owner: U.ownerKey,
+      vehicle: U.ctx.veh || null, vehName: U.ctx.vehName || null, typeId: t.id,
+      number: number, issued: issued, expires: expires, files: stored,
+      status: byAdmin ? "approved" : "pending", reviewNote: "",
+      updatedAt: Date.now(), updatedBy: S.me.unit || "", updatedByUid: S.me.uid
+    };
+    if (byAdmin){ data.reviewedBy = S.me.unit || ""; data.reviewedAt = Date.now(); }
+    if (rec && files.length && rec.files && rec.files.length){
+      data.history = (rec.history || []).concat([{ files: rec.files, expires: rec.expires || "", number: rec.number || "", at: rec.updatedAt || 0 }]).slice(-5);
+    } else if (rec && rec.history) data.history = rec.history;
+    await db.collection("trk_records").doc(U.key).set(data);
+    closeModal(); toast(byAdmin ? "✓ Saved and approved" : "✓ Uploaded — an admin will review it");
+  } catch (e){
+    $("up-save").disabled = false; $("up-prog").textContent = "";
+    toast("⚠ Not saved: " + e.message, 7000);
+  }
+}
+
+/* ── Jump bag ── */
+function viewBag(){
+  var bs = bagState(S.myBag), iv = S.settings.bagIntervalDays || 30;
+  var h = '<h2>🎒 My Jump Bag</h2><div class="card"><div class="row"><div class="grow"><div class="muted">Last checked</div><b>' + (S.myBag ? fmtTs(S.myBag.lastAt) : "Never") + '</b></div>' + pillFor(bs) + '</div>'
+    + '<div class="muted" style="margin-top:8px">Check your bag every ' + iv + ' days.' + (S.myBag && S.myBag.lastAt ? ' Next check due ' + fmtTs(S.myBag.lastAt + iv * 86400000).split(" ")[0] + '.' : '') + '</div>';
+  if (!bagRequired(S.me)) h += '<div class="muted" style="margin-top:6px">(Not required for your role — you can still log a check.)</div>';
+  if (S.myBag && S.myBag.missing && S.myBag.missing.length){
+    h += '<div class="note" style="background:#fff4d6;border-color:#e2c27a;color:#5c3c00"><b>Missing from your last check:</b><br>' + S.myBag.missing.map(function(m){ return esc(m.n) + (m.note ? " — " + esc(m.note) : ""); }).join("<br>") + '</div>';
+  }
+  h += '<div class="row" style="margin-top:12px"><button class="btn gold" onclick="App.startBagCheck()">✓ Start bag check</button><button class="btn" onclick="App.bagHistory()">🕘 History</button></div></div>';
+  return h;
+}
+function startBagCheck(){
+  S.check = { kind: "bag", sections: jumpbagList(), ans: {}, notes: {} };
+  openChecklist("🎒 Jump bag check", "Tap ✓ for each item that's there, or ✗ if it's missing or low.", "");
+}
+
+/* ── Rig checks ── */
+function viewRigs(){
+  var rigs = rigList(), sub = S.rigSub || "checks";
+  var h = '<div class="subtabs"><button class="' + (sub === "checks" ? "on" : "") + '" onclick="App.rigSub(\'checks\')">🚑 Rig checks</button><button class="' + (sub === "paper" ? "on" : "") + '" onclick="App.rigSub(\'paper\')">📄 Paperwork</button></div>';
+  if (sub === "paper"){
+    var vs = orgVehicles();
+    if (!vs.length) return h + '<div class="card empty">No vehicles in Admin ▸ Fleet yet.</div>';
+    vs.forEach(function(v){
+      h += '<div class="card"><h3>' + esc(vName(v)) + '</h3><div class="docs" style="margin-top:10px">';
+      docTypes("vehicle").forEach(function(t){ h += docCard("org_" + v.id, t, S.allRecords[recKey("org_" + v.id, t.id)], { owner: "org", unit: v.id, name: "", veh: "org_" + v.id, vehName: vName(v) }); });
+      h += '</div></div>';
+    });
+    return h;
+  }
+  if (!rigs.length) return h + '<div class="card empty">No ambulances found. An admin can pick them in Admin ▸ Settings.</div>';
+  h += '<div class="muted" style="margin-bottom:10px">Each rig is checked every ' + (S.settings.rigIntervalDays || 7) + ' days.</div><div class="docs">';
+  rigs.forEach(function(v){
+    var rs = S.rigStatus[v.id], st = rigState(rs);
+    h += '<div class="card"><div class="row"><h3 class="grow">🚑 ' + esc(vName(v)) + '</h3>' + pillFor(st) + '</div>'
+      + '<div class="kv"><span>Last check</span><span>' + (rs ? fmtTs(rs.lastAt) + " by " + esc(rs.by || "") : "Never") + '</span>'
+      + (rs && rs.mileage ? '<span>Mileage</span><span>' + esc(rs.mileage) + '</span>' : '') + (rs && rs.fuel ? '<span>Fuel</span><span>' + esc(rs.fuel) + '</span>' : '') + '</div>';
+    if (rs && rs.problems && rs.problems.length){
+      h += '<div class="note"><b>Problems:</b><br>' + rs.problems.map(function(p){ return esc(p.n) + (p.note ? " — " + esc(p.note) : ""); }).join("<br>") + '</div>'
+        + '<button class="btn green sm" data-id="' + esc(v.id) + '" onclick="App.rigFixed(this.dataset.id)">✓ Problems fixed</button> ';
+    }
+    h += '<div class="row" style="margin-top:8px"><button class="btn gold" data-id="' + esc(v.id) + '" onclick="App.startRigCheck(this.dataset.id)">Start check</button><button class="btn" data-id="' + esc(v.id) + '" onclick="App.rigHistory(this.dataset.id)">🕘 History</button></div></div>';
+  });
+  return h + '</div>';
+}
+function startRigCheck(id){
+  var v = S.fleet.filter(function(x){ return x.id === id; })[0];
+  var insp = [{ name: "Vehicle inspection", items: (S.settings.rigInspection || []).map(function(n){ return { n: n }; }) }];
+  S.check = { kind: "rig", vid: id, vname: vName(v), sections: insp.concat(rigSupplyList()), ans: {}, notes: {} };
+  openChecklist("🚑 " + vName(v) + " check", "Tap ✓ when the item is OK / stocked, ✗ when there's a problem or it's missing.",
+    '<div class="row"><div class="grow"><label>Mileage</label><input id="ck-miles" inputmode="numeric"></div><div class="grow"><label>Fuel</label><select id="ck-fuel"><option value="">—</option><option>Full</option><option>3/4</option><option>1/2</option><option>1/4</option><option>Below 1/4</option></select></div></div>');
+}
+
+/* ── Checklist sheet (bag + rig) ── */
+function openChecklist(title, help, extraTop){
+  var C = S.check;
+  var b = '<p class="muted">' + esc(help) + '</p>' + extraTop;
+  C.sections.forEach(function(sec, si){
+    b += '<div class="sec"><div class="sec-h"><b>' + esc(sec.name) + '</b><button class="btn sm" onclick="App.ckSection(' + si + ')">All OK</button></div>';
+    (sec.items || []).forEach(function(it, ii){
+      var k = si + ":" + ii;
+      b += '<div class="item" id="ck-' + k.replace(":", "-") + '"><div class="nm">' + esc(it.n) + (it.par ? ' <span class="par">· should have ' + esc(it.par) + '</span>' : '') + '</div>'
+        + '<div class="tog"><button class="ok" onclick="App.ck(\'' + k + '\',\'ok\')">✓</button><button class="bad" onclick="App.ck(\'' + k + '\',\'bad\')">✗</button></div></div>'
+        + '<div class="item-note" id="ckn-' + k.replace(":", "-") + '" hidden><input placeholder="What\'s wrong / how many are left?" oninput="App.ckNote(\'' + k + '\',this.value)"></div>';
+    });
+    b += '</div>';
+  });
+  b += '<label>Notes (optional)</label><textarea id="ck-notes"></textarea>';
+  openModal(title, b, '<span id="ck-count" class="muted grow"></span><button class="btn" onclick="App.closeModal()">Cancel</button><button class="btn gold" id="ck-save" onclick="App.saveCheck()">Submit check</button>');
+  ckCount();
+}
+function ck(k, v){
+  var C = S.check; C.ans[k] = C.ans[k] === v ? undefined : v;
+  var row = $("ck-" + k.replace(":", "-"));
+  row.querySelector(".ok").classList.toggle("on", C.ans[k] === "ok");
+  row.querySelector(".bad").classList.toggle("on", C.ans[k] === "bad");
+  $("ckn-" + k.replace(":", "-")).hidden = C.ans[k] !== "bad";
+  ckCount();
+}
+function ckSection(si){
+  var C = S.check;
+  (C.sections[si].items || []).forEach(function(it, ii){ var k = si + ":" + ii; if (C.ans[k] !== "bad"){ C.ans[k] = undefined; ck(k, "ok"); } });
+}
+function ckNote(k, v){ S.check.notes[k] = v; }
+function ckCount(){
+  var C = S.check, total = 0, done = 0, bad = 0;
+  C.sections.forEach(function(s, si){ (s.items || []).forEach(function(it, ii){ total++; var a = C.ans[si + ":" + ii]; if (a) done++; if (a === "bad") bad++; }); });
+  $("ck-count").textContent = done + " of " + total + " checked" + (bad ? " · " + bad + " problem" + (bad === 1 ? "" : "s") : "");
+}
+async function saveCheck(){
+  var C = S.check, results = [], problems = [], left = 0;
+  C.sections.forEach(function(s, si){ (s.items || []).forEach(function(it, ii){
+    var k = si + ":" + ii, a = C.ans[k];
+    if (!a) left++;
+    results.push({ s: s.name, n: it.n, par: it.par || "", ok: a === "ok", note: C.notes[k] || "" });
+    if (a === "bad") problems.push({ s: s.name, n: it.n, note: C.notes[k] || "" });
+  }); });
+  if (left){ toast(left + " item" + (left === 1 ? " isn't" : "s aren't") + " checked yet. Tap ✓ or ✗ on each one."); return; }
+  $("ck-save").disabled = true;
+  var now = Date.now(), notes = $("ck-notes").value.trim();
+  try {
+    var batch = db.batch();
+    if (C.kind === "bag"){
+      batch.set(db.collection("trk_bagChecks").doc(), { uid: S.me.uid, unit: S.me.unit || "", at: now, results: results, missing: problems, notes: notes });
+      batch.set(db.collection("trk_bagStatus").doc(S.me.uid), { uid: S.me.uid, unit: S.me.unit || "", name: S.me.name || "", lastAt: now, missing: problems, notes: notes });
+    } else {
+      var miles = $("ck-miles").value.trim(), fuel = $("ck-fuel").value;
+      batch.set(db.collection("trk_rigChecks").doc(), { vehicleId: C.vid, rig: C.vname, uid: S.me.uid, unit: S.me.unit || "", at: now, results: results, problems: problems, mileage: miles, fuel: fuel, notes: notes });
+      batch.set(db.collection("trk_rigStatus").doc(C.vid), { vehicleId: C.vid, rig: C.vname, lastAt: now, by: S.me.unit || "", byUid: S.me.uid, problems: problems, mileage: miles, fuel: fuel, notes: notes });
+    }
+    await batch.commit();
+    closeModal(); S.check = null;
+    toast(problems.length ? "✓ Saved — " + problems.length + " problem" + (problems.length === 1 ? "" : "s") + " reported" : "✓ Saved — all good");
+  } catch (e){ $("ck-save").disabled = false; toast("⚠ Not saved: " + e.message, 7000); }
+}
+async function rigFixed(id){
+  if (!confirm("Mark this rig's problems as fixed?")) return;
+  try { await db.collection("trk_rigStatus").doc(id).update({ problems: [], fixedAt: Date.now(), fixedBy: S.me.unit || "" }); toast("✓ Marked fixed"); }
+  catch (e){ toast("⚠ " + e.message, 6000); }
+}
+async function bagHistory(uid){
+  uid = uid || S.me.uid;
+  openModal("🎒 Bag check history", '<div class="empty">Loading…</div>', '<button class="btn" onclick="App.closeModal()">Close</button>');
+  try {
+    var q = await db.collection("trk_bagChecks").where("uid", "==", uid).get(), rows = [];
+    q.forEach(function(d){ rows.push(d.data()); });
+    rows.sort(function(a, b){ return b.at - a.at; });
+    $("m-body").innerHTML = rows.length ? rows.slice(0, 25).map(histRow).join("") : '<div class="empty">No checks yet.</div>';
+  } catch (e){ $("m-body").innerHTML = '<div class="empty">Couldn\'t load: ' + esc(e.message) + '</div>'; }
+}
+async function rigHistory(id){
+  openModal("🕘 Rig check history", '<div class="empty">Loading…</div>', '<button class="btn" onclick="App.closeModal()">Close</button>');
+  try {
+    var q = await db.collection("trk_rigChecks").where("vehicleId", "==", id).get(), rows = [];
+    q.forEach(function(d){ rows.push(d.data()); });
+    rows.sort(function(a, b){ return b.at - a.at; });
+    $("m-body").innerHTML = rows.length ? rows.slice(0, 25).map(histRow).join("") : '<div class="empty">No checks yet.</div>';
+  } catch (e){ $("m-body").innerHTML = '<div class="empty">Couldn\'t load: ' + esc(e.message) + '</div>'; }
+}
+function histRow(r){
+  var probs = r.problems || r.missing || [];
+  return '<div class="card"><div class="row"><b class="grow">' + fmtTs(r.at) + '</b><span class="muted">' + esc(r.unit || "") + '</span>'
+    + (probs.length ? '<span class="pill p-bad">' + probs.length + ' problem' + (probs.length === 1 ? "" : "s") + '</span>' : '<span class="pill p-ok">All OK</span>') + '</div>'
+    + (r.mileage || r.fuel ? '<div class="muted">' + (r.mileage ? "Mileage " + esc(r.mileage) + " " : "") + (r.fuel ? "· Fuel " + esc(r.fuel) : "") + '</div>' : '')
+    + (probs.length ? '<div class="note">' + probs.map(function(p){ return esc(p.n) + (p.note ? " — " + esc(p.note) : ""); }).join("<br>") + '</div>' : '')
+    + (r.notes ? '<div class="muted">Notes: ' + esc(r.notes) + '</div>' : '') + '</div>';
+}
+
+/* ════════════════════════════════════════════════════════════════════════
+   ADMIN
+   ════════════════════════════════════════════════════════════════════════ */
+function viewAdmin(){
+  var tabs = [["grid", "👥 Compliance"], ["review", "📥 Review"], ["vehicles", "🚗 Vehicles"], ["bags", "🎒 Jump Bags"], ["remind", "📣 Reminders"], ["settings", "⚙ Settings"]];
+  var pend = Object.values(S.allRecords).filter(function(r){ return r.status === "pending"; }).length;
+  var h = '<div class="subtabs">' + tabs.map(function(t){ return '<button class="' + (S.adminTab === t[0] ? "on" : "") + '" onclick="App.adminTab(\'' + t[0] + '\')">' + t[1] + (t[0] === "review" && pend ? " (" + pend + ")" : "") + '</button>'; }).join("") + '</div>';
+  return h + ({ grid: adminGrid, review: adminReview, vehicles: adminVehicles, bags: adminBags, remind: adminRemind, settings: adminSettings }[S.adminTab] || adminGrid)();
+}
+function legend(){
+  return '<div class="legend"><span><i class="dot d-ok"></i>Valid</span><span><i class="dot d-info"></i>Waiting for review</span><span><i class="dot d-warn"></i>Expiring soon</span><span><i class="dot d-bad"></i>Expired / rejected / overdue</span><span><i class="dot d-missing"></i>Missing</span><span><i class="dot d-na"></i>Not required</span></div>';
+}
+function adminGrid(){
+  var ts = docTypes("member");
+  var users = S.users.filter(function(u){
+    if (!S.gridOnlyProblems) return true;
+    return memberIssues(u, S.allRecords, S.allVehicles.filter(function(v){ return v.uid === u.uid; }), S.allBags[u.uid]).length > 0;
+  });
+  var h = '<div class="row"><label style="margin:0;display:flex;gap:6px;align-items:center;font-weight:400;color:var(--text)"><input type="checkbox" style="width:auto" ' + (S.gridOnlyProblems ? "checked" : "") + ' onchange="App.gridFilter(this.checked)"> Only members with problems</label></div>' + legend();
+  h += '<div class="tbl-wrap"><table><thead><tr><th>Unit</th><th>Name</th>' + ts.map(function(t){ return '<th class="c">' + esc(t.name) + '</th>'; }).join("") + '<th class="c">Vehicles</th><th class="c">Jump bag</th></tr></thead><tbody>';
+  users.forEach(function(u){
+    h += '<tr><td><b>' + esc(u.unit) + '</b></td><td>' + esc(u.name || "") + '</td>';
+    ts.forEach(function(t){
+      var key = recKey(u.uid, t.id), rec = S.allRecords[key], st = recStatus(rec, t);
+      h += '<td class="c"><button class="dot ' + (st.k === "missing" ? "d-missing" : "d-" + st.lvl) + '" style="cursor:pointer" title="' + esc(t.name + ": " + st.lbl + (rec && rec.expires ? " (" + fmtDate(rec.expires) + ")" : "")) + '" data-id="' + esc(key) + '" data-uid="' + esc(u.uid) + '" data-t="' + esc(t.id) + '" onclick="App.gridCell(this)"></button></td>';
+    });
+    var vs = S.allVehicles.filter(function(v){ return v.uid === u.uid; }), worst = "ok";
+    vs.forEach(function(v){ docTypes("vehicle").forEach(function(t){ var l = recStatus(S.allRecords[recKey("v_" + v.id, t.id)], t).lvl; if (l === "bad") worst = "bad"; else if (l === "warn" && worst !== "bad") worst = "warn"; else if (l === "info" && worst === "ok") worst = "info"; }); });
+    h += '<td class="c">' + (vs.length ? '<span class="dot d-' + worst + '"></span> ' + vs.length : '<span class="muted">—</span>') + '</td>';
+    var bs = bagRequired(u) || S.allBags[u.uid] ? bagState(S.allBags[u.uid]) : null;
+    h += '<td class="c">' + (bs ? '<span class="dot d-' + bs.lvl + '" title="' + esc(bs.lbl) + '"></span>' : '<span class="muted">—</span>') + '</td></tr>';
+  });
+  h += '</tbody></table></div>';
+  if (!users.length) h += '<div class="empty">' + (S.gridOnlyProblems ? "✅ No one has problems." : "No members found.") + '</div>';
+  return h;
+}
+function gridCell(btn){
+  var rec = S.allRecords[btn.dataset.id];
+  if (rec) return openRecord(btn.dataset.id);
+  // nothing on file → offer to upload on their behalf or mark not required
+  var u = userByUid(btn.dataset.uid), t = typeById(btn.dataset.t);
+  openModal(t.name + " — " + u.unit, '<p>' + esc(u.name || u.unit) + ' hasn\'t uploaded this yet.</p>',
+    '<button class="btn" data-id="' + esc(btn.dataset.id) + '" data-uid="' + esc(u.uid) + '" data-t="' + esc(t.id) + '" onclick="App.markNA(this)">Mark not required</button>'
+    + '<button class="btn gold" data-k="' + esc(u.uid) + '" data-t="' + esc(t.id) + '" data-c="' + esc(JSON.stringify({ owner: u.uid, unit: u.unit, name: u.name || "" })) + '" onclick="App.openUpload(this)">Upload for them</button>');
+}
+async function markNA(btn){
+  var u = userByUid(btn.dataset.uid);
+  try {
+    await db.collection("trk_records").doc(btn.dataset.id).set({ uid: u.uid, unit: u.unit, memberName: u.name || "", owner: u.uid, vehicle: null, vehName: null, typeId: btn.dataset.t, status: "na", files: [], updatedAt: Date.now(), updatedBy: S.me.unit || "", updatedByUid: S.me.uid, reviewedBy: S.me.unit || "", reviewedAt: Date.now() });
+    closeModal(); toast("Marked not required");
+  } catch (e){ toast("⚠ " + e.message, 6000); }
+}
+function openRecord(id){
+  var rec = S.allRecords[id] || S.myRecords[id]; if (!rec) return;
+  var t = typeById(rec.typeId) || { name: rec.typeId, expires: true, number: true };
+  var st = recStatus(rec, t);
+  var b = '<div class="row" style="margin-top:10px"><b class="grow">' + esc(rec.unit) + (rec.memberName ? " · " + esc(rec.memberName) : "") + (rec.vehName ? " · " + esc(rec.vehName) : "") + '</b>' + pillFor(st) + '</div>'
+    + '<div class="kv">' + (rec.number ? '<span>Number</span><span>' + esc(rec.number) + '</span>' : '') + (rec.issued ? '<span>Issued</span><span>' + fmtDate(rec.issued) + '</span>' : '')
+    + (rec.expires ? '<span>Expires</span><span>' + fmtDate(rec.expires) + '</span>' : '') + '<span>Uploaded</span><span>' + fmtTs(rec.updatedAt) + ' by ' + esc(rec.updatedBy || "") + '</span>'
+    + (rec.reviewedBy ? '<span>Reviewed</span><span>' + fmtTs(rec.reviewedAt) + ' by ' + esc(rec.reviewedBy) + '</span>' : '') + '</div>' + thumbs(rec.files)
+    + (rec.history && rec.history.length ? '<div class="muted">' + rec.history.length + ' earlier cop' + (rec.history.length === 1 ? "y" : "ies") + ' kept.</div>' : '')
+    + '<label>Note to the member (shown if you reject)</label><input id="rv-note" value="' + esc(rec.reviewNote || "") + '" placeholder="e.g. Photo is blurry — please retake">';
+  openModal(t.name, b,
+    '<button class="btn red sm" data-id="' + esc(id) + '" onclick="App.deleteRecord(this.dataset.id)">Delete</button>'
+    + (rec.status !== "na" ? '<button class="btn sm" data-id="' + esc(id) + '" onclick="App.review(this.dataset.id,\'na\')">Not required</button>' : '')
+    + '<span class="grow"></span><button class="btn red" data-id="' + esc(id) + '" onclick="App.review(this.dataset.id,\'rejected\')">Reject</button>'
+    + '<button class="btn green" data-id="' + esc(id) + '" onclick="App.review(this.dataset.id,\'approved\')">Approve</button>');
+}
+async function review(id, status){
+  var note = ($("rv-note") || {}).value || "";
+  if (status === "rejected" && !note.trim()){ toast("Write a short note so the member knows what to fix."); return; }
+  try {
+    await db.collection("trk_records").doc(id).update({ status: status, reviewNote: status === "rejected" ? note.trim() : "", reviewedBy: S.me.unit || "", reviewedAt: Date.now() });
+    closeModal(); toast(status === "approved" ? "✓ Approved" : status === "rejected" ? "Rejected — the member will see your note" : "Marked not required");
+  } catch (e){ toast("⚠ " + e.message, 6000); }
+}
+async function deleteRecord(id){
+  if (!confirm("Delete this record? The member will have to upload it again.")) return;
+  var rec = S.allRecords[id];
+  try {
+    await db.collection("trk_records").doc(id).delete();
+    (rec && rec.files || []).forEach(function(f){ if (f.path) storage.ref(f.path).delete().catch(function(){}); });
+    closeModal(); toast("Deleted");
+  } catch (e){ toast("⚠ " + e.message, 6000); }
+}
+function adminReview(){
+  var pend = Object.values(S.allRecords).filter(function(r){ return r.status === "pending"; }).sort(function(a, b){ return a.updatedAt - b.updatedAt; });
+  if (!pend.length) return '<div class="card empty">✅ Nothing waiting for review.</div>';
+  return '<div class="docs">' + pend.map(function(r){
+    var t = typeById(r.typeId) || { name: r.typeId };
+    return '<div class="card"><div class="row"><h3 class="grow">' + esc(t.name) + '</h3><span class="muted">' + esc(r.unit) + '</span></div>'
+      + '<div class="muted">' + esc(r.memberName || "") + (r.vehName ? " · " + esc(r.vehName) : "") + '</div>'
+      + '<div class="kv">' + (r.number ? '<span>Number</span><span>' + esc(r.number) + '</span>' : '') + (r.expires ? '<span>Expires</span><span>' + fmtDate(r.expires) + '</span>' : '') + '<span>Uploaded</span><span>' + fmtTs(r.updatedAt) + '</span></div>'
+      + thumbs(r.files) + '<button class="btn gold sm" data-id="' + esc(r.id) + '" onclick="App.openRecord(this.dataset.id)">Review…</button></div>';
+  }).join("") + '</div>';
+}
+function adminVehicles(){
+  var h = '<h2>Members\' vehicles</h2>' + legend();
+  if (!S.allVehicles.length) h += '<div class="card empty">No member vehicles yet.</div>';
+  else {
+    h += '<div class="tbl-wrap"><table><thead><tr><th>Unit</th><th>Vehicle</th><th>Plate</th>' + docTypes("vehicle").map(function(t){ return '<th class="c">' + esc(t.name) + '</th>'; }).join("") + '</tr></thead><tbody>';
+    S.allVehicles.slice().sort(function(a, b){ return unitNum(a.unit) - unitNum(b.unit); }).forEach(function(v){
+      h += '<tr><td><b>' + esc(v.unit) + '</b></td><td>' + esc(v.name || "") + '</td><td>' + esc(v.plate || "") + '</td>';
+      docTypes("vehicle").forEach(function(t){
+        var key = recKey("v_" + v.id, t.id), rec = S.allRecords[key], st = recStatus(rec, t);
+        h += '<td class="c">' + (rec ? '<button class="dot d-' + st.lvl + '" style="cursor:pointer" title="' + esc(st.lbl) + '" data-id="' + esc(key) + '" onclick="App.openRecord(this.dataset.id)"></button>' : dotFor(st)) + '</td>';
+      });
+      h += '</tr>';
+    });
+    h += '</tbody></table></div>';
+  }
+  h += '<h2>Organization vehicles</h2><p class="muted">Rig and ERV insurance / registration are in 🚑 Rig Checks ▸ 📄 Paperwork.</p>';
+  return h;
+}
+function adminBags(){
+  var users = S.users.filter(function(u){ return bagRequired(u) || S.allBags[u.uid]; });
+  var h = '<p class="muted">Every ' + (S.settings.bagIntervalDays || 30) + ' days. Change it in ⚙ Settings.</p>';
+  h += '<div class="tbl-wrap"><table><thead><tr><th>Unit</th><th>Name</th><th>Last check</th><th>Status</th><th>Missing items</th><th></th></tr></thead><tbody>';
+  users.forEach(function(u){
+    var b = S.allBags[u.uid], st = bagState(b);
+    h += '<tr><td><b>' + esc(u.unit) + '</b></td><td>' + esc(u.name || "") + '</td><td>' + (b ? fmtTs(b.lastAt) : "Never") + '</td><td>' + pillFor(st) + '</td>'
+      + '<td style="white-space:normal">' + (b && b.missing && b.missing.length ? b.missing.map(function(m){ return esc(m.n); }).join(", ") : '<span class="muted">—</span>') + '</td>'
+      + '<td><button class="btn sm" data-uid="' + esc(u.uid) + '" onclick="App.bagHistory(this.dataset.uid)">History</button></td></tr>';
+  });
+  return h + '</tbody></table></div>';
+}
+
+/* ── Reminders ── */
+function adminRemind(){
+  var cool = S.settings.reminderCooldownDays || 7;
+  var rows = S.users.map(function(u){ return { u: u, iss: memberIssues(u, S.allRecords, S.allVehicles.filter(function(v){ return v.uid === u.uid; }), S.allBags[u.uid]) }; }).filter(function(r){ return r.iss.length; });
+  var h = '<p class="muted">Sends each member ONE text and/or email listing everything they need to fix. A member who got a reminder in the last ' + cool + ' days is left unticked. Test Mode (CallDashboard ▸ My Settings) sends only to you.</p>';
+  h += '<div class="row" style="margin-bottom:10px"><label style="margin:0;display:flex;gap:6px;align-items:center;font-weight:400;color:var(--text)"><input type="checkbox" id="rm-sms" style="width:auto" checked> 💬 Text</label>'
+    + '<label style="margin:0;display:flex;gap:6px;align-items:center;font-weight:400;color:var(--text)"><input type="checkbox" id="rm-email" style="width:auto" checked> ✉️ Email</label><span class="grow"></span>'
+    + '<button class="btn sm" onclick="App.remindTest()">Send a test to me</button><button class="btn gold" onclick="App.sendReminders()">Send to ticked members</button></div>';
+  if (!rows.length) return h + '<div class="card empty">✅ No one needs a reminder.</div>' + (S.rmMsg ? '<div class="muted">' + esc(S.rmMsg) + '</div>' : '');
+  h += '<div class="tbl-wrap"><table><thead><tr><th><input type="checkbox" style="width:auto" onchange="document.querySelectorAll(\'.rm-pick\').forEach(function(c){c.checked=this.checked}.bind(this))"></th><th>Unit</th><th>Items</th><th>Last reminder</th></tr></thead><tbody>';
+  rows.forEach(function(r){
+    var last = S.reminderLog[r.u.uid], recent = last && daysAgo(last.lastAt) < cool;
+    h += '<tr><td><input type="checkbox" class="rm-pick" style="width:auto" value="' + esc(r.u.uid) + '" ' + (recent ? "" : "checked") + '></td><td><b>' + esc(r.u.unit) + '</b><br><span class="muted">' + esc(r.u.name || "") + '</span></td>'
+      + '<td style="white-space:normal">' + r.iss.map(function(i){ return '<span class="pill p-' + i.lvl + '" style="margin:1px">' + esc(i.text) + '</span>'; }).join(" ") + '</td>'
+      + '<td>' + (last ? fmtTs(last.lastAt) + '<br><span class="muted">' + esc(last.via || "") + '</span>' : '<span class="muted">Never</span>') + '</td></tr>';
+  });
+  return h + '</tbody></table></div><div id="rm-prog" class="muted" style="margin-top:10px">' + esc(S.rmMsg || "") + '</div>';
+}
+function fillTpl(tpl, v){ return String(tpl || "").replace(/\{(\w+)\}/g, function(m, k){ return v[k] != null ? v[k] : m; }); }
+function reminderVars(u, iss){
+  return { name: (u.name || u.unit || "").split(" ")[0], unit: u.unit || "", org: orgName(), items: iss.map(function(i){ return "- " + i.text; }).join("\n"), link: pageLink(), time: smsStamp() };
+}
+function emailHtml(subject, text){
+  var accent = S.org.accent || "#c9a84c";
+  var body = esc(text).replace(/(https?:\/\/[^\s<]+)/g, '<a href="$1" style="color:' + esc(accent) + '">$1</a>').replace(/\n/g, "<br>");
+  return '<div style="font-family:Arial,sans-serif;max-width:560px;margin:auto;border:1px solid #ddd;border-radius:10px;overflow:hidden">'
+    + '<div style="background:#0f1b30;color:' + esc(accent) + ';padding:14px 18px;font-weight:bold;font-size:17px">' + esc(subject) + '</div>'
+    + '<div style="padding:16px 18px;color:#222;font-size:15px;line-height:1.5">' + body + '</div></div>';
+}
+async function callFn(name, data){
+  var tok = await auth.currentUser.getIdToken();
+  var r = await fetch(TRK_CONFIG.functionsBase + "/" + name, { method: "POST", headers: { "Content-Type": "application/json", "Authorization": "Bearer " + tok }, body: JSON.stringify({ data: data }) });
+  var j = await r.json().catch(function(){ return {}; });
+  if (!r.ok || j.error) throw new Error((j.error && j.error.message) || ("HTTP " + r.status));
+  return j.result;
+}
+async function sendOne(u, iss, viaSms, viaEmail){
+  var v = reminderVars(u, iss), T = S.settings.templates, sent = [];
+  if (viaSms && u.phone){ await callFn("sendSms", trkSmsPayload([u.phone], fillTpl(T.sms, v), [u.unit])); sent.push("text"); }
+  if (viaEmail && u.email){ var subj = fillTpl(T.emailSubject, v); await callFn("sendEmail", trkEmailPayload([u.email], subj, emailHtml(subj, fillTpl(T.emailBody, v)))); sent.push("email"); }
+  return sent;
+}
+async function remindTest(){
+  var viaSms = $("rm-sms").checked, viaEmail = $("rm-email").checked;
+  var sample = [{ lvl: "bad", text: "EMT Certification: expired 09/30/2026" }, { lvl: "warn", text: "Jump bag check: due in 2 days" }];
+  try { var s = await sendOne(S.me, sample, viaSms, viaEmail); toast(s.length ? "✓ Test " + s.join(" + ") + " sent to you" : "Nothing sent — your profile has no phone/email for the ticked channels", 6000); }
+  catch (e){ toast("⚠ Test failed: " + e.message, 8000); }
+}
+async function sendReminders(){
+  var viaSms = $("rm-sms").checked, viaEmail = $("rm-email").checked;
+  if (!viaSms && !viaEmail){ toast("Tick Text, Email or both."); return; }
+  var picks = Array.from(document.querySelectorAll(".rm-pick:checked")).map(function(c){ return c.value; });
+  if (!picks.length){ toast("Tick at least one member."); return; }
+  if (!confirm("Send reminders to " + picks.length + " member" + (picks.length === 1 ? "" : "s") + "?")) return;
+  var ok = 0, fail = [];
+  for (var i = 0; i < picks.length; i++){
+    var u = userByUid(picks[i]); if (!u) continue;
+    S.rmMsg = "";
+    if ($("rm-prog")) $("rm-prog").textContent = "Sending " + (i + 1) + " of " + picks.length + " (" + u.unit + ")…";
+    var iss = memberIssues(u, S.allRecords, S.allVehicles.filter(function(v){ return v.uid === u.uid; }), S.allBags[u.uid]);
+    try {
+      var s = await sendOne(u, iss, viaSms, viaEmail);
+      if (s.length){ ok++; await db.collection("trk_reminderLog").doc(u.uid).set({ unit: u.unit, lastAt: Date.now(), lastBy: S.me.unit || "", via: s.join(" + "), items: iss.map(function(x){ return x.text; }) }); }
+      else fail.push(u.unit + " (no phone/email)");
+    } catch (e){ fail.push(u.unit + " (" + e.message + ")"); }
+  }
+  S.rmMsg = "✓ Sent to " + ok + "." + (fail.length ? " Not sent: " + fail.join(", ") : "");
+  render();
+}
+
+/* ── Settings ── */
+function adminSettings(){
+  var s = S.settings, T = s.templates;
+  var h = '<div class="card"><h3>📄 Documents & certifications</h3><p class="muted">"Member" = each person uploads their own. "Vehicle" = uploaded for each vehicle.</p><div id="st-types">';
+  (s.docTypes || []).forEach(function(t, i){ h += typeRow(t, i); });
+  h += '</div><button class="btn sm" onclick="App.addType()">+ Add a document type</button></div>';
+  h += '<div class="card"><h3>⏱ Timing</h3><div class="row">'
+    + '<div class="grow"><label>Warn this many days before expiry</label><input id="st-warn" type="number" min="1" max="180" value="' + esc(s.warnDays) + '"></div>'
+    + '<div class="grow"><label>Jump bag check every (days)</label><input id="st-bag" type="number" min="1" max="365" value="' + esc(s.bagIntervalDays) + '"></div>'
+    + '<div class="grow"><label>Rig check every (days)</label><input id="st-rig" type="number" min="1" max="90" value="' + esc(s.rigIntervalDays) + '"></div>'
+    + '<div class="grow"><label>Don\'t re-remind within (days)</label><input id="st-cool" type="number" min="0" max="60" value="' + esc(s.reminderCooldownDays) + '"></div></div>'
+    + '<label>Who must check a jump bag (roles, comma separated)</label><input id="st-bagroles" value="' + esc((s.bagRoles || []).join(", ")) + '"></div>';
+  var all = orgVehicles(), sel = s.rigIds || rigList().map(function(v){ return v.id; });
+  h += '<div class="card"><h3>🚑 Rigs that get checked</h3><div class="row">' + (all.length ? all.map(function(v){
+    return '<label style="margin:0;display:flex;gap:6px;align-items:center;font-weight:400;color:var(--text);border:1px solid var(--line);border-radius:8px;padding:6px 10px"><input type="checkbox" class="st-rig" style="width:auto" value="' + esc(v.id) + '" ' + (sel.indexOf(v.id) >= 0 ? "checked" : "") + '> ' + esc(vName(v)) + '</label>';
+  }).join("") : '<span class="muted">No vehicles in Fleet.</span>') + '</div>'
+    + '<label>Vehicle inspection items (one per line)</label><textarea id="st-insp" rows="8">' + esc((s.rigInspection || []).join("\n")) + '</textarea>'
+    + '<p class="muted">The supply items for rig checks and jump bag checks come from CallDashboard ▸ Admin ▸ Fleet ▸ 📦 Restock List (Ambulance and Jump bag tabs). Edit them there.</p></div>';
+  h += '<div class="card"><h3>✉️ Message templates</h3><p class="muted">Words in {braces} are filled in: {name} {unit} {org} {items} {link} {time}. {time} gives "Date: MM/DD/YYYY  Time: HH:MM".</p>'
+    + '<label>Text message</label><textarea id="st-sms" rows="6">' + esc(T.sms) + '</textarea>'
+    + '<label>Email subject</label><input id="st-esub" value="' + esc(T.emailSubject) + '">'
+    + '<label>Email body</label><textarea id="st-ebody" rows="8">' + esc(T.emailBody) + '</textarea>'
+    + '<button class="btn sm" style="margin-top:8px" onclick="App.resetTemplates()">Restore default wording</button></div>';
+  h += '<div class="row"><span class="grow"></span><span id="st-msg" class="muted"></span><button class="btn gold" onclick="App.saveSettings()">💾 Save settings</button></div>';
+  return h;
+}
+function typeRow(t, i){
+  return '<div class="dtype" data-i="' + i + '"><input class="t-name" value="' + esc(t.name) + '" placeholder="Name">'
+    + '<select class="t-cat"><option value="document"' + (t.cat === "document" ? " selected" : "") + '>Document</option><option value="certification"' + (t.cat === "certification" ? " selected" : "") + '>Certification</option></select>'
+    + '<select class="t-scope"><option value="member"' + (t.scope === "member" ? " selected" : "") + '>Member</option><option value="vehicle"' + (t.scope === "vehicle" ? " selected" : "") + '>Vehicle</option></select>'
+    + '<label><input type="checkbox" class="t-exp"' + (t.expires ? " checked" : "") + '> Expires</label>'
+    + '<label><input type="checkbox" class="t-num"' + (t.number ? " checked" : "") + '> Number</label>'
+    + '<label><input type="checkbox" class="t-req"' + (t.required !== false ? " checked" : "") + '> Required</label>'
+    + '<button class="x" title="Remove" onclick="this.parentNode.remove()">✕</button><input type="hidden" class="t-id" value="' + esc(t.id) + '"></div>';
+}
+function addType(){ $("st-types").insertAdjacentHTML("beforeend", typeRow({ id: "", name: "", cat: "certification", scope: "member", expires: true, number: false, required: true }, -1)); }
+function resetTemplates(){ $("st-sms").value = DEFAULT_SETTINGS.templates.sms; $("st-esub").value = DEFAULT_SETTINGS.templates.emailSubject; $("st-ebody").value = DEFAULT_SETTINGS.templates.emailBody; }
+async function saveSettings(){
+  var types = [], used = {};
+  document.querySelectorAll("#st-types .dtype").forEach(function(r){
+    var name = r.querySelector(".t-name").value.trim(); if (!name) return;
+    var id = r.querySelector(".t-id").value || name.toLowerCase().replace(/[^a-z0-9]+/g, "").slice(0, 16) || ("t" + Date.now());
+    while (used[id]) id += "x"; used[id] = 1;
+    types.push({ id: id, name: name, cat: r.querySelector(".t-cat").value, scope: r.querySelector(".t-scope").value, expires: r.querySelector(".t-exp").checked, number: r.querySelector(".t-num").checked, required: r.querySelector(".t-req").checked });
+  });
+  if (!types.length){ toast("Keep at least one document type."); return; }
+  var num = function(id, def){ var n = parseInt($(id).value, 10); return isNaN(n) ? def : n; };
+  var data = {
+    docTypes: types,
+    warnDays: num("st-warn", 30), bagIntervalDays: Math.max(1, num("st-bag", 30)), rigIntervalDays: Math.max(1, num("st-rig", 7)), reminderCooldownDays: num("st-cool", 7),
+    bagRoles: $("st-bagroles").value.split(",").map(function(x){ return x.trim().toLowerCase(); }).filter(Boolean),
+    rigIds: Array.from(document.querySelectorAll(".st-rig:checked")).map(function(c){ return c.value; }),
+    rigInspection: $("st-insp").value.split("\n").map(function(x){ return x.trim(); }).filter(Boolean),
+    templates: { sms: $("st-sms").value, emailSubject: $("st-esub").value, emailBody: $("st-ebody").value },
+    updatedAt: Date.now(), updatedBy: S.me.unit || ""
+  };
+  $("st-msg").textContent = "⏳ Saving…";
+  try { await db.collection("trk_settings").doc("main").set(data); $("st-msg").textContent = "✓ Saved"; document.activeElement && document.activeElement.blur(); setTimeout(render, 300); }
+  catch (e){ $("st-msg").textContent = "⚠ Not saved: " + e.message; }
+}
+
+/* ════════════════════════════════════════════════════════════════════════
+   MODAL
+   ════════════════════════════════════════════════════════════════════════ */
+function openModal(title, body, foot){ $("m-title").textContent = title; $("m-body").innerHTML = body; $("m-foot").innerHTML = foot || ""; $("modal-bg").hidden = false; $("m-body").scrollTop = 0; }
+function closeModal(){ $("modal-bg").hidden = true; $("m-body").innerHTML = ""; S.check = null; }
+$("modal-bg").addEventListener("click", function(e){ if (e.target === this && !S.check) closeModal(); });
+document.addEventListener("keydown", function(e){ if (e.key === "Escape"){ if (!$("panel").hidden) closePanel(); else if (!$("modal-bg").hidden && !S.check) closeModal(); } });
+// re-check due dates every 10 minutes while open
+setInterval(function(){ if (S.me) render(); }, 600000);
+
+/* ════════════════════════════════════════════════════════════════════════
+   Everything the page's buttons call (onclick handlers need these on window)
+   ════════════════════════════════════════════════════════════════════════ */
+window.App = {
+  signIn: signIn, signOut: signOut, setTab: setTab, openPanel: openPanel, closePanel: closePanel, goNotif: goNotif,
+  goNotifHome: goNotif,
+  openUpload: openUpload, saveUpload: saveUpload, closeModal: closeModal,
+  addVehicle: addVehicle, editVehicle: editVehicle, saveVehicle: saveVehicle, removeVehicle: removeVehicle,
+  startBagCheck: startBagCheck, bagHistory: bagHistory, startRigCheck: startRigCheck, rigHistory: rigHistory, rigFixed: rigFixed,
+  rigSub: function(s){ S.rigSub = s; render(); },
+  ck: ck, ckSection: ckSection, ckNote: ckNote, saveCheck: saveCheck,
+  adminTab: function(t){ S.adminTab = t; render(); }, gridFilter: function(v){ S.gridOnlyProblems = v; render(); },
+  gridCell: gridCell, markNA: markNA, openRecord: openRecord, review: review, deleteRecord: deleteRecord,
+  remindTest: remindTest, sendReminders: sendReminders,
+  addType: addType, resetTemplates: resetTemplates, saveSettings: saveSettings
+};
+window.TRK = { S: S, render: render, memberIssues: memberIssues, recStatus: recStatus, bagState: bagState, rigState: rigState, normUnit: normUnit, smsStamp: smsStamp };
+</script>
+</body>
+</html>
