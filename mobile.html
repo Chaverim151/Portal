@@ -3,11 +3,13 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<meta name="trk-version" content="1.45">
+<meta name="trk-version" content="1.47">
 <meta name="trk-mode" content="mobile">
 <meta name="theme-color" content="#ffffff">
 <title>Compliance</title>
 <!-- 1.32: the same Hatzolah MC icon as CallDashboard, built in (no extra files to upload) -->
+<!-- 1.47: admin member page — + Add bag / Remove (no checkbox) -->
+<!-- 1.46: no personal jump bag by default — admins give bags member by member; agency vehicle bags unchanged -->
 <!-- 1.45: immunizations moved into My Documents (no separate tile) -->
 <!-- 1.44: 💉 My Immunizations (lifetime + periodic, like the old portal), required, admin list in ⚙ Admin ▸ Settings -->
 <!-- 1.43: ⚙ Admin ▸ Members — tap a member for one page with everything (profile, to-do, documents, vehicles, jump bags) -->
@@ -312,7 +314,7 @@ td.rep-warn{color:var(--warn);font-weight:700}
     <div class="m-err" id="login-err"></div>
 
     <div style="text-align:center;margin-top:16px"><button class="m-forgot" onclick="App.forgotPw()">Forgot password?</button></div>
-    <div class="m-build">BUILD <span id="li-build">v1.45</span></div>
+    <div class="m-build">BUILD <span id="li-build">v1.47</span></div>
   </div>
 </div>
 <div id="boot" class="empty" style="margin-top:20vh">Signing in…</div>
@@ -391,7 +393,7 @@ function trkSmsPayload(phone, message, unit){
 function trkEmailPayload(email, name, subject, html){ return { to: [{ email: email, name: name || email }], subject: subject, body: html }; }
 
 /* ════════════════════════════════════════════════════════════════════════ */
-var TRK_VERSION = "1.45";
+var TRK_VERSION = "1.47";
 // 1.16: owner asked to block the tracker's notifications for now. While this is true the tracker sends NO texts and
 // NO emails (reminders and test reminders). Sign-in "Forgot password?" still works. Set to false to allow sending again.
 var TRK_SENDING_OFF = true;
@@ -727,7 +729,8 @@ async function saveRigExp(vid){
 }
 function bagExpFor(uid){ return uid === (S.me && S.me.uid) ? (S.myBagExp || {}) : (S.allBagExp[uid] || {}); }
 // 1.27: bags an admin gives a member — settings.bagAssign[uid] = { extra: [{id, name}] (more personal bags), fleet: [Fleet bag ids] (bags they look after)
-function bagAssignOf(uid){ var a = ((S.settings || {}).bagAssign || {})[uid] || {}; return { extra: (a.extra || []).filter(function(x){ return x && x.id && x.name; }), fleet: (a.fleet || []).filter(Boolean) }; }
+// 1.46: nobody has a personal jump bag by default — an admin gives one (primary: true) in 🎒 Assign bags. Agency vehicle bags are unchanged.
+function bagAssignOf(uid){ var a = ((S.settings || {}).bagAssign || {})[uid] || {}; return { primary: !!a.primary, extra: (a.extra || []).filter(function(x){ return x && x.id && x.name; }), fleet: (a.fleet || []).filter(Boolean) }; }
 function personalBagStatus(uid, bid){ var d = uid === (S.me && S.me.uid) ? S.myBag : S.allBags[uid]; return bid ? ((d && d.bags && d.bags[bid]) || null) : d; }
 function personalBagName(uid, bid){ if (!bid) return "Primary Bag"; var x = bagAssignOf(uid).extra.filter(function(e){ return e.id === bid; })[0]; return x ? x.name : "Bag"; }
 function bagDatesOf(uid, bid){ var e = bagExpFor(uid); return bid ? ((e.bagDates || {})[bid] || null) : (e.updatedAt ? (e.dates || {}) : null); }
@@ -740,11 +743,8 @@ function bagExpRows(uid, bid){
 }
 // 1.44: an admin can say a member doesn't need the jump bag (e.g. uses his own equipment from another area) — settings.bagExempt[uid] = { on, reason, by, at }
 function bagExemptOf(uid){ var x = ((S.settings || {}).bagExempt || {})[uid]; return x && x.on ? x : null; }
-function bagRequired(u){
-  if (u && bagExemptOf(u.uid)) return false;
-  var need = S.settings.bagRoles || [];
-  return rolesOf(u).some(function(r){ return need.indexOf(r) >= 0; }) || (u && u.role === "admin" && need.indexOf("admin") >= 0);
-}
+function bagRequired(u){ return !!(u && bagAssignOf(u.uid).primary); }   // 1.46: only members an admin gave a personal bag
+function hasAnyBag(uid){ var a = bagAssignOf(uid); return a.primary || a.extra.length > 0 || a.fleet.length > 0; }
 function bagState(bag){
   var iv = S.settings.bagIntervalDays || 30;
   if (!bag || !bag.lastAt) return { k: "due", lbl: "Never checked", lvl: "bad", dueIn: -1 };
@@ -1144,7 +1144,8 @@ var PAGES = {
   admin:    { icon: "⚙", label: "Admin", sub: "Compliance, review, reports, checklists, settings" }
 };
 function tabsList(){
-  var t = ["profile", "docs", "vehicles", "bag"];   // 1.45: immunizations live inside My Documents
+  var t = ["profile", "docs", "vehicles"];   // 1.45: immunizations live inside My Documents
+  if (S.isAdmin || S.isLogistics || (S.me && hasAnyBag(S.me.uid))) t.push("bag");   // 1.46: Jump Bag tile only for members with a bag
   if (S.isAdmin || S.isLogistics) t.push("rigs");
   if (S.isAdmin && TRK_MODE === "desktop") t.push("admin");   // opened from the ⚙ Admin button in the top bar (1.25), not a tile   // like the CAD, admin is on the computer
   return t;
@@ -1988,9 +1989,6 @@ function personalBagCard(bid){
   var st0 = personalBagStatus(S.me.uid, bid), bs = bagState(st0), iv = S.settings.bagIntervalDays || 30, pick = bid ? "mine:" + bid : "mine";
   var h = '<div class="card"><div class="row"><h3 class="grow" style="margin:0">🎒 ' + esc(personalBagName(S.me.uid, bid)) + '</h3>' + pillFor(bs) + '</div>'
     + '<div class="muted" style="margin-top:6px">Last checked: <b>' + (st0 && st0.lastAt ? fmtTs(st0.lastAt) : "Never") + '</b> · check every ' + iv + ' days' + (st0 && st0.lastAt ? ' · next due ' + fmtTs(st0.lastAt + iv * 86400000).split(" ")[0] : '') + '</div>';
-  var ex0 = !bid && bagExemptOf(S.me.uid);
-  if (ex0) h += '<div class="muted" style="margin-top:6px">(An admin marked your jump bag as not required' + (ex0.reason ? ' — ' + esc(ex0.reason) : '') + '. You can still log a check.)</div>';
-  else if (!bid && !bagRequired(S.me)) h += '<div class="muted" style="margin-top:6px">(Not required for your role — you can still log a check.)</div>';
   if (st0 && st0.missing && st0.missing.length) h += '<div class="note" style="background:#fff4d6;border-color:#e2c27a;color:#5c3c00"><b>Missing from the last check:</b><br>' + st0.missing.map(function(m){ return esc(m.n) + (m.note ? " — " + esc(m.note) : ""); }).join("<br>") + '</div>';
   h += '<div class="row" style="margin-top:10px"><button class="btn gold" data-b="' + esc(pick) + '" onclick="App.startBagCheck(this.dataset.b)">✓ Start bag check</button><button class="btn" onclick="App.bagHistory()">🕘 History</button></div>';
   var er = bagExpRows(S.me.uid, bid);
@@ -1999,8 +1997,9 @@ function personalBagCard(bid){
   return h;
 }
 function viewBag(){
-  var asg = bagAssignOf(S.me.uid), mine = [""].concat(asg.extra.map(function(x){ return x.id; }));
-  var h = '<h2>🎒 ' + (mine.length > 1 ? "My Bags" : "My Jump Bag") + '</h2>' + mine.map(personalBagCard).join("");
+  var asg = bagAssignOf(S.me.uid), mine = (asg.primary ? [""] : []).concat(asg.extra.map(function(x){ return x.id; }));
+  var h = mine.length ? '<h2>🎒 ' + (mine.length > 1 ? "My Bags" : "My Jump Bag") + '</h2>' + mine.map(personalBagCard).join("")
+    : (asg.fleet.length ? '' : '<div class="card empty">You don\'t have a personal jump bag on file. If you carry one, ask an admin to add it.</div>');
   // Fleet bags an admin asked this member to look after (even a rig's bag)
   var look = asg.fleet.map(fleetBagById).filter(Boolean);
   if (look.length) h += '<h2>🧰 Bags You Look After</h2>' + look.map(function(v){
@@ -2571,6 +2570,40 @@ function bagExemptSave(uid){
   var o = {}; o[uid] = { on: true, reason: ($("bx-why").value || "").trim(), by: S.me.unit || "", at: Date.now() };
   closeModal(); savePart({ bagExempt: o }, null);
 }
+// 1.47: + Add bag / Remove on the admin member page. The first bag is the member's Primary Bag; more get their own name.
+function saveBagAssign(uid, a, msg){
+  var all = Object.assign({}, S.settings.bagAssign || {}); all[uid] = { primary: !!a.primary, extra: a.extra || [], fleet: a.fleet || [] };
+  return db.collection("trk_settings").doc("main").set({ bagAssign: all, updatedAt: Date.now(), updatedBy: S.me.unit || "" }, { merge: true })
+    .then(function(){ closeModal(); toast(msg || "✓ Saved"); }).catch(function(e){ toast("⚠ Not saved: " + e.message, 6000); });
+}
+function addBag(uid){
+  var u = userByUid(uid); if (!u) return;
+  var a = bagAssignOf(uid);
+  openModal("+ Add bag — " + u.unit, '<label for="ab-name">Bag name</label><input id="ab-name" value="' + (a.primary ? "" : "Primary Bag") + '" placeholder="e.g. Peds Bag"' + (a.primary ? "" : " readonly") + '>'
+    + '<div class="muted" style="margin-top:6px">' + (a.primary ? "An extra bag this member carries — it's checked on its own, with its own dates." : "This member's main jump bag. Add more bags afterwards if they carry more than one.") + '</div>',
+    '<button class="btn" onclick="App.closeModal()">Cancel</button><button class="btn gold" data-uid="' + esc(uid) + '" onclick="App.addBagSave(this.dataset.uid)">Add bag</button>');
+  setTimeout(function(){ var el = $("ab-name"); if (el && !el.readOnly) el.focus(); }, 50);
+}
+function addBagSave(uid){
+  var a = bagAssignOf(uid), u = userByUid(uid);
+  if (!a.primary){ a.primary = true; return saveBagAssign(uid, a, "✓ " + u.unit + " has a jump bag now"); }
+  var name = ($("ab-name").value || "").trim();
+  if (!name){ toast("Type the bag's name."); return; }
+  if (name.toLowerCase() === "primary bag" || a.extra.some(function(x){ return x.name.toLowerCase() === name.toLowerCase(); })){ toast("This member already has a bag with that name."); return; }
+  a.extra.push({ id: "b" + Date.now().toString(36), name: name });
+  saveBagAssign(uid, a, "✓ " + name + " added");
+}
+function removeBag(uid, bid, fid){
+  var a = bagAssignOf(uid), u = userByUid(uid), nm;
+  if (fid){ var fv = fleetBagById(fid); nm = fv ? bagLabel(fv) : fid; if (!confirm(u.unit + " stops looking after " + nm + "?")) return; a.fleet = a.fleet.filter(function(x){ return x !== fid; }); }
+  else {
+    nm = personalBagName(uid, bid || "");
+    if (!confirm("Remove " + nm + " from " + u.unit + "? Its past checks are kept.")) return;
+    if (bid) a.extra = a.extra.filter(function(x){ return x.id !== bid; }); else a.primary = false;
+  }
+  saveBagAssign(uid, a, "✓ Removed");
+}
+function lookAfter(uid){ assignBags(uid); S._asgFleetOnly = true; drawAssign(); }
 function memberLink(u){ return '<button class="lnk" data-uid="' + esc(u.uid) + '" onclick="App.openMember(this.dataset.uid)" title="Open everything for ' + esc(u.unit) + '"><b>' + esc(u.unit) + '</b></button>'; }
 function openMember(uid){ S.admMember = uid || null; if (uid){ S.adminTab = adminGroupOf(S.adminTab)[0] === "members" ? S.adminTab : "grid"; } render(); window.scrollTo(0, 0); }
 function adminMember(uid){
@@ -2602,22 +2635,23 @@ function adminMember(uid){
       + '<button class="btn sm" data-id="' + esc(v.id) + '" onclick="App.editVehicle(this.dataset.id)">Edit</button></div><div class="docs" style="margin-top:10px">'
       + docTypes("vehicle").map(function(t){ return docCard("v_" + v.id, t, S.allRecords[recKey("v_" + v.id, t.id)], Object.assign({ veh: "v_" + v.id, vehName: vTitle(v) }, ctx)); }).join("") + '</div></div>';
   });
-  var asg = bagAssignOf(uid), bx = bagExemptOf(uid);
+  var asg = bagAssignOf(uid);
   h += '<div class="row" style="margin-top:18px"><h2 class="grow" style="margin:0">🎒 Jump Bags</h2>'
-    + (bx ? '<button class="btn sm" data-uid="' + esc(uid) + '" onclick="App.bagExempt(this.dataset.uid, false)">Make the jump bag required again</button>'
-          : '<button class="btn sm" data-uid="' + esc(uid) + '" onclick="App.bagExempt(this.dataset.uid, true)">Jump bag not required…</button>') + '</div>';
-  if (bx) h += '<div class="note" style="background:#eef4ff;border-color:#b9cdf3;color:#1d3f72;margin-top:8px">🎒 Jump bag <b>not required</b> for this member' + (bx.reason ? ' — ' + esc(bx.reason) : '') + ' <span class="muted">(' + esc(bx.by || "") + (bx.at ? ', ' + fmtTs(bx.at).split(" ")[0] : '') + ')</span></div>';
-  [""].concat(asg.extra.map(function(x){ return x.id; })).forEach(function(bid){
+    + '<button class="btn gold sm" data-uid="' + esc(uid) + '" onclick="App.addBag(this.dataset.uid)">+ Add bag</button>'
+    + '<button class="btn sm" data-uid="' + esc(uid) + '" onclick="App.lookAfter(this.dataset.uid)">🧰 Agency bags to look after</button></div>';
+  if (!hasAnyBag(uid)) h += '<div class="card muted">No jump bag. If this member carries one, tap + Add bag.</div>';
+  (asg.primary ? [""] : []).concat(asg.extra.map(function(x){ return x.id; })).forEach(function(bid){
     var st0 = personalBagStatus(uid, bid), bs = bagState(st0), rows = bagExpRows(uid, bid);
-    if (!bid && !bagRequired(u) && !st0 && !bagDatesOf(uid, "")){ h += bx ? '' : '<div class="card muted">Primary bag: not required for this member\'s role.</div>'; return; }
-    h += '<div class="card"><div class="row"><h3 class="grow" style="margin:0">🎒 ' + esc(personalBagName(uid, bid)) + '</h3>' + pillFor(bs) + '</div>'
+    h += '<div class="card"><div class="row"><h3 class="grow" style="margin:0">🎒 ' + esc(personalBagName(uid, bid)) + '</h3>' + pillFor(bs)
+      + '<button class="btn sm" data-uid="' + esc(uid) + '" data-bag="' + esc(bid) + '" onclick="App.removeBag(this.dataset.uid, this.dataset.bag)">Remove</button></div>'
       + '<div class="muted" style="margin-top:6px">Last checked: <b>' + (st0 && st0.lastAt ? fmtTs(st0.lastAt) : "Never") + '</b></div>'
       + (st0 && st0.missing && st0.missing.length ? '<div class="note" style="background:#fff4d6;border-color:#e2c27a;color:#5c3c00"><b>Missing:</b> ' + st0.missing.map(function(m){ return esc(m.n) + (m.note ? " — " + esc(m.note) : ""); }).join(", ") + '</div>' : '')
       + (rows.length ? expDetails(rows, expTable(uid, bid), 'data-uid="' + esc(uid) + '" data-bag="' + esc(bid) + '" onclick="App.editBagExp(this.dataset.uid, this.dataset.bag)"') : '') + '</div>';
   });
   asg.fleet.map(fleetBagById).filter(Boolean).forEach(function(v){
     var bs = S.allBags["org_" + v.id], orows = obExpRows(v.id);
-    h += '<div class="card"><div class="row"><h3 class="grow" style="margin:0">🧰 ' + esc(bagLabel(v)) + ' <span class="muted" style="font-weight:400">(looks after)</span></h3>' + pillFor(bagState(bs)) + '</div>'
+    h += '<div class="card"><div class="row"><h3 class="grow" style="margin:0">🧰 ' + esc(bagLabel(v)) + ' <span class="muted" style="font-weight:400">(looks after)</span></h3>' + pillFor(bagState(bs))
+      + '<button class="btn sm" data-uid="' + esc(uid) + '" data-f="' + esc(v.id) + '" onclick="App.removeBag(this.dataset.uid, null, this.dataset.f)">Remove</button></div>'
       + '<div class="muted" style="margin-top:6px">Last checked: <b>' + (bs && bs.lastAt ? fmtTs(bs.lastAt) + (bs.by ? " by " + esc(bs.by) : "") : "Never") + '</b></div>'
       + (orows.length ? expDetails(orows, obExpTable(v.id), 'data-id="' + esc(v.id) + '" onclick="App.editObExp(this.dataset.id)"') : '') + '</div>';
   });
@@ -2646,7 +2680,7 @@ function adminGrid(){
     var vs = S.allVehicles.filter(function(v){ return v.uid === u.uid; }), worst = "ok";
     vs.forEach(function(v){ docTypes("vehicle").forEach(function(t){ var l = recStatus(S.allRecords[recKey("v_" + v.id, t.id)], t).lvl; if (l === "bad") worst = "bad"; else if (l === "warn" && worst !== "bad") worst = "warn"; else if (l === "info" && worst === "ok") worst = "info"; }); });
     h += '<td class="c">' + (vs.length ? '<span class="dot d-' + worst + '"></span> ' + vs.length : '<span class="muted">—</span>') + '</td>';
-    var bs = bagRequired(u) || S.allBags[u.uid] ? bagState(S.allBags[u.uid]) : null;
+    var bs = bagRequired(u) ? bagState(S.allBags[u.uid]) : null;
     h += '<td class="c">' + (bs ? '<span class="dot d-' + bs.lvl + '" title="' + esc(bs.lbl) + '"></span>' : '<span class="muted">—</span>') + '</td></tr>';
   });
   h += '</tbody></table></div>';
@@ -2760,34 +2794,36 @@ function viewBagExp(uid){
 // 1.27: give a member more personal bags, and Fleet bags to look after
 function assignBags(uid){
   var u = userByUid(uid); if (!u) return;
-  var a = bagAssignOf(uid); S._asg = { uid: uid, extra: a.extra.map(function(x){ return { id: x.id, name: x.name }; }), fleet: a.fleet.slice() };
+  S._asgFleetOnly = false;
+  var a = bagAssignOf(uid); S._asg = { uid: uid, primary: a.primary, extra: a.extra.map(function(x){ return { id: x.id, name: x.name }; }), fleet: a.fleet.slice() };
   drawAssign();
 }
 function drawAssign(){
-  var A = S._asg, u = userByUid(A.uid);
-  var b = '<h2 style="margin-top:8px">🎒 Personal bags</h2><p class="muted" style="margin:0 0 6px">Every member has a Primary Bag. Add more bags this member carries — each is checked on its own, with its own dates.</p>'
-    + '<div class="item" style="border:1px solid var(--line);border-radius:8px"><span class="nm"><b>Primary Bag</b></span><span class="muted">always</span></div>'
+  var A = S._asg, u = userByUid(A.uid), fleetOnly = !!S._asgFleetOnly;
+  var b = fleetOnly ? '' : '<h2 style="margin-top:8px">🎒 Personal bags</h2><p class="muted" style="margin:0 0 6px">Members don\'t have a jump bag unless you give them one here. Each bag is checked on its own, with its own dates.</p>'
+    + '<label class="item" style="border:1px solid var(--line);border-radius:8px;margin:0;font-weight:400;color:var(--text);cursor:pointer"><span class="nm"><input type="checkbox" id="asg-primary" style="width:auto;margin-right:8px"' + (A.primary ? " checked" : "") + ' onchange="App.asgPrimary(this.checked)"><b>Has a personal jump bag</b> (Primary Bag)</span></label>'
     + A.extra.map(function(x, i){ return '<div class="row" style="margin-top:6px;flex-wrap:nowrap"><input class="asg-name" data-i="' + i + '" value="' + esc(x.name) + '" placeholder="Bag name, e.g. Peds Bag" oninput="App.asgName(' + i + ',this.value)"><button class="btn red sm" onclick="App.asgDel(' + i + ')">Remove</button></div>'; }).join("")
     + '<button class="btn sm" style="margin-top:8px" onclick="App.asgAdd()">+ Add a bag</button>';
+  if (fleetOnly) b = '';
   var all = agencyBags();
   b += '<h2>🧰 Fleet bags to look after</h2><p class="muted" style="margin:0 0 6px">These show on the member\'s Jump Bag page and in their reminders. Anyone can still check them.</p>'
     + (all.length ? '<div class="row">' + all.map(function(v){ var on = A.fleet.indexOf(v.id) >= 0;
         return '<label style="margin:0;display:flex;gap:6px;align-items:center;font-weight:400;color:var(--text);border:1px solid var(--line);border-radius:8px;padding:6px 10px"><input type="checkbox" style="width:auto" ' + (on ? "checked " : "") + 'onchange="App.asgFleet(\'' + esc(v.id) + '\',this.checked)"> ' + esc(bagLabel(v)) + '</label>'; }).join("") + '</div>'
       : '<div class="muted">No jump bags in CallDashboard ▸ Fleet.</div>');
-  openModal("🎒 Bags — " + u.unit + (u.name ? " · " + u.name : ""), b, '<button class="btn" onclick="App.closeModal()">Cancel</button><button class="btn gold" id="asg-save" onclick="App.asgSave()">Save</button>');
+  openModal((fleetOnly ? "🧰 Agency bags to look after — " : "🎒 Bags — ") + u.unit + (u.name ? " · " + u.name : ""), b, '<button class="btn" onclick="App.closeModal()">Cancel</button><button class="btn gold" id="asg-save" onclick="App.asgSave()">Save</button>');
 }
 function asgSave(){
   var A = S._asg, extra = A.extra.map(function(x){ return { id: x.id, name: String(x.name || "").trim() }; }).filter(function(x){ return x.name; });
   var names = {}, dup = extra.some(function(x){ var k = x.name.toLowerCase(); if (k === "primary bag" || names[k]) return true; names[k] = 1; return false; });
   if (dup){ toast("Each bag needs its own name (and not \"Primary Bag\")."); return; }
-  var all = Object.assign({}, S.settings.bagAssign || {}); all[A.uid] = { extra: extra, fleet: A.fleet };
+  var all = Object.assign({}, S.settings.bagAssign || {}); all[A.uid] = { primary: !!A.primary, extra: extra, fleet: A.fleet };
   $("asg-save").disabled = true;
   db.collection("trk_settings").doc("main").set({ bagAssign: all, updatedAt: Date.now(), updatedBy: S.me.unit || "" }, { merge: true })
     .then(function(){ closeModal(); toast("✓ Bags saved"); })
     .catch(function(e){ $("asg-save").disabled = false; toast("⚠ Not saved: " + e.message, 6000); });
 }
 function adminBags(){
-  var users = S.users.filter(function(u){ var a = bagAssignOf(u.uid); return bagRequired(u) || S.allBags[u.uid] || a.extra.length || a.fleet.length; });
+  var users = S.users.filter(function(u){ return hasAnyBag(u.uid); });   // 1.46: only members who were given a bag
   var h = '<p class="muted">Every ' + (S.settings.bagIntervalDays || 30) + ' days. Change it in ⚙ Admin ▸ Timing & Equipment.</p>';
   h += '<div class="tbl-wrap"><table><thead><tr><th>Unit</th><th>Name</th><th>Bags</th><th>Last check</th><th>Status</th><th>Missing items</th><th>Expiration dates</th><th></th></tr></thead><tbody>';
   users.forEach(function(u){
@@ -3025,7 +3061,7 @@ function panelTiming(){
     + '<div class="grow"><label for="st-bag">Jump bag check every (days)</label><input id="st-bag" type="number" min="1" max="365" value="' + esc(s.bagIntervalDays) + '"></div>'
     + '<div class="grow"><label for="st-rig">Ambulance check every (days)</label><input id="st-rig" type="number" min="1" max="90" value="' + esc(s.rigIntervalDays) + '"></div>'
     + '<div class="grow"><label for="st-cool">Don\'t re-remind within (days)</label><input id="st-cool" type="number" min="0" max="60" value="' + esc(s.reminderCooldownDays) + '"></div></div>'
-    + '<label for="st-bagroles">Who must check their own jump bag (roles, comma separated)</label><input id="st-bagroles" value="' + esc((s.bagRoles || []).join(", ")) + '"></div>';
+    + '<p class="muted" style="margin:8px 0 0">Personal jump bags are given to members one by one: ⚙ Admin ▸ Members ▸ (member) ▸ + Add bag.</p></div>';
   var all = S.fleet.filter(function(v){ return !isEquipment(v); }).sort(function(a, b){ return String(vName(a)).localeCompare(String(vName(b)), undefined, { numeric: true }); });
   h += '<div class="card"><h3>🚑 Ambulances that get checked</h3><div class="row">' + ticks("st-rig", all, s.rigIds || rigList().map(function(v){ return v.id; }), vName) + '</div></div>';
   var eq = S.fleet.filter(isBagEquip).sort(function(a, b){ return String(a.id).localeCompare(String(b.id), undefined, { numeric: true }); });
@@ -3037,7 +3073,6 @@ function saveTiming(){
   var num = function(id, def){ var n = parseInt($(id).value, 10); return isNaN(n) ? def : n; };
   savePart({
     warnDays: num("st-warn", 30), bagIntervalDays: Math.max(1, num("st-bag", 30)), rigIntervalDays: Math.max(1, num("st-rig", 7)), reminderCooldownDays: num("st-cool", 7),
-    bagRoles: $("st-bagroles").value.split(",").map(function(x){ return x.trim().toLowerCase(); }).filter(Boolean),
     rigIds: Array.from(document.querySelectorAll(".st-rig:checked")).map(function(c){ return c.value; }),
     bagIds: Array.from(document.querySelectorAll(".st-bagx:checked")).map(function(c){ return c.value; })
   }, "st-msg");
@@ -3146,7 +3181,6 @@ async function saveSettings(){
   var data = {
     docTypes: types,
     warnDays: num("st-warn", 30), bagIntervalDays: Math.max(1, num("st-bag", 30)), rigIntervalDays: Math.max(1, num("st-rig", 7)), reminderCooldownDays: num("st-cool", 7),
-    bagRoles: $("st-bagroles").value.split(",").map(function(x){ return x.trim().toLowerCase(); }).filter(Boolean),
     rigIds: Array.from(document.querySelectorAll(".st-rig:checked")).map(function(c){ return c.value; }),
     bagQuestions: parseBagQ($("st-bagq").value),
     expItems: $("st-exp").value.split("\n").map(function(x){ return x.trim(); }).filter(Boolean).filter(function(x, i, a){ return a.indexOf(x) === i; }),
@@ -3396,7 +3430,7 @@ window.App = {
   saveProfile: saveProfile, vfRepl: vfRepl, editBagExp: editBagExp, saveBagExp: saveBagExp, viewBagExp: viewBagExp, phoneTyping: phoneTyping, openProfile: openProfile,
   addType: addType, resetTemplates: resetTemplates, saveSettings: saveSettings,
   panelTab: function(t){ S.adminTab = { rig: "rigcl", bag: "bagcl" }[t] || t; setTab("admin"); render(); window.scrollTo(0, 0); }, cedSet: cedSet, cedOp: cedOp, saveRigList: saveRigList, saveBagList: saveBagList,
-  saveDocs: saveDocs, editRigExp: editRigExp, assignBags: assignBags, asgSave: asgSave,
+  saveDocs: saveDocs, editRigExp: editRigExp, assignBags: assignBags, addBag: addBag, addBagSave: addBagSave, removeBag: removeBag, lookAfter: lookAfter, asgPrimary: function(v){ if (S._asg) S._asg.primary = !!v; }, asgSave: asgSave,
   asgAdd: function(){ S._asg.extra.push({ id: "b" + Date.now().toString(36), name: "" }); drawAssign(); var n = document.querySelectorAll(".asg-name"); if (n.length) n[n.length - 1].focus(); },
   asgDel: function(i){ S._asg.extra.splice(i, 1); drawAssign(); }, asgName: function(i, v){ S._asg.extra[i].name = v; },
   asgFleet: function(id, on){ var f = S._asg.fleet, i = f.indexOf(id); if (on && i < 0) f.push(id); if (!on && i >= 0) f.splice(i, 1); }, expOne: expOne, vehPics: vehPics, openVeh: openVeh, importLicAddr: importLicAddr, expOneSave: expOneSave, expOneCancel: expOneCancel, viewObExp: viewObExp, editObExp: editObExp, saveObExp: saveObExp, saveRigExp: saveRigExp, saveTiming: saveTiming, saveMsg: saveMsg, ckPick: ckPick
