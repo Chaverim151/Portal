@@ -3,11 +3,12 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<meta name="trk-version" content="1.55">
+<meta name="trk-version" content="1.56">
 <meta name="trk-mode" content="mobile">
 <meta name="theme-color" content="#ffffff">
 <title>Compliance</title>
 <!-- 1.32: the same Hatzolah MC icon as CallDashboard, built in (no extra files to upload) -->
+<!-- 1.56: phone document cards fold to name · status · expiry; tap to open -->
 <!-- 1.55: drag & drop files on the computer -->
 <!-- 1.54: phone tidy-up — tables become cards, short attention box (not on Home), no name squeeze in the top bar -->
 <!-- 1.53: 👤 My Profile moved from a home tile to the top bar -->
@@ -131,6 +132,12 @@ body.dragging #m-body .drop-hint{color:var(--accent);font-weight:700}
   table.stack td:not([data-label]):before,table.stack td[data-label=""]::before{display:none}
   table.stack td:last-child:empty,table.stack td.blank{display:none}
   table.stack td .btn{min-height:36px}
+  table.stack tbody tr{cursor:pointer}
+  table.stack tr:not(.open) td:not(.key){display:none}
+  table.stack tr:not(.open) td:first-child{border-bottom:none;margin-bottom:0}
+  table.stack td:first-child::after{content:"▾";color:var(--gray);font-size:.9rem;margin-left:auto;padding-left:8px}
+  table.stack tr.open td:first-child::after{content:"▴"}
+  table.stack td:first-child{display:flex;align-items:center}
   .modal table.stack tr,#m-body table.stack tr{background:transparent}
 }
 .prof-unit{display:none}
@@ -349,7 +356,7 @@ td.rep-warn{color:var(--warn);font-weight:700}
     <div class="m-err" id="login-err"></div>
 
     <div style="text-align:center;margin-top:16px"><button class="m-forgot" onclick="App.forgotPw()">Forgot password?</button></div>
-    <div class="m-build">BUILD <span id="li-build">v1.55</span></div>
+    <div class="m-build">BUILD <span id="li-build">v1.56</span></div>
   </div>
 </div>
 <div id="boot" class="empty" style="margin-top:20vh">Signing in…</div>
@@ -429,7 +436,7 @@ function trkSmsPayload(phone, message, unit){
 function trkEmailPayload(email, name, subject, html){ return { to: [{ email: email, name: name || email }], subject: subject, body: html }; }
 
 /* ════════════════════════════════════════════════════════════════════════ */
-var TRK_VERSION = "1.55";
+var TRK_VERSION = "1.56";
 // 1.16: owner asked to block the tracker's notifications for now. While this is true the tracker sends NO texts and
 // NO emails (reminders and test reminders). Sign-in "Forgot password?" still works. Set to false to allow sending again.
 var TRK_SENDING_OFF = true;
@@ -1223,9 +1230,17 @@ function stackTables(root){
     var heads = Array.from(t.querySelectorAll("thead th")).map(function(th){ return th.textContent.trim(); });
     if (!heads.length) return;
     t.classList.add("stack"); t.dataset.stacked = "1";
-    t.querySelectorAll("tbody tr").forEach(function(tr){ Array.from(tr.children).forEach(function(td, i){ if (heads[i]) td.setAttribute("data-label", heads[i]); if (i && td.textContent.trim() === "—") td.classList.add("blank"); }); });
+    t.querySelectorAll("tbody tr").forEach(function(tr){ Array.from(tr.children).forEach(function(td, i){ if (heads[i]) td.setAttribute("data-label", heads[i]); if (i && td.textContent.trim() === "—") td.classList.add("blank");
+      // 1.56: phone cards start folded — only the name, status and expiry show until the card is tapped
+      if (i === 0 || /^(status|validity|expires|expiration)$/i.test(heads[i] || "")) td.classList.add("key"); }); });
   });
 }
+document.addEventListener("click", function(e){
+  if (window.innerWidth > 600) return;
+  var tr = e.target.closest && e.target.closest("table.stack tbody tr"); if (!tr) return;
+  if (e.target.closest("button, a, input, select, textarea, label")) return;
+  tr.classList.toggle("open");
+});
 function render(){
   if (!S.me) return;
   var pg = PAGES[S.tab];
