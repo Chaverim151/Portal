@@ -3,11 +3,12 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<meta name="trk-version" content="1.43">
+<meta name="trk-version" content="1.44">
 <meta name="trk-mode" content="desktop">
 <meta name="theme-color" content="#ffffff">
 <title>Compliance</title>
 <!-- 1.32: the same Hatzolah MC icon as CallDashboard, built in (no extra files to upload) -->
+<!-- 1.44: 💉 My Immunizations (lifetime + periodic, like the old portal), required, admin list in ⚙ Admin ▸ Settings -->
 <!-- 1.43: ⚙ Admin ▸ Members — tap a member for one page with everything (profile, to-do, documents, vehicles, jump bags) -->
 <!-- 1.42: checks no longer ask for expiration dates (dates are only in the ⏳ Expiration Dates boxes) -->
 <!-- 1.41: ⚙ Admin grouped into main tabs with sub-tabs, like CallDashboard -->
@@ -129,6 +130,9 @@ h2{font-size:1.1rem;margin:18px 0 10px;color:var(--accent)}
 .admin-tab.on{color:var(--accent);border-bottom-color:var(--accent)}
 /* 1.41: sub-tabs inside an admin group (like CallDashboard's Fleet / Users / Security sub-tabs) */
 .lnk{background:none;border:none;padding:0;font:inherit;color:var(--accent);text-decoration:underline;cursor:pointer}
+.imm-chks{display:flex;flex-direction:column;gap:6px;margin:4px 0}
+.imm-chk{display:flex;gap:8px;align-items:center;font-weight:400;margin:0;color:var(--text)}
+.imm-chk input{width:auto}
 .admin-subtabs{display:flex;gap:8px;flex-wrap:wrap;margin:-4px 0 14px}
 .admin-subtab{font-family:'Oswald',sans-serif;font-size:.75rem;letter-spacing:.08em;text-transform:uppercase;padding:6px 14px;border-radius:20px;border:1px solid var(--line);background:#fff;color:var(--gray);cursor:pointer;box-shadow:inset 0 0 0 1px rgba(31,35,40,.12)}
 .admin-subtab:hover{color:var(--text)}
@@ -307,7 +311,7 @@ td.rep-warn{color:var(--warn);font-weight:700}
     <div class="m-err" id="login-err"></div>
 
     <div style="text-align:center;margin-top:16px"><button class="m-forgot" onclick="App.forgotPw()">Forgot password?</button></div>
-    <div class="m-build">BUILD <span id="li-build">v1.43</span></div>
+    <div class="m-build">BUILD <span id="li-build">v1.44</span></div>
   </div>
 </div>
 <div id="boot" class="empty" style="margin-top:20vh">Signing in…</div>
@@ -386,7 +390,7 @@ function trkSmsPayload(phone, message, unit){
 function trkEmailPayload(email, name, subject, html){ return { to: [{ email: email, name: name || email }], subject: subject, body: html }; }
 
 /* ════════════════════════════════════════════════════════════════════════ */
-var TRK_VERSION = "1.43";
+var TRK_VERSION = "1.44";
 // 1.16: owner asked to block the tracker's notifications for now. While this is true the tracker sends NO texts and
 // NO emails (reminders and test reminders). Sign-in "Forgot password?" still works. Set to false to allow sending again.
 var TRK_SENDING_OFF = true;
@@ -406,7 +410,7 @@ var DOC_FIELDS = {
   ins: [["company", "Insurance company"], ["vin", "VIN"], ["insured", "Name of insured"]],
   reg: [["plate", "Plate"], ["vin", "VIN"], ["regName", "Name on registration"], ["state", "State"]]
 };
-function docFields(t){ return DOC_FIELDS[t.id] || []; }
+function docFields(t){ return DOC_FIELDS[t.id] || (t && t.cat === "immunization" ? [["have", "I have"], ["vaccDate", "Date", "date"]] : []); }
 // 1.22: extra words for the scanner (what it is asked), so it doesn't copy an address into a name box or a stray digit into a VIN
 var SCAN_HINTS = { regName: "Registered owner's name(s) only — no address", insured: "Name(s) of the insured only — no address",
   fullName: "Full name as printed — no address", vin: "exactly 17 characters", plate: "letters and digits only" };
@@ -455,6 +459,12 @@ var DEFAULT_SETTINGS = {
     { id: "reg",  name: "Vehicle Registration",   cat: "document",      scope: "vehicle", expires: true, number: false, required: true }
   ],
   warnDays: 30,
+  // 1.44: immunizations (⚙ Admin ▸ Settings ▸ 💉 Immunizations). lifetime = once; periodic = every <years> years from the date
+  immItems: [
+    { id: "measles", name: "Measles", kind: "lifetime" }, { id: "mumps", name: "Mumps", kind: "lifetime" }, { id: "rubella", name: "Rubella", kind: "lifetime" },
+    { id: "varicella", name: "Varicella", kind: "lifetime" }, { id: "hepb", name: "Hep-B", kind: "lifetime" }, { id: "covid", name: "COVID-19", kind: "lifetime" },
+    { id: "flu", name: "Flu", kind: "periodic", years: 1 }, { id: "tetanus", name: "Tetanus", kind: "periodic", years: 10 }
+  ],
   bagIntervalDays: 30,
   bagRoles: ["responder", "captain", "chief", "backup"],
   rigIntervalDays: 7,
@@ -579,8 +589,11 @@ function unitNum(u){ var m = String(u || "").match(/(\d+)/); return m ? +m[1] : 
 function daysAgo(ms){ return ms ? Math.floor((Date.now() - ms) / 86400000) : null; }
 function orgName(){ return S.org.textName || S.org.shortName || "MC Hatzolah"; }
 function pageLink(){ return location.origin + location.pathname; }
-function docTypes(scope){ return (S.settings.docTypes || []).filter(function(t){ return !scope || t.scope === scope; }); }
-function typeById(id){ return (S.settings.docTypes || []).filter(function(t){ return t.id === id; })[0]; }
+// 1.44: each immunization works like a member document (record <uid>__imm_<id>, pending → approved in ⚙ Admin ▸ Review)
+function immTypes(){ return (S.settings.immItems || []).filter(function(x){ return x && x.id && x.name; }).map(function(x){ return { id: "imm_" + x.id, name: x.name, cat: "immunization", scope: "member", expires: x.kind === "periodic", number: false, required: x.required !== false, imm: x }; }); }
+function immEvery(x){ return x.kind === "periodic" ? "Every " + (x.years || 1) + " year" + ((x.years || 1) === 1 ? "" : "s") : "Lifetime"; }
+function docTypes(scope){ return (S.settings.docTypes || []).concat(immTypes()).filter(function(t){ return !scope || t.scope === scope; }); }
+function typeById(id){ return (S.settings.docTypes || []).concat(immTypes()).filter(function(t){ return t.id === id; })[0]; }
 function userByUid(uid){ return S.users.filter(function(u){ return u.uid === uid; })[0]; }
 function withName(u){ if (u && !u.name) u.name = ((u.firstName || "") + " " + (u.lastName || "")).trim(); return u; }
 // 1.34: a plain dispatcher (Dispatcher is their ONLY role, not an admin) doesn't use the tracker — can't log in, left off every list and reminder
@@ -724,7 +737,10 @@ function bagExpRows(uid, bid){
   var dates = bagDatesOf(uid, bid) || {};
   return (S.settings.expItems || []).map(function(n){ return { item: n, date: dates[n] || "", st: expState(dates[n]) }; });
 }
+// 1.44: an admin can say a member doesn't need the jump bag (e.g. uses his own equipment from another area) — settings.bagExempt[uid] = { on, reason, by, at }
+function bagExemptOf(uid){ var x = ((S.settings || {}).bagExempt || {})[uid]; return x && x.on ? x : null; }
 function bagRequired(u){
+  if (u && bagExemptOf(u.uid)) return false;
   var need = S.settings.bagRoles || [];
   return rolesOf(u).some(function(r){ return need.indexOf(r) >= 0; }) || (u && u.role === "admin" && need.indexOf("admin") >= 0);
 }
@@ -756,7 +772,7 @@ function memberIssues(u, records, vehicles, bag){
     if (st.lvl === "bad" || st.lvl === "warn"){
       var rec = records[recKey(u.uid, t.id)];
       var txt = t.name + ": " + (st.k === "expired" ? "expired " + fmtDate(rec.expires) : st.k === "expiring" ? "expires " + fmtDate(rec.expires) : st.k === "missing" ? "not on file" : st.lbl.toLowerCase());
-      out.push({ lvl: st.lvl, text: txt, tab: "docs" });
+      out.push({ lvl: st.lvl, text: txt, tab: t.cat === "immunization" ? "imm" : "docs" });
     }
   });
   vehicles.forEach(function(v){
@@ -1120,13 +1136,14 @@ function goNotif(i){ var x = S._notifs[i]; closePanel(); if (!x) return; if (x.a
 var PAGES = {
   profile:  { icon: "👤", label: "My Profile",   sub: "Addresses, phones, emergency contact, uniform" },
   docs:     { icon: "📄", label: "My Documents", sub: "License, EMT, CPR, permits, CEVO" },
+  imm:      { icon: "💉", label: "My Immunizations", sub: "Flu, Tetanus, MMR, Hep-B…" },
   vehicles: { icon: "🚗", label: "My Vehicles",  sub: "Vehicle 1 & 2 · insurance, registration" },
   bag:      { icon: "🎒", label: "Jump Bag",     sub: "Bag check & expiration dates" },
   rigs:     { icon: "🚑", label: "Vehicle Checks", sub: "Ambulance & ambulance jump bag checks" },
   admin:    { icon: "⚙", label: "Admin", sub: "Compliance, review, reports, checklists, settings" }
 };
 function tabsList(){
-  var t = ["profile", "docs", "vehicles", "bag"];
+  var t = ["profile", "docs", "imm", "vehicles", "bag"];
   if (S.isAdmin || S.isLogistics) t.push("rigs");
   if (S.isAdmin && TRK_MODE === "desktop") t.push("admin");   // opened from the ⚙ Admin button in the top bar (1.25), not a tile   // like the CAD, admin is on the computer
   return t;
@@ -1165,7 +1182,7 @@ function render(){
   if (pg) $("page-title").textContent = pg.icon + " " + pg.label;
   $("banner").hidden = S.tab === "admin";
   var v = $("view");
-  var f = { home: viewHome, profile: viewProfile, docs: viewDocs, vehicles: viewVehicles, bag: viewBag, rigs: viewRigs, admin: viewAdmin }[S.tab] || viewHome;
+  var f = { home: viewHome, profile: viewProfile, docs: viewDocs, imm: viewImm, vehicles: viewVehicles, bag: viewBag, rigs: viewRigs, admin: viewAdmin }[S.tab] || viewHome;
   // keep focus/typing safe: don't redraw a settings form someone is typing in
   if ((S.tab === "profile" || (S.tab === "admin" && (ADMIN_SETTINGS_TABS.indexOf(S.adminTab) >= 0 || S.adminTab === "remind" || S.adminTab === "reports"))) && v.contains(document.activeElement) && /INPUT|TEXTAREA|SELECT/.test(document.activeElement.tagName)){ renderBell(); return; }
   v.innerHTML = f();
@@ -1282,6 +1299,96 @@ function vehPics(id){
     }).join("") + '</tbody></table></div>';
   openModal("🚗 " + vTitle(v), b, '<button class="btn" onclick="App.closeModal()">Close</button>' + (own ? '<button class="btn" data-id="' + esc(v.id) + '" onclick="App.editVehicle(this.dataset.id)">Edit vehicle</button>' : ''));
   ciSoon();
+}
+
+/* ── My Immunizations (1.44) ── */
+function immTable(uid, canEdit){
+  var vr = visibleRecords(), ts = immTypes();
+  if (!ts.length) return '<div class="card empty">No immunizations on the list. An admin can add them in ⚙ Admin ▸ Settings ▸ 💉 Immunizations.</div>';
+  return '<div class="tbl-wrap"><table><thead><tr><th>Immunization</th><th>How often</th><th>Status</th><th>I have</th><th>Date</th><th>Expires</th><th></th></tr></thead><tbody>'
+    + ts.map(function(t){
+      var rec = vr[recKey(uid, t.id)], st = recStatus(rec, t), f = (rec && rec.fields) || {}, files = (rec && rec.files) || [];
+      var act = files.map(function(x, i){ return '<a class="btn sm" href="' + esc(x.url) + '" target="_blank" rel="noopener">View' + (files.length > 1 ? " " + (i + 1) : "") + '</a>'; }).join(" ");
+      if (canEdit) act += ' <button class="btn ' + (rec ? "" : "gold ") + 'sm" data-uid="' + esc(uid) + '" data-imm="' + esc(t.imm.id) + '" onclick="App.openImm(this)">' + (rec ? "Update" : "Upload") + '</button>';
+      if (S.isAdmin && S.tab === "admin" && rec) act += ' <button class="btn sm" data-id="' + esc(recKey(uid, t.id)) + '" onclick="App.openRecord(this.dataset.id)">Review…</button>';
+      return '<tr><td><b>' + esc(t.name) + '</b></td><td>' + esc(immEvery(t.imm)) + '</td><td>' + pillFor(st) + (rec && rec.status === "rejected" && rec.reviewNote ? '<div class="muted">Admin: ' + esc(rec.reviewNote) + '</div>' : '') + '</td>'
+        + '<td>' + (f.have ? esc(f.have) : '<span class="muted">—</span>') + '</td><td class="num">' + (f.vaccDate ? fmtDate(f.vaccDate) : '<span class="muted">—</span>') + '</td>'
+        + '<td class="num">' + (t.expires ? (rec && rec.expires ? fmtDate(rec.expires) : '<span class="muted">—</span>') : '<span class="muted">Never</span>') + '</td><td style="white-space:nowrap">' + act + '</td></tr>';
+    }).join("") + '</tbody></table></div>';
+}
+function viewImm(){
+  return '<div class="row" style="margin-top:6px"><h2 class="grow" style="margin:8px 0">💉 My Immunizations</h2><button class="btn gold" onclick="App.openImm()">+ Create New Immunization</button></div>'
+    + immTable(S.me.uid, true)
+    + '<p class="muted">Upload proof of vaccination, an immunity notice or an exemption notice. One upload can cover several lifetime shots (e.g. an MMR record). An admin checks each upload.</p>';
+}
+var IMM_HAVE = ["An Exemption Notice", "An Immunity Notice", "Proof of Vaccination"];
+function openImm(btn){
+  var uid = (btn && btn.dataset && btn.dataset.uid) || S.me.uid, pick = (btn && btn.dataset && btn.dataset.imm) || "";
+  var u = uid === S.me.uid ? S.me : userByUid(uid); if (!u) return;
+  var it = (S.settings.immItems || []).filter(function(x){ return x.id === pick; })[0];
+  openUpload(null, { imm: { uid: uid, unit: u.unit || "", name: u.name || "", pick: pick, kind: it ? it.kind : "" } });
+}
+function immFormHtml(I){
+  var items = (S.settings.immItems || []).filter(function(x){ return x && x.id && x.name; }), rec = I.pick ? visibleRecords()[recKey(I.uid, "imm_" + I.pick)] : null, f = (rec && rec.fields) || {};
+  var life = items.filter(function(x){ return x.kind !== "periodic"; }), per = items.filter(function(x){ return x.kind === "periodic"; });
+  return (I.uid !== S.me.uid ? '<div class="card" style="margin-top:10px;padding:10px 12px"><b>For ' + esc(I.unit) + (I.name ? " · " + esc(I.name) : "") + '</b></div>' : '')
+    + '<label for="imm-kind">Immunization Validity</label><select id="imm-kind" onchange="App.immKind()"><option value="">Select</option><option value="lifetime"' + (I.kind === "lifetime" ? " selected" : "") + '>Lifetime</option><option value="periodic"' + (I.kind === "periodic" ? " selected" : "") + '>Periodic</option></select>'
+    + '<div id="imm-life" hidden><label>Immunizations Included</label><div class="imm-chks">' + life.map(function(x){ return '<label class="imm-chk"><input type="checkbox" class="imm-c" value="' + esc(x.id) + '"' + (I.pick === x.id ? " checked" : "") + '> ' + esc(x.name) + '</label>'; }).join("") + '</div></div>'
+    + '<div id="imm-per" hidden><label for="imm-item">Immunization</label><select id="imm-item"><option value="">Select</option>' + per.map(function(x){ return '<option value="' + esc(x.id) + '"' + (I.pick === x.id ? " selected" : "") + '>' + esc(x.name) + ' (' + esc(immEvery(x)) + ')</option>'; }).join("") + '</select></div>'
+    + '<label for="imm-have">I Have</label><select id="imm-have" onchange="App.immKind()"><option value="">Select</option>' + IMM_HAVE.map(function(x){ return '<option' + (f.have === x ? " selected" : "") + '>' + esc(x) + '</option>'; }).join("") + '</select>'
+    + '<label for="imm-date" id="imm-date-lbl">Vaccination Date</label><input id="imm-date" type="date" value="' + esc(f.vaccDate || "") + '">';
+}
+function immKind(){
+  var k = $("imm-kind") ? $("imm-kind").value : "", have = $("imm-have") ? $("imm-have").value : "";
+  if ($("imm-life")) $("imm-life").hidden = k !== "lifetime";
+  if ($("imm-per")) $("imm-per").hidden = k !== "periodic";
+  var l = $("imm-date-lbl"); if (l) l.textContent = (have && have !== "Proof of Vaccination" ? "Date on the Notice" : "Vaccination Date") + (k === "lifetime" ? " (if you have it)" : "");
+}
+async function saveImm(){
+  var U = S.upload, I = U.imm, kind = $("imm-kind").value, have = $("imm-have").value, date = $("imm-date").value;
+  var items = S.settings.immItems || [], picks = kind === "lifetime" ? Array.from(document.querySelectorAll(".imm-c:checked")).map(function(c){ return c.value; }) : [$("imm-item").value].filter(Boolean);
+  if (!kind){ toast("Pick Lifetime or Periodic."); return; }
+  if (!picks.length){ toast(kind === "lifetime" ? "Tick at least one immunization." : "Pick the immunization."); return; }
+  if (!have){ toast("Pick what you have (proof, immunity or exemption)."); return; }
+  if (kind === "periodic" && !/^\d{4}-\d{2}-\d{2}$/.test(date)){ toast("Enter the date."); return; }
+  if (date && date > todayStr()){ toast("The date can't be in the future."); return; }
+  var vr = visibleRecords(), first = recKey(I.uid, "imm_" + picks[0]), old = vr[first];
+  if (!U.file && !(old && old.files && old.files.length)){ toast("Upload the front image (or a PDF)."); return; }
+  var byId = {}; items.forEach(function(x){ byId[x.id] = x; });
+  if (kind === "periodic"){ var ex0 = addYears(date, byId[picks[0]].years || 1); if (daysUntil(ex0) < 0 && !confirm("That ran out on " + fmtDate(ex0) + ". Save it anyway?")) return; }
+  $("up-save").disabled = true;
+  var fill = $("up-bar-fill"), prog = $("up-prog");
+  try {
+    var stored = old && old.files ? old.files : [];
+    if (U.file){
+      prog.textContent = "Preparing…";
+      var f = await shrinkImage(U.file, U.rot, upCrop());
+      var path = "trk/" + I.uid + "/" + first + "/" + Date.now() + "_" + f.name.replace(/[^\w.\-]/g, "_").slice(-60);
+      var task = storage.ref(path).put(f, { contentType: f.type });
+      if (task && task.on) task.on("state_changed", function(sn){ var pct = sn.totalBytes ? Math.round(sn.bytesTransferred / sn.totalBytes * 100) : 0; fill.style.width = pct + "%"; prog.textContent = "Uploading… " + pct + "%"; });
+      var snap = await task;
+      fill.style.width = "100%"; prog.textContent = "Uploaded 100%";
+      stored = [Object.assign({ url: await snap.ref.getDownloadURL(), path: path, name: f.name, type: f.type, size: f.size, side: "front" }, await pdfThumbFor(f, path))];
+    }
+    var batch = db.batch(), now = Date.now();
+    picks.forEach(function(id){
+      var it = byId[id]; if (!it) return;
+      var key = recKey(I.uid, "imm_" + id), rec = vr[key];
+      var data = { uid: I.uid, unit: I.unit, memberName: I.name, owner: I.uid, vehicle: null, vehName: null, typeId: "imm_" + id,
+        number: "", issued: "", expires: it.kind === "periodic" && date ? addYears(date, it.years || 1) : "",
+        files: U.file ? stored : ((rec && rec.files && rec.files.length) ? rec.files : stored),
+        fields: { have: have, vaccDate: date || "", validity: kind }, scanned: false, status: "pending", reviewNote: "",
+        updatedAt: now, updatedBy: S.me.unit || "", updatedByUid: S.me.uid };
+      if (rec && U.file && rec.files && rec.files.length) data.history = (rec.history || []).concat([{ files: rec.files, expires: rec.expires || "", number: "", at: rec.updatedAt || 0 }]).slice(-5);
+      else if (rec && rec.history) data.history = rec.history;
+      batch.set(db.collection("trk_records").doc(key), data);
+    });
+    await batch.commit();
+    closeModal(); toast("✓ Saved " + picks.length + " immunization" + (picks.length === 1 ? "" : "s") + " — an admin will review " + (picks.length === 1 ? "it" : "them"), 5000);
+  } catch (e){
+    $("up-save").disabled = false; prog.textContent = "⚠ Upload failed"; fill.style.width = "0";
+    toast("⚠ Not saved: " + e.message, 7000);
+  }
 }
 
 /* ── My Vehicles ── */
@@ -1561,16 +1668,17 @@ async function removeVehicle(id){
 /* ── Upload form ── */
 // "Create New Document" — same fields as the old system's form.
 // From a document card (btn) the document and vehicle are already known; from "+ Create New Document" the member picks them.
-function openUpload(btn){
-  var pre = null;
+function openUpload(btn, opts){
+  var pre = null, imm = opts && opts.imm;
   if (btn && btn.dataset){
     var t = typeById(btn.dataset.t), ctx = JSON.parse(btn.dataset.c || "{}");
     pre = { ownerKey: btn.dataset.k, type: t, ctx: ctx };
   }
-  S.upload = { pre: pre, file: null, rot: 0, crop: null, cropOff: false };
+  S.upload = { pre: pre, imm: imm || null, file: null, rot: 0, crop: null, cropOff: false };
   var rec = pre ? visibleRecords()[recKey(pre.ownerKey, pre.type.id)] : null;
   var b = '';
-  if (pre){
+  if (imm) b += immFormHtml(imm);
+  else if (pre){
     b += '<div class="card" style="margin-top:10px;padding:10px 12px"><b>' + esc(pre.type.name) + '</b>' + (pre.ctx.vehName ? '<div class="muted">' + esc(pre.ctx.vehName) + '</div>' : '')
       + (rec ? '<div class="muted">On file: ' + (rec.expires ? "expires " + fmtDate(rec.expires) : "uploaded " + fmtTs(rec.updatedAt)) + '</div>' : '') + '</div>';
   } else {
@@ -1587,9 +1695,11 @@ function openUpload(btn){
     + '<div class="scan-box" id="up-scan" hidden><div class="row"><span class="grow" id="up-scan-msg">✨ Reading the document…</span><button class="btn sm" type="button" id="up-scan-btn" onclick="App.upScan()">✨ Scan again</button></div></div>'
     + '<div id="up-fields" data-t="' + (pre ? esc(pre.type.id) : "") + '">' + upFieldsHtml(pre ? pre.type : null, rec) + '</div>'
     + '<label>Upload Progress</label><div class="up-bar"><div id="up-bar-fill"></div></div><div id="up-prog" class="muted" style="margin-top:4px"></div>';
-  openModal(pre ? (rec ? "Update " : "Upload ") + pre.type.name : "Create New Document", b,
+  openModal(imm ? (imm.pick && rec0imm(imm) ? "Update Immunization" : "Create New Immunization") : pre ? (rec ? "Update " : "Upload ") + pre.type.name : "Create New Document", b,
     '<button class="btn" onclick="App.closeModal()">Cancel</button><button class="btn gold" id="up-save" onclick="App.saveUpload()">Save</button>');
+  if (imm) immKind();
 }
+function rec0imm(I){ return visibleRecords()[recKey(I.uid, "imm_" + I.pick)]; }
 // 1.18: documents whose expiration is a fixed time after the issue date (owner: CEVO = 3 years). The expiration date
 // fills in by itself from the issue date (typed or scanned); the member can still change it by hand.
 var AUTO_EXPIRE_YEARS = { cevo: 3 };
@@ -1703,7 +1813,7 @@ async function upPdfPreview(f){
 function upIsPdf(){ var f = S.upload && S.upload.file; return !!f && (/pdf/i.test(f.type) || /\.pdf$/i.test(f.name)); }
 // 1.17: PDFs aren't read automatically — the member taps "✨ Scan PDF with AI" (photos are still read straight away)
 function upPdfReady(){
-  var box = $("up-scan"); if (!box) return;
+  var box = $("up-scan"); if (!box || (S.upload && S.upload.imm)) return;
   box.hidden = false;
   $("up-scan-msg").textContent = upType() ? "📄 PDF ready. Tap the button to read the details from it." : "📄 Pick the document above, then tap the button to read the details from the PDF.";
   $("up-scan-btn").textContent = "✨ Scan PDF with AI";
@@ -1713,7 +1823,7 @@ function upPdfReady(){
 // It fills only boxes the member hasn't typed in, and turns the photo upright if it's sideways.
 async function upScan(){
   var U = S.upload, t = upType(), box = $("up-scan"), msg = $("up-scan-msg");
-  if (!U.file || !box) return;
+  if (!U.file || !box || U.imm) return;
   box.hidden = false;
   if (!t){ if (upIsPdf()) upPdfReady(); else msg.textContent = "✨ Pick the document above and the details will be read from the photo."; return; }
   var my = (U.scanN = (U.scanN || 0) + 1);
@@ -1811,6 +1921,7 @@ async function shrinkImage(file, rot, crop){
   } catch (e){ return file; }
 }
 async function saveUpload(){
+  if (S.upload && S.upload.imm) return saveImm();
   var U = S.upload, pre = U.pre, ownerKey, t, ctx;
   if (pre){ ownerKey = pre.ownerKey; t = pre.type; ctx = pre.ctx; }
   else {
@@ -1873,7 +1984,9 @@ function personalBagCard(bid){
   var st0 = personalBagStatus(S.me.uid, bid), bs = bagState(st0), iv = S.settings.bagIntervalDays || 30, pick = bid ? "mine:" + bid : "mine";
   var h = '<div class="card"><div class="row"><h3 class="grow" style="margin:0">🎒 ' + esc(personalBagName(S.me.uid, bid)) + '</h3>' + pillFor(bs) + '</div>'
     + '<div class="muted" style="margin-top:6px">Last checked: <b>' + (st0 && st0.lastAt ? fmtTs(st0.lastAt) : "Never") + '</b> · check every ' + iv + ' days' + (st0 && st0.lastAt ? ' · next due ' + fmtTs(st0.lastAt + iv * 86400000).split(" ")[0] : '') + '</div>';
-  if (!bid && !bagRequired(S.me)) h += '<div class="muted" style="margin-top:6px">(Not required for your role — you can still log a check.)</div>';
+  var ex0 = !bid && bagExemptOf(S.me.uid);
+  if (ex0) h += '<div class="muted" style="margin-top:6px">(An admin marked your jump bag as not required' + (ex0.reason ? ' — ' + esc(ex0.reason) : '') + '. You can still log a check.)</div>';
+  else if (!bid && !bagRequired(S.me)) h += '<div class="muted" style="margin-top:6px">(Not required for your role — you can still log a check.)</div>';
   if (st0 && st0.missing && st0.missing.length) h += '<div class="note" style="background:#fff4d6;border-color:#e2c27a;color:#5c3c00"><b>Missing from the last check:</b><br>' + st0.missing.map(function(m){ return esc(m.n) + (m.note ? " — " + esc(m.note) : ""); }).join("<br>") + '</div>';
   h += '<div class="row" style="margin-top:10px"><button class="btn gold" data-b="' + esc(pick) + '" onclick="App.startBagCheck(this.dataset.b)">✓ Start bag check</button><button class="btn" onclick="App.bagHistory()">🕘 History</button></div>';
   var er = bagExpRows(S.me.uid, bid);
@@ -2408,7 +2521,7 @@ function adminProfiles(){
    ADMIN
    ════════════════════════════════════════════════════════════════════════ */
 // 1.25: one ⚙ Admin page (top bar button) — what was User Compliance + the Admin Panel's settings tabs
-var ADMIN_SETTINGS_TABS = ["rigcl", "bagcl", "docs", "timing", "msg"];
+var ADMIN_SETTINGS_TABS = ["rigcl", "bagcl", "docs", "imm", "timing", "msg"];
 // 1.41: grouped like CallDashboard's admin — main tabs, each with its own sub-tabs. The sub-tab ids (S.adminTab) didn't change.
 var DATES_IN_CHECKS = false;   // 1.42
 var ADMIN_GROUPS = [
@@ -2416,7 +2529,7 @@ var ADMIN_GROUPS = [
   ["review", "📥 Review", [["review", "Review"]]],
   ["fleet", "🚑 Vehicles & Bags", [["vehicles", "Members' Vehicles"], ["paper", "Agency Paperwork"], ["bags", "Jump Bags"]]],
   ["reports", "📊 Reports", [["reports", "Reports"]]],
-  ["settings", "⚙ Settings", [["rigcl", "🚑 Ambulance Checklist"], ["bagcl", "🎒 Jump Bag Checklist"], ["docs", "📄 Documents"], ["timing", "⏱ Timing & Equipment"], ["msg", "✉️ Messages"]]]
+  ["settings", "⚙ Settings", [["rigcl", "🚑 Ambulance Checklist"], ["bagcl", "🎒 Jump Bag Checklist"], ["docs", "📄 Documents"], ["imm", "💉 Immunizations"], ["timing", "⏱ Timing & Equipment"], ["msg", "✉️ Messages"]]]
 ];
 function adminGroupOf(k){ return ADMIN_GROUPS.filter(function(g){ return g[2].some(function(x){ return x[0] === k; }); })[0] || ADMIN_GROUPS[0]; }
 function adminGroup(gid){
@@ -2438,9 +2551,22 @@ function viewAdmin(){
   }).join("") + '</div>';
   if (S.admMember && cur[0] === "members") return h + adminMember(S.admMember);
   return h + ({ grid: adminGrid, review: adminReview, vehicles: adminVehicles, paper: adminPaper, bags: adminBags, profiles: adminProfiles, reports: adminReports, remind: adminRemind,
-    rigcl: function(){ return panelChecklist("rigChecklist"); }, bagcl: function(){ return panelChecklist("bagChecklist"); }, docs: panelDocs, timing: panelTiming, msg: panelMsg }[S.adminTab] || adminGrid)();
+    rigcl: function(){ return panelChecklist("rigChecklist"); }, bagcl: function(){ return panelChecklist("bagChecklist"); }, docs: panelDocs, imm: panelImm, timing: panelTiming, msg: panelMsg }[S.adminTab] || adminGrid)();
 }
 // 1.43: ⚙ Admin ▸ Members ▸ tap a member → everything about that one member on one page
+function bagExempt(uid, on){
+  var u = userByUid(uid); if (!u) return;
+  if (!on){
+    if (!confirm(u.unit + ": make the jump bag required again?")) return;
+    savePart({ bagExempt: (function(){ var o = {}; o[uid] = { on: false, by: S.me.unit || "", at: Date.now() }; return o; })() }, null); return;
+  }
+  openModal("🎒 Jump bag not required — " + u.unit, '<p>' + esc(u.name || u.unit) + ' won\'t be asked to check a jump bag, and it won\'t count against them.</p><label for="bx-why">Reason (optional)</label><input id="bx-why" placeholder="e.g. uses his own equipment from another area">',
+    '<button class="btn" onclick="App.closeModal()">Cancel</button><button class="btn gold" data-uid="' + esc(uid) + '" onclick="App.bagExemptSave(this.dataset.uid)">Save</button>');
+}
+function bagExemptSave(uid){
+  var o = {}; o[uid] = { on: true, reason: ($("bx-why").value || "").trim(), by: S.me.unit || "", at: Date.now() };
+  closeModal(); savePart({ bagExempt: o }, null);
+}
 function memberLink(u){ return '<button class="lnk" data-uid="' + esc(u.uid) + '" onclick="App.openMember(this.dataset.uid)" title="Open everything for ' + esc(u.unit) + '"><b>' + esc(u.unit) + '</b></button>'; }
 function openMember(uid){ S.admMember = uid || null; if (uid){ S.adminTab = adminGroupOf(S.adminTab)[0] === "members" ? S.adminTab : "grid"; } render(); window.scrollTo(0, 0); }
 function adminMember(uid){
@@ -2462,7 +2588,8 @@ function adminMember(uid){
     + '</div></div>';
   h += '<div class="card"><h3>What needs fixing</h3>' + (iss.length ? iss.map(function(i){ return '<span class="pill p-' + i.lvl + '" style="margin:2px">' + esc(i.text) + '</span>'; }).join(" ") : '<span class="pill p-ok">✅ All good</span>');
   var rl = S.reminderLog[uid]; h += '<div class="muted" style="margin-top:8px">Last reminder: ' + (rl ? fmtTs(rl.lastAt) + (rl.via ? " (" + esc(rl.via) + ")" : "") : "never") + '</div></div>';
-  h += '<h2>📄 Documents & Certifications</h2><div class="docs">' + docTypes("member").map(function(t){ return docCard(uid, t, S.allRecords[recKey(uid, t.id)], ctx); }).join("") + '</div>';
+  h += '<h2>📄 Documents & Certifications</h2><div class="docs">' + docTypes("member").filter(function(t){ return t.cat !== "immunization"; }).map(function(t){ return docCard(uid, t, S.allRecords[recKey(uid, t.id)], ctx); }).join("") + '</div>';
+  h += '<div class="row" style="margin-top:18px"><h2 class="grow" style="margin:0">💉 Immunizations</h2><button class="btn sm" data-uid="' + esc(uid) + '" onclick="App.openImm(this)">+ Add for them</button></div>' + immTable(uid, true);
   h += '<h2>🚗 Vehicles</h2>';
   if (!vehs.length) h += '<div class="card empty">No vehicles on file.</div>';
   vehs.slice().sort(function(x, y){ return (x.slot || 9) - (y.slot || 9); }).forEach(function(v){
@@ -2471,11 +2598,14 @@ function adminMember(uid){
       + '<button class="btn sm" data-id="' + esc(v.id) + '" onclick="App.editVehicle(this.dataset.id)">Edit</button></div><div class="docs" style="margin-top:10px">'
       + docTypes("vehicle").map(function(t){ return docCard("v_" + v.id, t, S.allRecords[recKey("v_" + v.id, t.id)], Object.assign({ veh: "v_" + v.id, vehName: vTitle(v) }, ctx)); }).join("") + '</div></div>';
   });
-  var asg = bagAssignOf(uid);
-  h += '<h2>🎒 Jump Bags</h2>';
+  var asg = bagAssignOf(uid), bx = bagExemptOf(uid);
+  h += '<div class="row" style="margin-top:18px"><h2 class="grow" style="margin:0">🎒 Jump Bags</h2>'
+    + (bx ? '<button class="btn sm" data-uid="' + esc(uid) + '" onclick="App.bagExempt(this.dataset.uid, false)">Make the jump bag required again</button>'
+          : '<button class="btn sm" data-uid="' + esc(uid) + '" onclick="App.bagExempt(this.dataset.uid, true)">Jump bag not required…</button>') + '</div>';
+  if (bx) h += '<div class="note" style="background:#eef4ff;border-color:#b9cdf3;color:#1d3f72;margin-top:8px">🎒 Jump bag <b>not required</b> for this member' + (bx.reason ? ' — ' + esc(bx.reason) : '') + ' <span class="muted">(' + esc(bx.by || "") + (bx.at ? ', ' + fmtTs(bx.at).split(" ")[0] : '') + ')</span></div>';
   [""].concat(asg.extra.map(function(x){ return x.id; })).forEach(function(bid){
     var st0 = personalBagStatus(uid, bid), bs = bagState(st0), rows = bagExpRows(uid, bid);
-    if (!bid && !bagRequired(u) && !st0 && !bagDatesOf(uid, "")){ h += '<div class="card muted">Primary bag: not required for this member\'s role.</div>'; return; }
+    if (!bid && !bagRequired(u) && !st0 && !bagDatesOf(uid, "")){ h += bx ? '' : '<div class="card muted">Primary bag: not required for this member\'s role.</div>'; return; }
     h += '<div class="card"><div class="row"><h3 class="grow" style="margin:0">🎒 ' + esc(personalBagName(uid, bid)) + '</h3>' + pillFor(bs) + '</div>'
       + '<div class="muted" style="margin-top:6px">Last checked: <b>' + (st0 && st0.lastAt ? fmtTs(st0.lastAt) : "Never") + '</b></div>'
       + (st0 && st0.missing && st0.missing.length ? '<div class="note" style="background:#fff4d6;border-color:#e2c27a;color:#5c3c00"><b>Missing:</b> ' + st0.missing.map(function(m){ return esc(m.n) + (m.note ? " — " + esc(m.note) : ""); }).join(", ") + '</div>' : '')
@@ -2493,19 +2623,22 @@ function legend(){
   return '<div class="legend"><span><i class="dot d-ok"></i>Valid</span><span><i class="dot d-info"></i>Waiting for review</span><span><i class="dot d-warn"></i>Expiring soon</span><span><i class="dot d-bad"></i>Expired / rejected / overdue</span><span><i class="dot d-missing"></i>Missing</span><span><i class="dot d-na"></i>Not required</span></div>';
 }
 function adminGrid(){
-  var ts = docTypes("member");
+  var ts = docTypes("member").filter(function(t){ return t.cat !== "immunization"; }), its = immTypes();
   var users = S.users.filter(function(u){
     if (!S.gridOnlyProblems) return true;
     return memberIssues(u, S.allRecords, S.allVehicles.filter(function(v){ return v.uid === u.uid; }), S.allBags[u.uid]).length > 0;
   });
   var h = '<div class="muted" style="margin-bottom:6px">Tap a unit number to see everything for that member.</div><div class="row"><label style="margin:0;display:flex;gap:6px;align-items:center;font-weight:400;color:var(--text)"><input type="checkbox" style="width:auto" ' + (S.gridOnlyProblems ? "checked" : "") + ' onchange="App.gridFilter(this.checked)"> Only members with problems</label></div>' + legend();
-  h += '<div class="tbl-wrap"><table><thead><tr><th>Unit</th><th>Name</th>' + ts.map(function(t){ return '<th class="c">' + esc(t.name) + '</th>'; }).join("") + '<th class="c">Vehicles</th><th class="c">Jump bag</th></tr></thead><tbody>';
+  h += '<div class="tbl-wrap"><table><thead><tr><th>Unit</th><th>Name</th>' + ts.map(function(t){ return '<th class="c">' + esc(t.name) + '</th>'; }).join("") + '<th class="c">Immunizations</th><th class="c">Vehicles</th><th class="c">Jump bag</th></tr></thead><tbody>';
   users.forEach(function(u){
     h += '<tr><td>' + memberLink(u) + '</td><td>' + esc(u.name || "") + '</td>';
     ts.forEach(function(t){
       var key = recKey(u.uid, t.id), rec = S.allRecords[key], st = recStatus(rec, t);
       h += '<td class="c"><button class="dot ' + (st.k === "missing" ? "d-missing" : "d-" + st.lvl) + '" style="cursor:pointer" title="' + esc(t.name + ": " + st.lbl + (rec && rec.expires ? " (" + fmtDate(rec.expires) + ")" : "")) + '" data-id="' + esc(key) + '" data-uid="' + esc(u.uid) + '" data-t="' + esc(t.id) + '" onclick="App.gridCell(this)"></button></td>';
     });
+    var iw = "ok", ord = { bad: 3, warn: 2, info: 1, ok: 0, na: 0 }, ibad = 0;
+    its.forEach(function(t){ var l = recStatus(S.allRecords[recKey(u.uid, t.id)], t).lvl; if (l === "bad" || l === "warn") ibad++; if (ord[l] > ord[iw]) iw = l; });
+    h += '<td class="c">' + (its.length ? '<button class="dot d-' + iw + '" style="cursor:pointer" title="' + (ibad ? ibad + " to fix" : "All good") + ' — tap to open the member" data-uid="' + esc(u.uid) + '" onclick="App.openMember(this.dataset.uid)"></button>' : '<span class="muted">—</span>') + '</td>';
     var vs = S.allVehicles.filter(function(v){ return v.uid === u.uid; }), worst = "ok";
     vs.forEach(function(v){ docTypes("vehicle").forEach(function(t){ var l = recStatus(S.allRecords[recKey("v_" + v.id, t.id)], t).lvl; if (l === "bad") worst = "bad"; else if (l === "warn" && worst !== "bad") worst = "warn"; else if (l === "info" && worst === "ok") worst = "info"; }); });
     h += '<td class="c">' + (vs.length ? '<span class="dot d-' + worst + '"></span> ' + vs.length : '<span class="muted">—</span>') + '</td>';
@@ -2906,6 +3039,36 @@ function saveTiming(){
   }, "st-msg");
 }
 // ── messages
+// 1.44: the immunization list — name, Lifetime / Periodic, how many years
+function panelImm(){
+  var list = S._immEdit || clone(S.settings.immItems || []);
+  var h = '<div class="card"><h3>💉 Immunizations</h3><p class="muted" style="margin:0 0 8px">Every member must have each of these on file (proof, immunity or exemption). Periodic ones run out the set number of years after the date entered. Renaming keeps what members already uploaded.</p>'
+    + '<div class="tbl-wrap"><table><thead><tr><th>Name</th><th>Validity</th><th>Every (years)</th><th></th></tr></thead><tbody id="imm-rows">'
+    + list.map(function(x, i){
+      return '<tr class="imm-row" data-id="' + esc(x.id || "") + '"><td><input class="im-name" value="' + esc(x.name || "") + '" placeholder="e.g. Hep-A"></td>'
+        + '<td><select class="im-kind" onchange="this.closest(\'tr\').querySelector(\'.im-yrs\').disabled = this.value !== \'periodic\'"><option value="lifetime"' + (x.kind !== "periodic" ? " selected" : "") + '>Lifetime</option><option value="periodic"' + (x.kind === "periodic" ? " selected" : "") + '>Periodic</option></select></td>'
+        + '<td><input class="im-yrs" type="number" min="1" max="50" style="width:90px" value="' + esc(x.years || "") + '"' + (x.kind === "periodic" ? "" : " disabled") + '></td>'
+        + '<td><button class="btn sm" onclick="App.immRow(' + i + ')">Remove</button></td></tr>';
+    }).join("") + '</tbody></table></div><button class="btn sm" style="margin-top:8px" onclick="App.immRow(-1)">+ Add an immunization</button></div>';
+  return h + saveRow("saveImmList", "st-msg");
+}
+function readImmRows(){
+  return Array.from(document.querySelectorAll("#imm-rows .imm-row")).map(function(r){
+    var k = r.querySelector(".im-kind").value, y = parseInt(r.querySelector(".im-yrs").value, 10);
+    return { id: r.dataset.id || "", name: r.querySelector(".im-name").value.trim(), kind: k, years: k === "periodic" ? (y > 0 ? y : 1) : undefined };
+  });
+}
+function immRow(i){ var l = readImmRows(); if (i < 0) l.push({ id: "", name: "", kind: "lifetime" }); else l.splice(i, 1); S._immEdit = l; render(); }
+function saveImmList(){
+  var used = {}, out = [];
+  readImmRows().forEach(function(x){
+    if (!x.name) return;
+    var id = x.id || x.name.toLowerCase().replace(/[^a-z0-9]+/g, "").slice(0, 16) || ("i" + Date.now());
+    while (used[id]) id += "x"; used[id] = 1;
+    var o = { id: id, name: x.name, kind: x.kind }; if (x.kind === "periodic") o.years = x.years; out.push(o);
+  });
+  savePart({ immItems: out }, "st-msg", function(){ S._immEdit = null; });
+}
 function panelMsg(){
   var T = S.settings.templates;
   return '<div class="card"><h3>✉️ Reminder wording</h3>' + (TRK_SENDING_OFF ? '<div class="note" style="background:#fff4d6;border-color:#e2c27a;color:#5c3c00">🔕 Texts and emails are switched off right now — this is only the wording for when they\'re back on.</div>' : '')
@@ -2988,7 +3151,7 @@ async function saveSettings(){
     updatedAt: Date.now(), updatedBy: S.me.unit || ""
   };
   $("st-msg").textContent = "⏳ Saving…";
-  try { await db.collection("trk_settings").doc("main").set(data); $("st-msg").textContent = "✓ Saved"; document.activeElement && document.activeElement.blur(); setTimeout(render, 300); }
+  try { await db.collection("trk_settings").doc("main").set(data, { merge: true }); $("st-msg").textContent = "✓ Saved"; document.activeElement && document.activeElement.blur(); setTimeout(render, 300); }
   catch (e){ $("st-msg").textContent = "⚠ Not saved: " + e.message; }
 }
 
@@ -3222,7 +3385,7 @@ window.App = {
   startBagCheck: startBagCheck, bagHistory: bagHistory, startRigCheck: startRigCheck, rigHistory: rigHistory, rigFixed: rigFixed,
   rigSub: function(s){ S.rigSub = s; render(); },
   ck: ck, ckSection: ckSection, ckNote: ckNote, ckQ: ckQ, ckSecNote: ckSecNote, saveCheck: saveCheck,
-  adminTab: function(t){ S.adminTab = t; S.admMember = null; render(); window.scrollTo(0, 0); }, adminGroup: adminGroup, openMember: openMember, goHome: goHome, gridFilter: function(v){ S.gridOnlyProblems = v; render(); },
+  adminTab: function(t){ S.adminTab = t; S.admMember = null; render(); window.scrollTo(0, 0); }, adminGroup: adminGroup, openMember: openMember, openImm: openImm, immKind: immKind, bagExempt: bagExempt, bagExemptSave: bagExemptSave, immRow: immRow, saveImmList: saveImmList, goHome: goHome, gridFilter: function(v){ S.gridOnlyProblems = v; render(); },
   gridCell: gridCell, markNA: markNA, openRecord: openRecord, review: review, deleteRecord: deleteRecord,
   remindTest: remindTest, sendReminders: sendReminders,
   repView: repView, repXlsx: repXlsx, repAll: repAll, repDates: repDates, repPrint: repPrint,
