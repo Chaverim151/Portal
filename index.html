@@ -3,11 +3,12 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<meta name="trk-version" content="1.48">
+<meta name="trk-version" content="1.49">
 <meta name="trk-mode" content="desktop">
 <meta name="theme-color" content="#ffffff">
 <title>Compliance</title>
 <!-- 1.32: the same Hatzolah MC icon as CallDashboard, built in (no extra files to upload) -->
+<!-- 1.49: bags pop-up — no "Has a personal jump bag" checkbox; + Add bag / Remove instead -->
 <!-- 1.48: ⚙ Admin wider + compliance table headers wrap, so every column fits -->
 <!-- 1.47: admin member page — + Add bag / Remove (no checkbox) -->
 <!-- 1.46: no personal jump bag by default — admins give bags member by member; agency vehicle bags unchanged -->
@@ -319,7 +320,7 @@ td.rep-warn{color:var(--warn);font-weight:700}
     <div class="m-err" id="login-err"></div>
 
     <div style="text-align:center;margin-top:16px"><button class="m-forgot" onclick="App.forgotPw()">Forgot password?</button></div>
-    <div class="m-build">BUILD <span id="li-build">v1.48</span></div>
+    <div class="m-build">BUILD <span id="li-build">v1.49</span></div>
   </div>
 </div>
 <div id="boot" class="empty" style="margin-top:20vh">Signing in…</div>
@@ -398,7 +399,7 @@ function trkSmsPayload(phone, message, unit){
 function trkEmailPayload(email, name, subject, html){ return { to: [{ email: email, name: name || email }], subject: subject, body: html }; }
 
 /* ════════════════════════════════════════════════════════════════════════ */
-var TRK_VERSION = "1.48";
+var TRK_VERSION = "1.49";
 // 1.16: owner asked to block the tracker's notifications for now. While this is true the tracker sends NO texts and
 // NO emails (reminders and test reminders). Sign-in "Forgot password?" still works. Set to false to allow sending again.
 var TRK_SENDING_OFF = true;
@@ -2620,7 +2621,7 @@ function adminMember(uid){
   var ctx = { owner: uid, unit: u.unit, name: u.name || "" };
   var h = '<div class="row" style="margin-bottom:10px"><button class="btn" onclick="App.openMember(\'\')">← All members</button><span class="grow"></span>'
     + '<button class="btn" data-uid="' + esc(uid) + '" onclick="App.openProfile(this.dataset.uid)">👤 Edit profile</button>'
-    + '<button class="btn" data-uid="' + esc(uid) + '" onclick="App.assignBags(this.dataset.uid)">🎒 Assign bags</button></div>';
+    + '<button class="btn" data-uid="' + esc(uid) + '" onclick="App.assignBags(this.dataset.uid)">🎒 Bags</button></div>';
   h += '<div class="card"><h3 style="margin-bottom:6px">' + esc(u.unit) + (u.name ? ' · ' + esc(u.name) : '') + '</h3>'
     + '<div class="muted" style="margin-bottom:6px">' + esc(rolesOf(u).join(", ")) + '</div><div class="kv">'
     + (u.email ? '<span>E-mail</span><span>' + esc(u.email) + '</span>' : '') + (u.phone ? '<span>Cell</span><span>' + esc(fmtPhone(u.phone)) + '</span>' : '')
@@ -2807,9 +2808,11 @@ function assignBags(uid){
 function drawAssign(){
   var A = S._asg, u = userByUid(A.uid), fleetOnly = !!S._asgFleetOnly;
   var b = fleetOnly ? '' : '<h2 style="margin-top:8px">🎒 Personal bags</h2><p class="muted" style="margin:0 0 6px">Members don\'t have a jump bag unless you give them one here. Each bag is checked on its own, with its own dates.</p>'
-    + '<label class="item" style="border:1px solid var(--line);border-radius:8px;margin:0;font-weight:400;color:var(--text);cursor:pointer"><span class="nm"><input type="checkbox" id="asg-primary" style="width:auto;margin-right:8px"' + (A.primary ? " checked" : "") + ' onchange="App.asgPrimary(this.checked)"><b>Has a personal jump bag</b> (Primary Bag)</span></label>'
+    // 1.49: no checkbox — the bags this member has, each with Remove, and + Add bag (the first one added is the Primary Bag)
+    + (!A.primary && !A.extra.length ? '<div class="muted" style="margin:6px 0">No bags yet.</div>' : '')
+    + (A.primary ? '<div class="row" style="margin-top:6px;flex-wrap:nowrap"><div class="item grow" style="border:1px solid var(--line);border-radius:8px;margin:0"><span class="nm"><b>Primary Bag</b></span></div><button class="btn red sm" onclick="App.asgPrimary(false)">Remove</button></div>' : '')
     + A.extra.map(function(x, i){ return '<div class="row" style="margin-top:6px;flex-wrap:nowrap"><input class="asg-name" data-i="' + i + '" value="' + esc(x.name) + '" placeholder="Bag name, e.g. Peds Bag" oninput="App.asgName(' + i + ',this.value)"><button class="btn red sm" onclick="App.asgDel(' + i + ')">Remove</button></div>'; }).join("")
-    + '<button class="btn sm" style="margin-top:8px" onclick="App.asgAdd()">+ Add a bag</button>';
+    + '<button class="btn gold sm" style="margin-top:8px" onclick="App.asgAdd()">+ Add bag</button>';
   if (fleetOnly) b = '';
   var all = agencyBags();
   b += '<h2>🧰 Fleet bags to look after</h2><p class="muted" style="margin:0 0 6px">These show on the member\'s Jump Bag page and in their reminders. Anyone can still check them.</p>'
@@ -3436,8 +3439,8 @@ window.App = {
   saveProfile: saveProfile, vfRepl: vfRepl, editBagExp: editBagExp, saveBagExp: saveBagExp, viewBagExp: viewBagExp, phoneTyping: phoneTyping, openProfile: openProfile,
   addType: addType, resetTemplates: resetTemplates, saveSettings: saveSettings,
   panelTab: function(t){ S.adminTab = { rig: "rigcl", bag: "bagcl" }[t] || t; setTab("admin"); render(); window.scrollTo(0, 0); }, cedSet: cedSet, cedOp: cedOp, saveRigList: saveRigList, saveBagList: saveBagList,
-  saveDocs: saveDocs, editRigExp: editRigExp, assignBags: assignBags, addBag: addBag, addBagSave: addBagSave, removeBag: removeBag, lookAfter: lookAfter, asgPrimary: function(v){ if (S._asg) S._asg.primary = !!v; }, asgSave: asgSave,
-  asgAdd: function(){ S._asg.extra.push({ id: "b" + Date.now().toString(36), name: "" }); drawAssign(); var n = document.querySelectorAll(".asg-name"); if (n.length) n[n.length - 1].focus(); },
+  saveDocs: saveDocs, editRigExp: editRigExp, assignBags: assignBags, addBag: addBag, addBagSave: addBagSave, removeBag: removeBag, lookAfter: lookAfter, asgPrimary: function(v){ if (S._asg){ S._asg.primary = !!v; drawAssign(); } }, asgSave: asgSave,
+  asgAdd: function(){ if (!S._asg.primary){ S._asg.primary = true; drawAssign(); return; } S._asg.extra.push({ id: "b" + Date.now().toString(36), name: "" }); drawAssign(); var n = document.querySelectorAll(".asg-name"); if (n.length) n[n.length - 1].focus(); },
   asgDel: function(i){ S._asg.extra.splice(i, 1); drawAssign(); }, asgName: function(i, v){ S._asg.extra[i].name = v; },
   asgFleet: function(id, on){ var f = S._asg.fleet, i = f.indexOf(id); if (on && i < 0) f.push(id); if (!on && i >= 0) f.splice(i, 1); }, expOne: expOne, vehPics: vehPics, openVeh: openVeh, importLicAddr: importLicAddr, expOneSave: expOneSave, expOneCancel: expOneCancel, viewObExp: viewObExp, editObExp: editObExp, saveObExp: saveObExp, saveRigExp: saveRigExp, saveTiming: saveTiming, saveMsg: saveMsg, ckPick: ckPick
 };
