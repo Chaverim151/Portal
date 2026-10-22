@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<meta name="trk-version" content="1.58">
+<meta name="trk-version" content="1.59">
 <meta name="trk-mode" content="desktop">
 <script>
 // 1.58: a phone that opens the computer version (Portal/ = index.html) is sent to the phone version, like CallDashboard
@@ -16,6 +16,7 @@
 <meta name="theme-color" content="#ffffff">
 <title>Compliance</title>
 <!-- 1.32: the same Hatzolah MC icon as CallDashboard, built in (no extra files to upload) -->
+<!-- 1.59: Sign out back in the phone top bar; vehicle papers as a folding table too -->
 <!-- 1.58: phones opening the Portal link go to the phone version (no Admin); phone top bar has no Sign out (it's in My Profile) -->
 <!-- 1.57: Admin "Units" → "Users"; uniform order is a report; overlap fixes -->
 <!-- 1.56: phone document cards fold to name · status · expiry; tap to open -->
@@ -130,7 +131,8 @@ h2{font-size:1.1rem;margin:18px 0 10px;color:var(--accent)}
   .tb-right{gap:4px}.tb-right .btn{padding-left:8px;padding-right:8px}
 }
 @media(max-width:340px){.tb-title{display:none}}
-@media(max-width:600px){.trk-mobile #topbar{grid-template-columns:minmax(0,1fr) auto}.trk-mobile .tb-signout{display:none}}   /* 1.58: Sign out is in 👤 My Profile on phones */
+@media(max-width:600px){.trk-mobile #topbar{grid-template-columns:minmax(0,1fr) auto}}
+@media(max-width:430px){.trk-mobile .tb-title{display:none}}   /* 1.59: phones keep Sign out in the bar; the logo stays, the words give way */
 .tb-who{text-align:center;font-family:'Oswald',sans-serif;font-weight:700;font-size:.8rem;color:var(--gray);letter-spacing:.04em;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .tb-right{display:flex;align-items:center;gap:6px}
 .ban-more{color:inherit;font-weight:700}
@@ -375,7 +377,7 @@ td.rep-warn{color:var(--warn);font-weight:700}
     <div class="m-err" id="login-err"></div>
 
     <div style="text-align:center;margin-top:16px"><button class="m-forgot" onclick="App.forgotPw()">Forgot password?</button></div>
-    <div class="m-build">BUILD <span id="li-build">v1.58</span></div>
+    <div class="m-build">BUILD <span id="li-build">v1.59</span></div>
   </div>
 </div>
 <div id="boot" class="empty" style="margin-top:20vh">Signing in…</div>
@@ -455,7 +457,7 @@ function trkSmsPayload(phone, message, unit){
 function trkEmailPayload(email, name, subject, html){ return { to: [{ email: email, name: name || email }], subject: subject, body: html }; }
 
 /* ════════════════════════════════════════════════════════════════════════ */
-var TRK_VERSION = "1.58";
+var TRK_VERSION = "1.59";
 // 1.16: owner asked to block the tracker's notifications for now. While this is true the tracker sends NO texts and
 // NO emails (reminders and test reminders). Sign-in "Forgot password?" still works. Set to false to allow sending again.
 var TRK_SENDING_OFF = true;
@@ -1521,10 +1523,7 @@ function vehicleDetail(v){
     + '<div class="kv">' + (v.plate ? '<span>Plate</span><span>' + esc(v.plate) + (v.regState ? " (" + esc(v.regState) + ")" : "") + '</span>' : '')
     + (v.color ? '<span>Color</span><span>' + esc(v.color) + '</span>' : '') + (v.fuel ? '<span>Fuel</span><span>' + esc(v.fuel) + '</span>' : '')
     + (v.vin ? '<span>VIN</span><span>' + esc(v.vin) + '</span>' : '') + (v.regName ? '<span>Registered to</span><span>' + esc(v.regName) + '</span>' : '') + '</div>'
-    + '<div class="docs" style="margin-top:10px">';
-  docTypes("vehicle").forEach(function(t){
-    h += docCard("v_" + v.id, t, S.myRecords[recKey("v_" + v.id, t.id)], { owner: S.me.uid, unit: S.me.unit, name: S.me.name || "", veh: "v_" + v.id, vehName: vTitle(v) });
-  });
+    + '<div style="margin-top:10px">' + docTable("v_" + v.id, docTypes("vehicle"), S.myRecords, { owner: S.me.uid, unit: S.me.unit, name: S.me.name || "", veh: "v_" + v.id, vehName: vTitle(v) });   // 1.59
   return h + '</div></div>';
 }
 function openVeh(id){ S.vehOpen = id || null; render(); window.scrollTo(0, 0); }
@@ -2574,7 +2573,7 @@ function profileProblems(d){
 function viewProfile(){
   if (S.myProfile === null) return '<div class="empty">Loading…</div>';
   var p = S.myProfile || {};
-  return (TRK_MODE === "mobile" ? '<div class="row" style="justify-content:flex-end;margin:6px 0"><button class="btn" onclick="App.signOut()">⎋ Sign out</button></div>' : '') + profileForm(S.me, p, "pf-")
+  return profileForm(S.me, p, "pf-")
     + '<div class="row" style="position:sticky;bottom:0;background:var(--bg);padding:10px 0;border-top:1px solid var(--line)"><span class="grow muted" id="pf-msg">' + (p.updatedAt ? "Last saved " + fmtTs(p.updatedAt) : "") + '</span>'
     + '<button class="btn gold" onclick="App.saveProfile()">💾 Save profile</button></div>';
 }
@@ -2728,7 +2727,7 @@ function adminMember(uid){
     h += '<div class="card"><div class="row">' + carImg(v, "", true) + '<div class="grow"><h3 style="margin:0">' + (v.slot ? '<span class="pill p-info">Vehicle ' + v.slot + '</span> ' : '') + esc(vTitle(v)) + '</h3>'
       + '<div class="muted">' + [v.plate ? "Plate " + esc(v.plate) + (v.regState ? " (" + esc(v.regState) + ")" : "") : "", v.color ? esc(v.color) : "", v.vin ? "VIN " + esc(v.vin) : ""].filter(Boolean).join(" · ") + '</div></div>'
       + '<button class="btn sm" data-id="' + esc(v.id) + '" onclick="App.editVehicle(this.dataset.id)">Edit</button></div><div class="docs" style="margin-top:10px">'
-      + docTypes("vehicle").map(function(t){ return docCard("v_" + v.id, t, S.allRecords[recKey("v_" + v.id, t.id)], Object.assign({ veh: "v_" + v.id, vehName: vTitle(v) }, ctx)); }).join("") + '</div></div>';
+      + docTable("v_" + v.id, docTypes("vehicle"), S.allRecords, Object.assign({ veh: "v_" + v.id, vehName: vTitle(v) }, ctx)) + '</div></div>';
   });
   var asg = bagAssignOf(uid);
   h += '<div class="row" style="margin-top:18px"><h2 class="grow" style="margin:0">🎒 Jump Bags</h2>'
