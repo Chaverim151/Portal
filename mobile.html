@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<meta name="trk-version" content="1.24">
+<meta name="trk-version" content="1.25">
 <meta name="trk-mode" content="mobile">
 <meta name="theme-color" content="#ffffff">
 <title>Compliance</title>
@@ -273,7 +273,7 @@ td.rep-warn{color:var(--warn);font-weight:700}
     <div class="m-err" id="login-err"></div>
 
     <div style="text-align:center;margin-top:16px"><button class="m-forgot" onclick="App.forgotPw()">Forgot password?</button></div>
-    <div class="m-build">BUILD <span id="li-build">v1.24</span></div>
+    <div class="m-build">BUILD <span id="li-build">v1.25</span></div>
   </div>
 </div>
 <div id="boot" class="empty" style="margin-top:20vh">Signing in…</div>
@@ -287,6 +287,7 @@ td.rep-warn{color:var(--warn);font-weight:700}
     </div>
     <div class="tb-who" id="who"></div>
     <div class="tb-right">
+      <button id="adm-btn" class="btn sm" hidden onclick="App.setTab('admin')" title="Admin: compliance, review, reports, checklists, settings">⚙ Admin</button>
       <button id="bell" onclick="App.openPanel()" aria-label="Notifications">🔔<span class="badge" id="bell-n" hidden></span></button>
       <button class="btn sm" onclick="App.signOut()">Sign out</button>
     </div>
@@ -351,7 +352,7 @@ function trkSmsPayload(phone, message, unit){
 function trkEmailPayload(email, name, subject, html){ return { to: [{ email: email, name: name || email }], subject: subject, body: html }; }
 
 /* ════════════════════════════════════════════════════════════════════════ */
-var TRK_VERSION = "1.24";
+var TRK_VERSION = "1.25";
 // 1.16: owner asked to block the tracker's notifications for now. While this is true the tracker sends NO texts and
 // NO emails (reminders and test reminders). Sign-in "Forgot password?" still works. Set to false to allow sending again.
 var TRK_SENDING_OFF = true;
@@ -433,13 +434,13 @@ var DEFAULT_SETTINGS = {
   ],
   reminderCooldownDays: 7,
   bagQuestions: null,           // null = DEFAULT_BAG_QUESTIONS
-  // Jump bag items that expire — each member keeps the date on their own bag (admins add / remove items in ⚙ Admin Panel)
+  // Jump bag items that expire — each member keeps the date on their own bag (admins add / remove items in ⚙ Admin)
   expItems: ["AED Pads", "Albuterol-1", "Albuterol-2", "Aspirin", "Burn-Gel", "Epi-Pen - Adult", "Epi-Pen - PED", "Glucometer Test Strips",
     "Narcan", "Nebulizer Saline-1", "Nebulizer Saline-2", "Oral Glucose-1", "Oral Glucose-2", "Quick-Clot", "Saline Flush-1", "Saline Flush-2"],
   // 1.24: things in the AGENCY jump bags (rig bags, ERV bag…) that expire — each bag keeps its own dates
   orgBagExpItems: ["AED Pads", "Albuterol-1", "Albuterol-2", "Aspirin", "Burn-Gel", "Epi-Pen - Adult", "Epi-Pen - PED", "Glucometer Test Strips",
     "Narcan", "Nebulizer Saline-1", "Nebulizer Saline-2", "Oral Glucose-1", "Oral Glucose-2", "Saline Flush-1", "Saline Flush-2"],
-  // 1.24: things on the RIG itself that expire (each rig keeps its own dates). Admin Panel ▸ Rig Checklist.
+  // 1.24: things on the RIG itself that expire (each rig keeps its own dates). ⚙ Admin ▸ Rig Checklist.
   rigExpItems: ["AED Pads", "Albuterol-1", "Albuterol-2", "Aspirin", "Burn-Gel", "Epi-Pen - Adult", "Epi-Pen - PED", "Glucometer Test Strips",
     "Narcan", "Nebulizer Saline-1", "Nebulizer Saline-2", "Oral Glucose-1", "Oral Glucose-2", "Quick-Clot", "Saline Flush-1", "Saline Flush-2"],
   templates: {
@@ -456,16 +457,16 @@ var DEFAULT_JUMPBAG = [
   { name: "Jump Bag Meds", items: [ {n:"Oral Glucose",par:"2"}, {n:"Aspirin",par:"12 Tablets"}, {n:"Epi Auto-Injector - Adult",par:"1"}, {n:"Epi Auto-Injector - PED",par:"1"}, {n:"Albuterol",par:"2"}, {n:"Narcan",par:"1"}, {n:"Nebulizer Saline",par:"2"} ] },
   { name: "Glucometer", items: [ {n:"Glucometer",par:"1"}, {n:"Lancets",par:"4"}, {n:"Alcohol Prep Pads",par:"6"}, {n:"Test Strips",par:"6"} ] }
 ];
-// Yes / No checks at the end of each section (from the same form). Editable in ⚙ Admin Panel.
+// Yes / No checks at the end of each section (from the same form). Editable in ⚙ Admin.
 var DEFAULT_BAG_QUESTIONS = {
   "AED": ["AED Tested", "Pads In-Date"],
   "Jump Bag": ["BVMs Opened and Tested (NOT the Military adult in a can) and Ability to Expand and Contract Properly Has Been Confirmed", "Pulse Oximeter Tested and Battery Level at 50% or Better"],
   "Jump Bag Meds": ["All Meds In-Date"],
   "Glucometer": ["Glucometer Calibrated", "Alcohol Prep Pads in Date", "Test Strips in Date", "Battery Level at 50% or Better"]
 };
-// 1.24: the MC Rig Equipment Checklist (owner's form). Admins edit it in ⚙ Admin Panel ▸ Rig Checklist.
+// 1.24: the MC Rig Equipment Checklist (owner's form). Admins edit it in ⚙ Admin ▸ Rig Checklist.
 var DEFAULT_RIG_CHECKLIST = [{name:"O2 & O2 Delivery",items:[{n:"CPAP",par:"2"},{n:"BVM - Adult",par:"1"},{n:"BVM - Child",par:"1"},{n:"BVM - Infant",par:"1"},{n:"NRB - Adult",par:"4"},{n:"NRB - PED",par:"3"},{n:"NC - Adult",par:"4"},{n:"NC - PED",par:"3"},{n:"Nebulizer",par:"2"},{n:"O2 Tank - Stretcher",par:"min 800 psi"},{n:"O2 Tank - Spare",par:"2 Sealed"},{n:"O2 Tank - Main",par:"min 800 psi"}],questions:[]},{name:"Airway Management",items:[{n:"OPA Kit - Complete",par:"1"},{n:"NPA Kit - Complete",par:"1"},{n:"NPA Lube",par:"3"},{n:"Suction Unit w/Catheter & Tubing",par:"2"},{n:"Suction Canister - Spare",par:"1"},{n:"Suction Tubing - Spare",par:"1"},{n:"Suction Catheter - Rigid - Spare",par:"2"},{n:"Suction Catheter - Size 8 Fr",par:"4"},{n:"Suction Catheter - Size 18 Fr",par:"4"},{n:"Infant Build Syringe",par:"1"}],questions:["Suction Unit #1 Tested","Suction Unit #2 Tested"]},{name:"Trauma",items:[{n:"Roller Gauze - 3-inch",par:"12"},{n:"Tape - 1-inch",par:"3"},{n:"4 x 4",par:"25"},{n:"5 x 9",par:"10"},{n:"Multi-Trauma",par:"4"},{n:"Triangular Bandage",par:"12"},{n:"Burn Sheet",par:"4"},{n:"OB Kit",par:"2"},{n:"Ring Cutter",par:"1"},{n:"Trauma Shears",par:"2"},{n:"Chest Seal/Occlusive Dressing",par:"4"},{n:"Sam Splint",par:"2"},{n:"Padded Arm Splint",par:"4"},{n:"Padded Leg Splint",par:"4"},{n:"Traction Splint - Complete - Adult",par:"1"},{n:"Traction Splint - Complete - PED",par:"1"},{n:"Adjustable C-Collar - Adult",par:"3"},{n:"Adjustable C-Collar - PED",par:"2"},{n:"Band-Aids",par:"25"},{n:"Quick-Clot",par:"2"},{n:"Tourniquet",par:"2"},{n:"Ice Pack",par:"6"},{n:"Burn-Gel",par:"2"},{n:"Sterile Saline - 1 Liter",par:"2"}],questions:[]},{name:"Rig Meds",items:[{n:"Oral Glucose",par:"2"},{n:"Aspirin",par:"12 Tablets"},{n:"Epi Auto-Injector - Adult",par:"1"},{n:"Epi Auto-Injector - PED",par:"1"},{n:"Albuterol",par:"2"},{n:"Narcan",par:"1"},{n:"Nebulizer Saline",par:"2"}],questions:["All Meds In-Date"]},{name:"Assessment",items:[{n:"Pulse Oximeter w/Battery Indicator",par:"1"},{n:"Spare Batteries for Pulse Oximeter",par:"1"},{n:"Glucometer Kit - Complete",par:"1"},{n:"Penlight - Working",par:"2"},{n:"Thermometer",par:"1"},{n:"Thermometer Probe Covers",par:"6"},{n:"BP Cuff - Large Adult",par:"1"},{n:"BP Cuff - Adult",par:"1"},{n:"BP Cuff - PED",par:"1"},{n:"Stethoscope",par:"1"}],questions:["Pulse Oximeter Tested, and Battery Level at 50% or Better"]},{name:"Transport & Extrication",items:[{n:"Stretcher",par:"1"},{n:"Stair Chair",par:"1"},{n:"Longboard",par:"1"},{n:"Scoop",par:"1"},{n:"Reeves",par:"1"},{n:"KED",par:"1"},{n:"Head Immobilizer",par:"2"},{n:"Binder Lift",par:"1"},{n:"Sheets",par:"4"},{n:"Blankets",par:"4"},{n:"Pillows",par:"4"}],questions:["The STRETCHER - has 1 chest strap, 1 waist strap, 1 leg strap, and 2 shoulder-to-waist crossed straps","The STAIR CHAIR - has 1 waist strap, 2 shoulder-to-waist crossed straps, and 1 foot strap.","The SCOOP - has 1 chest strap, 1 waist strap, and 1 leg strap.","The LONGBOARD - has 1 chest strap, 1 waist strap, and 1 leg strap"]},{name:"Safety",items:[{n:"Helmets",par:"2"},{n:"Safety Coats",par:"2"},{n:"Safety Goggles",par:"2"},{n:"Vests",par:"3"},{n:"Road Flares - Traditional",par:"3"},{n:"Road Flares - LED",par:"3"},{n:"Fire Extinguisher",par:"1"}],questions:["Fire Extinguisher In-Date","Road Flares - LED - Tested"]},{name:"BSI & BPP",items:[{n:"Gloves - M",par:"1"},{n:"Gloves - L",par:"1"},{n:"Gloves - XL",par:"1"},{n:"Emesis Bags",par:"4"},{n:"N-95 Masks",par:"10"},{n:"Surgical Masks",par:"10"},{n:"High Risk Kits",par:"3"},{n:"Gowns",par:"3"},{n:"Germicidal Wipes",par:"1"},{n:"Red Bags",par:"4"}],questions:[]},{name:"AED",items:[{n:"AED Unit w/Valid In-Service Indicator",par:"1"},{n:"Pads - Connected",par:"1"},{n:"Pads - Spare",par:"1"},{n:"Manual Shaving Razor",par:"1"},{n:"PED Key",par:"1"}],questions:["AED Tested","Pads In-Date"]},{name:"LUCAS (Thumper)",items:[{n:"Piston Compression Unit",par:"1"},{n:"Back Plate",par:"1"},{n:"Neck Strap w/Two intact Male Buckles",par:"1"},{n:"Neck Strap w/Intact Female Buckles",par:"2, one on each side of compression unit"},{n:"Wrist Straps",par:"2, one on each side of compression unit"},{n:"Suction Cup",par:"2, one on piston, one spare"},{n:"Battery",par:"3, one on compression unit, one spare in case, one in wall charger"}],questions:["LUCAS Unit Battery Tested (Less Than 3 Bars Should be Swapped)","LUCAS Spare Battery (Mounted on Wall Charger w/Green Indicator)"]},{name:"Jump Bag",items:[],questions:["Jump Bag present","Jump Bag in good condition"]},{name:"IPADs",items:[],questions:["Have you Successfully Logged into iPad-1 and Downloaded the Configuration","Have you Successfully Logged into iPad-2 and Downloaded the Configuration","Is Each iPad Charging When on the Base"]},{name:"Glucometer",items:[{n:"Glucometer",par:"1"},{n:"Lancets",par:"4"},{n:"Alcohol Prep Pads",par:"6"},{n:"Test Strips",par:"6"}],questions:["Glucometer Calibrated","Alcohol Prep Pads in Date","Test Strips in Date","Battery Level at 50% or Better"]},{name:"Stryker Power-Load",items:[],questions:[]}];
-// The jump bag checklist = the MC jump-bag form (DEFAULT_JUMPBAG + DEFAULT_BAG_QUESTIONS). Admin Panel ▸ Jump Bag Checklist.
+// The jump bag checklist = the MC jump-bag form (DEFAULT_JUMPBAG + DEFAULT_BAG_QUESTIONS). ⚙ Admin ▸ Jump Bag Checklist.
 function defaultBagChecklist(){
   var q = S.settings.bagQuestions || DEFAULT_BAG_QUESTIONS;
   return DEFAULT_JUMPBAG.map(function(sec){
@@ -586,9 +587,9 @@ function rigExpRows(vid){
 }
 function rigExpTable(vid){
   var rs = S.rigStatus[vid] || {}, rows = rigExpRows(vid);
-  if (!rows.length) return '<div class="muted">No expiring items on the list. An admin can add them in ⚙ Admin Panel ▸ Rig Checklist.</div>';
-  return '<div class="tbl-wrap"><table class="exp-tbl"><thead><tr><th>Item</th><th>Expiration</th><th>Validity</th></tr></thead><tbody>'
-    + rows.map(function(r){ return '<tr><td>' + esc(r.item) + '</td><td class="num">' + (r.date ? fmtDash(r.date) : '<span class="muted">—</span>') + '</td><td>' + pillFor(r.st) + '</td></tr>'; }).join("")
+  if (!rows.length) return '<div class="muted">No expiring items on the list. An admin can add them in ⚙ Admin ▸ Rig Checklist.</div>';
+  return '<div class="tbl-wrap"><table class="exp-tbl"><thead><tr><th>Item</th><th>Expiration</th><th>Validity</th><th>Action</th></tr></thead><tbody>'
+    + rows.map(function(r, i){ return '<tr><td>' + esc(r.item) + '</td><td class="num">' + (r.date ? fmtDash(r.date) : '<span class="muted">—</span>') + '</td><td>' + pillFor(r.st) + '</td>' + '<td><button class="btn sm" title="Update this date" data-k="rig" data-id="' + esc(vid) + '" data-i="' + i + '" onclick="App.expOne(this)">✎ Update</button></td>' + '</tr>'; }).join("")
     + '</tbody></table></div><div class="muted" style="margin-top:6px">' + (rs.expUpdatedAt ? "Updated " + fmtTs(rs.expUpdatedAt) + (rs.expUpdatedBy ? " by " + esc(rs.expUpdatedBy) : "") : "Dates not entered yet.") + '</div>';
 }
 function rigExpInputs(vid){
@@ -625,8 +626,8 @@ function obExpSummary(bid){
 function viewObExp(bid){
   var v = S.fleet.filter(function(x){ return x.id === bid; })[0], st = S.allBags["org_" + bid] || {}, rows = obExpRows(bid);
   openModal("⏳ " + (v ? bagLabel(v) : bid) + " — Expiration Dates",
-    '<div class="tbl-wrap" style="margin-top:10px"><table class="exp-tbl"><thead><tr><th>Item</th><th>Expiration</th><th>Validity</th></tr></thead><tbody>'
-    + rows.map(function(r){ return '<tr><td>' + esc(r.item) + '</td><td class="num">' + (r.date ? fmtDash(r.date) : '<span class="muted">—</span>') + '</td><td>' + pillFor(r.st) + '</td></tr>'; }).join("")
+    '<div class="tbl-wrap" style="margin-top:10px"><table class="exp-tbl"><thead><tr><th>Item</th><th>Expiration</th><th>Validity</th><th>Action</th></tr></thead><tbody>'
+    + rows.map(function(r, i){ return '<tr><td>' + esc(r.item) + '</td><td class="num">' + (r.date ? fmtDash(r.date) : '<span class="muted">—</span>') + '</td><td>' + pillFor(r.st) + '</td>' + '<td><button class="btn sm" title="Update this date" data-k="org" data-id="' + esc(bid) + '" data-i="' + i + '" onclick="App.expOne(this)">✎ Update</button></td>' + '</tr>'; }).join("")
     + '</tbody></table></div><div class="muted" style="margin-top:6px">' + (st.expUpdatedAt ? "Updated " + fmtTs(st.expUpdatedAt) + (st.expUpdatedBy ? " by " + esc(st.expUpdatedBy) : "") : "Dates not entered yet.") + '</div>',
     '<button class="btn" onclick="App.closeModal()">Close</button><button class="btn gold" data-id="' + esc(bid) + '" onclick="App.editObExp(this.dataset.id)">✎ Edit dates</button>');
 }
@@ -806,6 +807,7 @@ auth.onAuthStateChanged(async function(user){
   S.isLogistics = rolesOf(S.me).indexOf("logistics") >= 0;
   $("login").hidden = true; $("app").hidden = false;
   $("who").textContent = (S.me.unit || "") + (S.me.name ? " · " + S.me.name : "");
+  $("adm-btn").hidden = !(S.isAdmin && TRK_MODE === "desktop");
   S.tab = "home"; try { history.replaceState({ trk: "home" }, ""); } catch (e){}
   startListeners();
   render();
@@ -910,13 +912,46 @@ function bagQuestions(section){
   var q = S.settings.bagQuestions || DEFAULT_BAG_QUESTIONS, key = Object.keys(q).filter(function(k){ return k.toLowerCase() === String(section).toLowerCase(); })[0];
   return key ? q[key] : [];
 }
-// Agency bags and cabinets members can check (CAD Fleet equipment). Admin Panel ▸ Timing & Equipment picks which.
+// Agency bags and cabinets members can check (CAD Fleet equipment). ⚙ Admin ▸ Timing & Equipment picks which.
+// 1.25: only jump bags (Fleet type "Jump Bag", or "bag" in its name) — never storage rooms / cabinets
+function isBagEquip(v){
+  var t = String(v.type || "").toLowerCase();
+  if (t === "storage") return false;
+  return t === "jumpbag" || /\bbag\b|jump ?bag/i.test(String(v.id) + " " + String(v.name || "") + " " + String(v.description || ""));
+}
 function agencyBags(){
   var ids = S.settings.bagIds;
-  return S.fleet.filter(function(v){ return ids ? ids.indexOf(v.id) >= 0 : isEquipment(v); })
+  return S.fleet.filter(function(v){ return isBagEquip(v) && (!ids || ids.indexOf(v.id) >= 0); })
     .sort(function(a, b){ return String(a.id).localeCompare(String(b.id), undefined, { numeric: true }); });
 }
-function bagLabel(v){ var n = vName(v); return n && n !== v.id ? v.id + " - " + n : String(v.id); }
+// The vehicle a bag belongs to: the Fleet's own link if there is one, otherwise the vehicle whose ID is in the bag's name ("MC-902 Jump Bag" → MC-902)
+function bagVehicle(b){
+  var vs = S.fleet.filter(function(v){ return !isEquipment(v); });
+  var key = String(b.assignedTo || b.vehicleId || b.vehicle || b.rig || "").trim();
+  if (key){ var m = vs.filter(function(v){ return v.id === key; })[0]; if (m) return m; }
+  var hay = (String(b.id) + " " + String(b.name || "") + " " + String(b.description || "")).toUpperCase(), best = null;
+  vs.forEach(function(v){
+    var id = String(v.id).toUpperCase(), re = new RegExp("(^|[^A-Z0-9])" + id.replace(/[.*+?^${}()|[\]\\]/g, "\\$&") + "([^A-Z0-9]|$)");
+    if (re.test(hay) && (!best || id.length > String(best.id).length)) best = v;
+  });
+  return best;
+}
+function bagLabel(v){
+  var n = vName(v) || String(v.id), veh = bagVehicle(v);
+  if (veh && n.toUpperCase().indexOf(String(veh.id).toUpperCase()) === -1) n = vName(veh) + " " + n;
+  return n;
+}
+// [{ veh, bags }] — each vehicle's bags together; bags without a vehicle last
+function bagsByVehicle(){
+  var groups = [], byId = {};
+  agencyBags().forEach(function(b){
+    var veh = bagVehicle(b), k = veh ? veh.id : "";
+    if (!byId[k]){ byId[k] = { veh: veh, bags: [] }; groups.push(byId[k]); }
+    byId[k].bags.push(b);
+  });
+  return groups.sort(function(a, b){ return !a.veh ? 1 : !b.veh ? -1 : String(vName(a.veh)).localeCompare(String(vName(b.veh)), undefined, { numeric: true }); });
+}
+function bagsOfVehicle(vid){ return agencyBags().filter(function(b){ var v = bagVehicle(b); return v && v.id === vid; }); }
 function rigSupplyList(){ var r = S.restock; return (r && r.sections && r.sections.length) ? r.sections : DEFAULT_RIG_SUPPLIES; }
 
 /* ════════════════════════════════════════════════════════════════════════
@@ -995,17 +1030,17 @@ var PAGES = {
   vehicles: { icon: "🚗", label: "My Vehicles",  sub: "Vehicle 1 & 2 · insurance, registration" },
   bag:      { icon: "🎒", label: "Jump Bag",     sub: "Bag check & expiration dates" },
   rigs:     { icon: "🚑", label: "Rig Checks",   sub: "Ambulance checks & agency paperwork" },
-  admin:    { icon: "🪪", label: "User Compliance", sub: "Admin · review, reminders, reports" },
-  panel:    { icon: "⚙", label: "Admin Panel",  sub: "Checklists, documents, timing, messages" }
+  admin:    { icon: "⚙", label: "Admin", sub: "Compliance, review, reports, checklists, settings" }
 };
 function tabsList(){
   var t = ["profile", "docs", "vehicles", "bag"];
   if (S.isAdmin || S.isLogistics) t.push("rigs");
-  if (S.isAdmin && TRK_MODE === "desktop") t.push("admin", "panel");   // like the CAD, admin is on the computer
+  if (S.isAdmin && TRK_MODE === "desktop") t.push("admin");   // opened from the ⚙ Admin button in the top bar (1.25), not a tile   // like the CAD, admin is on the computer
   return t;
 }
 function setTab(t, fromHistory){
-  if ((t === "admin" || t === "panel") && TRK_MODE !== "desktop") t = "home";
+  if (t === "panel"){ t = "admin"; if (ADMIN_SETTINGS_TABS.indexOf(S.adminTab) < 0) S.adminTab = "rigcl"; }
+  if (t === "admin" && TRK_MODE !== "desktop") t = "home";
   if (t !== "home" && tabsList().indexOf(t) < 0) t = "home";
   var changed = S.tab !== t;
   S.tab = t;
@@ -1034,11 +1069,11 @@ function render(){
   var pg = PAGES[S.tab];
   $("pagehead").hidden = !pg;
   if (pg) $("page-title").textContent = pg.icon + " " + pg.label;
-  $("banner").hidden = S.tab === "admin" || S.tab === "panel";
+  $("banner").hidden = S.tab === "admin";
   var v = $("view");
-  var f = { home: viewHome, profile: viewProfile, docs: viewDocs, vehicles: viewVehicles, bag: viewBag, rigs: viewRigs, admin: viewAdmin, panel: viewPanel }[S.tab] || viewHome;
+  var f = { home: viewHome, profile: viewProfile, docs: viewDocs, vehicles: viewVehicles, bag: viewBag, rigs: viewRigs, admin: viewAdmin }[S.tab] || viewHome;
   // keep focus/typing safe: don't redraw a settings form someone is typing in
-  if ((S.tab === "profile" || S.tab === "panel") && v.contains(document.activeElement) && /INPUT|TEXTAREA|SELECT/.test(document.activeElement.tagName)){ renderBell(); return; }
+  if ((S.tab === "profile" || (S.tab === "admin" && (ADMIN_SETTINGS_TABS.indexOf(S.adminTab) >= 0 || S.adminTab === "remind" || S.adminTab === "reports"))) && v.contains(document.activeElement) && /INPUT|TEXTAREA|SELECT/.test(document.activeElement.tagName)){ renderBell(); return; }
   v.innerHTML = f();
   renderBell();
 }
@@ -1046,12 +1081,12 @@ function render(){
 /* ── Home ── */
 function viewHome(){
   var cnt = tileCounts();
-  var h = '<div class="tiles">' + tabsList().map(function(k, i){
+  var h = '<div class="tiles">' + tabsList().filter(function(k){ return k !== "admin"; }).map(function(k, i){
     var p = PAGES[k], c = cnt[k], badge = c && (c.bad || c.warn) ? '<span class="tb' + (c.bad ? "" : " w") + '">' + (c.bad || c.warn) + '</span>' : '';
     return '<button class="tile" data-sec="' + k + '" style="animation-delay:' + (i * 0.04) + 's" onclick="App.setTab(\'' + k + '\')">' + badge
       + '<span class="ti">' + p.icon + '</span><span class="tl">' + p.label + '</span><span class="ts">' + p.sub + '</span></button>';
   }).join("") + '</div>';
-  if (S.isAdmin && TRK_MODE === "mobile") h += '<p class="muted" style="text-align:center">User Compliance (admin) is in the computer version.</p>';
+  if (S.isAdmin && TRK_MODE === "mobile") h += '<p class="muted" style="text-align:center">⚙ Admin is in the computer version.</p>';
   var n = notifications();
   h += '<div style="max-width:820px;margin:0 auto"><h2>To do</h2>' + (n.length ? n.map(function(x, i){ return '<button class="nitem ' + x.lvl + '" onclick="App.goNotifHome(' + i + ')"><div>' + (x.lvl === "bad" ? "🔴" : x.lvl === "warn" ? "🟡" : "🔵") + '</div><div>' + esc(x.title) + '<small>' + esc(x.sub || "") + '</small></div></button>'; }).join("") : '<div class="card empty">✅ Nothing to do right now.</div>') + '</div>';
   S._notifs = n;
@@ -1698,18 +1733,54 @@ function viewBag(){
     h += '<div class="note" style="background:#fff4d6;border-color:#e2c27a;color:#5c3c00"><b>Missing from your last check:</b><br>' + S.myBag.missing.map(function(m){ return esc(m.n) + (m.note ? " — " + esc(m.note) : ""); }).join("<br>") + '</div>';
   }
   h += '<div class="row" style="margin-top:12px"><button class="btn gold" onclick="App.startBagCheck(\'mine\')">✓ Start bag check</button><button class="btn" onclick="App.bagHistory()">🕘 History</button></div></div>';
-  var ab = agencyBags();
-  if (ab.length) h += '<h2>🧰 Agency Bags & Cabinets</h2><div class="card"><div class="muted" style="margin-bottom:8px">Checking one of the agency\'s bags or cabinets? Pick it here, or in the Bag box at the top of the check.</div><div class="row">'
-    + ab.map(function(v){ var st = S.allBags["org_" + v.id]; return '<button class="btn" data-b="org_' + esc(v.id) + '" onclick="App.startBagCheck(this.dataset.b)">🎒 ' + esc(bagLabel(v)) + (st && st.lastAt ? ' <span class="muted">· ' + fmtTs(st.lastAt).split(" ")[0] + '</span>' : '') + '</button>'; }).join("") + '</div></div>';
+  var groups = bagsByVehicle();
+  if (groups.length) h += '<h2>🧰 Vehicle Jump Bags</h2><div class="card"><div class="muted" style="margin-bottom:8px">Checking the jump bag on a rig or ERV? Pick it here, or in the Bag box at the top of the check.</div>'
+    + groups.map(function(g){
+      return '<div style="margin:8px 0 4px;font-weight:700">' + (g.veh ? (isAmbulance(g.veh) ? "🚑 " : "🚙 ") + esc(vName(g.veh)) : "Other bags") + '</div><div class="row">'
+        + g.bags.map(function(v){ var st = S.allBags["org_" + v.id]; return '<button class="btn" data-b="org_' + esc(v.id) + '" onclick="App.startBagCheck(this.dataset.b)">🎒 ' + esc(bagLabel(v)) + (st && st.lastAt ? ' <span class="muted">· ' + fmtTs(st.lastAt).split(" ")[0] + '</span>' : '') + '</button>'; }).join("") + '</div>';
+    }).join("") + '</div>';
   h += '<div class="row" style="margin-top:6px"><h2 class="grow" style="margin:8px 0">⏳ Expiration Dates</h2><button class="btn" onclick="App.editBagExp()">✎ Update dates</button></div>' + expTable(S.me.uid);
   return h;
 }
 function expTable(uid){
   var rows = bagExpRows(uid), exp = bagExpFor(uid);
-  if (!rows.length) return '<div class="card empty">No items on the list. An admin can add them in ⚙ Admin Panel.</div>';
-  return '<div class="tbl-wrap"><table class="exp-tbl"><thead><tr><th>Item</th><th>Expires</th><th>Status</th></tr></thead><tbody>'
-    + rows.map(function(r){ return '<tr><td>' + esc(r.item) + '</td><td class="num">' + (r.date ? fmtDash(r.date) : '<span class="muted">—</span>') + '</td><td>' + pillFor(r.st) + '</td></tr>'; }).join("")
+  if (!rows.length) return '<div class="card empty">No items on the list. An admin can add them in ⚙ Admin.</div>';
+  return '<div class="tbl-wrap"><table class="exp-tbl"><thead><tr><th>Item</th><th>Expires</th><th>Status</th><th>Action</th></tr></thead><tbody>'
+    + rows.map(function(r, i){ return '<tr><td>' + esc(r.item) + '</td><td class="num">' + (r.date ? fmtDash(r.date) : '<span class="muted">—</span>') + '</td><td>' + pillFor(r.st) + '</td>' + '<td><button class="btn sm" title="Update this date" data-k="mine" data-id="' + esc(uid) + '" data-i="' + i + '" onclick="App.expOne(this)">✎ Update</button></td>' + '</tr>'; }).join("")
     + '</tbody></table></div><div class="muted" style="margin-top:6px">' + (exp.updatedAt ? "Updated " + fmtTs(exp.updatedAt) + (exp.updatedBy ? " by " + esc(exp.updatedBy) : "") : "Dates not entered yet.") + '</div>';
+}
+// 1.25: update ONE expiration date (✎ Update on a row) — personal bag, a rig, or an agency bag
+function expOne(btn){
+  var kind = btn.dataset.k, id = btn.dataset.id, i = +btn.dataset.i;
+  var list = kind === "rig" ? S.settings.rigExpItems : kind === "org" ? S.settings.orgBagExpItems : S.settings.expItems, item = (list || [])[i];
+  if (!item) return;
+  var cur = kind === "rig" ? ((S.rigStatus[id] || {}).expDates || {})[item] : kind === "org" ? ((S.allBags["org_" + id] || {}).expDates || {})[item] : ((bagExpFor(id).dates) || {})[item];
+  var back = S._expBack = { kind: kind, id: id, i: i, item: item, reopen: kind === "org" && !$("modal-bg").hidden };
+  openModal("⏳ " + item, '<label for="exp1">Expiration date</label><input id="exp1" type="date" value="' + esc(cur || "") + '">'
+    + (cur ? '<div class="muted" style="margin-top:6px">Now: ' + fmtDash(cur) + ' — ' + esc(expState(cur).lbl) + '</div>' : ''),
+    '<button class="btn" onclick="App.expOneCancel()">Cancel</button><button class="btn gold" id="exp1-save" onclick="App.expOneSave()">Save</button>');
+  setTimeout(function(){ var el = $("exp1"); if (el) el.focus(); }, 50);
+}
+function expOneCancel(){ var b = S._expBack; closeModal(); if (b && b.reopen) viewObExp(b.id); }
+async function expOneSave(){
+  var b = S._expBack, d = ($("exp1") || {}).value || "";
+  if (!b) return;
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(d)){ toast("Pick the expiration date."); return; }
+  $("exp1-save").disabled = true;
+  var upd = {}; upd[b.item] = d;
+  try {
+    if (b.kind === "rig"){
+      var v = S.fleet.filter(function(x){ return x.id === b.id; })[0];
+      await db.collection("trk_rigStatus").doc(b.id).set({ vehicleId: b.id, rig: v ? vName(v) : b.id, expDates: upd, expUpdatedAt: Date.now(), expUpdatedBy: S.me.unit || "" }, { merge: true });
+    } else if (b.kind === "org"){
+      var bv = S.fleet.filter(function(x){ return x.id === b.id; })[0], bl = bv ? bagLabel(bv) : b.id;
+      await db.collection("trk_bagStatus").doc("org_" + b.id).set({ org: true, bagId: b.id, bag: bl, unit: bl, byUid: S.me.uid, expDates: upd, expUpdatedAt: Date.now(), expUpdatedBy: S.me.unit || "" }, { merge: true });
+    } else {
+      await writeBagExp(b.id, Object.assign({}, (bagExpFor(b.id).dates) || {}, upd));
+    }
+    toast("✓ " + b.item + " saved");
+    closeModal(); if (b.reopen) setTimeout(function(){ viewObExp(b.id); }, 300);
+  } catch (e){ $("exp1-save").disabled = false; toast("⚠ Not saved: " + e.message, 6000); }
 }
 function expInputs(uid){
   var dates = (bagExpFor(uid).dates) || {};
@@ -1742,17 +1813,15 @@ function startBagCheck(pick){
   openChecklist("🎒 Jump Bag Checklist", "Tap ✓ for each item that's there, or ✗ if it's missing or low. Answer every Yes / No question.", ckHeader("bag"));
 }
 // Top of a check (owner's forms): who, when, and which rig / bag
+// 1.25: who checked and when come from the sign-in and the clock — only the rig / bag is asked
 function ckHeader(kind){
-  var C = S.check;
-  function ro(l, v){ return '<div class="pf-f"><label>' + l + '</label><div class="pf-ro">' + esc(v || "—") + '</div></div>'; }
-  var opts = kind === "rig" ? rigList().map(function(v){ return [v.id, vName(v)]; })
-    : [["mine", (S.me.unit || "") + " Primary Bag"]].concat(agencyBags().map(function(v){ return ["org_" + v.id, bagLabel(v)]; }));
-  return '<div class="pf-grid" style="margin-bottom:6px">'
-    + (kind === "rig" ? ro("Inspector Unit", S.me.unit) : '')
-    + '<div class="pf-f"><label for="ck-date">Inspection Date</label><input id="ck-date" type="date" value="' + todayStr() + '"></div>'
-    + ro(kind === "rig" ? "Inspector E-Mail" : "E-Mail", S.me.email) + ro(kind === "rig" ? "Inspector Name" : "Name", S.me.name)
-    + '<div class="pf-f"><label for="ck-what">' + (kind === "rig" ? "Rig" : "Bag") + '</label><select id="ck-what" onchange="App.ckPick(this.value)"><option value="">Select</option>'
-    + opts.map(function(o){ return '<option value="' + esc(o[0]) + '"' + (o[0] === C.pick ? " selected" : "") + '>' + esc(o[1]) + '</option>'; }).join("") + '</select></div></div>';
+  var C = S.check, opts;
+  if (kind === "rig") opts = rigList().map(function(v){ return '<option value="' + esc(v.id) + '"' + (v.id === C.pick ? " selected" : "") + '>' + esc(vName(v)) + '</option>'; }).join("");
+  else opts = '<option value="mine"' + (C.pick === "mine" ? " selected" : "") + '>' + esc((S.me.unit || "") + " Primary Bag") + '</option>'
+    + bagsByVehicle().map(function(g){
+      return '<optgroup label="' + esc(g.veh ? vName(g.veh) : "Other bags") + '">' + g.bags.map(function(v){ return '<option value="org_' + esc(v.id) + '"' + ("org_" + v.id === C.pick ? " selected" : "") + '>' + esc(bagLabel(v)) + '</option>'; }).join("") + '</optgroup>';
+    }).join("");
+  return '<div class="pf-grid" style="margin-bottom:6px"><div class="pf-f"><label for="ck-what">' + (kind === "rig" ? "Rig" : "Bag") + '</label><select id="ck-what" onchange="App.ckPick(this.value)"><option value="">Select</option>' + opts + '</select></div></div>';
 }
 function ckPick(v){
   var C = S.check; if (!C) return;
@@ -1777,7 +1846,7 @@ function viewRigs(){
     });
     return h;
   }
-  if (!rigs.length) return h + '<div class="card empty">No ambulances found. An admin can pick them in ⚙ Admin Panel ▸ Timing & Equipment.</div>';
+  if (!rigs.length) return h + '<div class="card empty">No ambulances found. An admin can pick them in ⚙ Admin ▸ Timing & Equipment.</div>';
   h += '<div class="muted" style="margin-bottom:10px">Each rig is checked every ' + (S.settings.rigIntervalDays || 7) + ' days.</div><div class="docs rigs-grid">';
   rigs.forEach(function(v){
     var rs = S.rigStatus[v.id], st = rigState(rs);
@@ -1793,6 +1862,14 @@ function viewRigs(){
       + (es.expired ? '<span class="pill p-bad">' + es.expired + ' expired</span> ' : '') + (es.expiring ? '<span class="pill p-warn">' + es.expiring + ' expiring</span> ' : '')
       + (es.missing === es.total ? '<span class="pill p-warn">Not entered</span>' : (!es.expired && !es.expiring && !es.missing ? '<span class="pill p-ok">All in date</span>' : '')) + '</summary>'
       + '<div style="margin-top:8px">' + rigExpTable(v.id) + '<button class="btn sm" style="margin-top:6px" data-id="' + esc(v.id) + '" onclick="App.editRigExp(this.dataset.id)">✎ Update dates</button></div></details>';
+    bagsOfVehicle(v.id).forEach(function(b){
+      var bs = S.allBags["org_" + b.id], st = bagState(bs), ob = obExpSummary(b.id);
+      h += '<div class="card" style="margin:10px 0 0;padding:10px 12px;background:var(--soft)"><div class="row"><b class="grow">🎒 ' + esc(bagLabel(b)) + '</b>' + pillFor(st) + '</div>'
+        + '<div class="muted" style="margin:4px 0 8px">Last check: ' + (bs && bs.lastAt ? fmtTs(bs.lastAt) + (bs.by ? " by " + esc(bs.by) : "") : "Never")
+        + (ob.expired ? ' · <span class="pill p-bad">' + ob.expired + ' expired</span>' : '') + (ob.expiring ? ' · <span class="pill p-warn">' + ob.expiring + ' expiring</span>' : '') + '</div>'
+        + (bs && bs.missing && bs.missing.length ? '<div class="note" style="background:#fff4d6;border-color:#e2c27a;color:#5c3c00"><b>Missing:</b> ' + bs.missing.map(function(m){ return esc(m.n); }).join(", ") + '</div>' : '')
+        + '<div class="row"><button class="btn sm gold" data-b="org_' + esc(b.id) + '" onclick="App.startBagCheck(this.dataset.b)">Check bag</button><button class="btn sm" data-id="' + esc(b.id) + '" onclick="App.viewObExp(this.dataset.id)">⏳ Dates</button></div></div>';
+    });
     h += '<div class="row" style="margin-top:8px"><button class="btn gold" data-id="' + esc(v.id) + '" onclick="App.startRigCheck(this.dataset.id)">Start check</button><button class="btn" data-id="' + esc(v.id) + '" onclick="App.rigHistory(this.dataset.id)">🕘 History</button></div></div>';
   });
   return h + '</div>';
@@ -2090,11 +2167,17 @@ function adminProfiles(){
 /* ════════════════════════════════════════════════════════════════════════
    ADMIN
    ════════════════════════════════════════════════════════════════════════ */
+// 1.25: one ⚙ Admin page (top bar button) — what was User Compliance + the Admin Panel's settings tabs
+var ADMIN_SETTINGS_TABS = ["rigcl", "bagcl", "docs", "timing", "msg"];
 function viewAdmin(){
-  var tabs = [["grid", "👥 Compliance"], ["review", "📥 Review"], ["vehicles", "🚗 Vehicles"], ["bags", "🎒 Jump Bags"], ["profiles", "👤 Profiles"], ["reports", "📊 Reports"], ["remind", "📣 Reminders"]];
+  var tabs = [["grid", "👥 Compliance"], ["review", "📥 Review"], ["vehicles", "🚗 Vehicles"], ["bags", "🎒 Jump Bags"], ["profiles", "👤 Profiles"], ["reports", "📊 Reports"], ["remind", "📣 Reminders"],
+    ["|", ""], ["rigcl", "🚑 Rig Checklist"], ["bagcl", "🎒 Jump Bag Checklist"], ["docs", "📄 Documents"], ["timing", "⏱ Timing & Equipment"], ["msg", "✉️ Messages"]];
   var pend = Object.values(S.allRecords).filter(function(r){ return r.status === "pending"; }).length;
-  var h = '<div class="admin-tabbar">' + tabs.map(function(t){ return '<button class="admin-tab' + (S.adminTab === t[0] ? " on" : "") + '" onclick="App.adminTab(\'' + t[0] + '\')">' + t[1] + (t[0] === "review" && pend ? " (" + pend + ")" : "") + '</button>'; }).join("") + '</div>';
-  return h + ({ grid: adminGrid, review: adminReview, vehicles: adminVehicles, bags: adminBags, profiles: adminProfiles, reports: adminReports, remind: adminRemind }[S.adminTab] || adminGrid)();
+  var dirty = function(k){ var key = k === "rigcl" ? "rigChecklist" : k === "bagcl" ? "bagChecklist" : ""; return key && S.ced && S.ced[key] && S.ced[key].dirty ? " •" : ""; };
+  var h = '<div class="admin-tabbar">' + tabs.map(function(t){
+    if (t[0] === "|") return '<span style="border-left:1px solid var(--line);margin:10px 6px" aria-hidden="true"></span>'; return '<button class="admin-tab' + (S.adminTab === t[0] ? " on" : "") + '" onclick="App.adminTab(\'' + t[0] + '\')">' + t[1] + (t[0] === "review" && pend ? " (" + pend + ")" : "") + dirty(t[0]) + '</button>'; }).join("") + '</div>';
+  return h + ({ grid: adminGrid, review: adminReview, vehicles: adminVehicles, bags: adminBags, profiles: adminProfiles, reports: adminReports, remind: adminRemind,
+    rigcl: function(){ return panelChecklist("rigChecklist"); }, bagcl: function(){ return panelChecklist("bagChecklist"); }, docs: panelDocs, timing: panelTiming, msg: panelMsg }[S.adminTab] || adminGrid)();
 }
 function legend(){
   return '<div class="legend"><span><i class="dot d-ok"></i>Valid</span><span><i class="dot d-info"></i>Waiting for review</span><span><i class="dot d-warn"></i>Expiring soon</span><span><i class="dot d-bad"></i>Expired / rejected / overdue</span><span><i class="dot d-missing"></i>Missing</span><span><i class="dot d-na"></i>Not required</span></div>';
@@ -2214,7 +2297,7 @@ function viewBagExp(uid){
 }
 function adminBags(){
   var users = S.users.filter(function(u){ return bagRequired(u) || S.allBags[u.uid]; });
-  var h = '<p class="muted">Every ' + (S.settings.bagIntervalDays || 30) + ' days. Change it in ⚙ Admin Panel ▸ Timing & Equipment.</p>';
+  var h = '<p class="muted">Every ' + (S.settings.bagIntervalDays || 30) + ' days. Change it in ⚙ Admin ▸ Timing & Equipment.</p>';
   h += '<div class="tbl-wrap"><table><thead><tr><th>Unit</th><th>Name</th><th>Last check</th><th>Status</th><th>Missing items</th><th>Expiration dates</th><th></th></tr></thead><tbody>';
   users.forEach(function(u){
     var b = S.allBags[u.uid], st = bagState(b);
@@ -2230,12 +2313,14 @@ function adminBags(){
   });
   h += '</tbody></table></div>';
   var ab = agencyBags();
+  ab.sort(function(x, y){ var a = bagVehicle(x), b = bagVehicle(y); return String(a ? vName(a) : "~").localeCompare(String(b ? vName(b) : "~"), undefined, { numeric: true }); });
   if (ab.length){
-    h += '<h2>🧰 Agency Bags & Cabinets</h2><div class="tbl-wrap"><table><thead><tr><th>Bag</th><th>Last check</th><th>By</th><th>Status</th><th>Missing items</th><th>Expiration dates</th><th></th></tr></thead><tbody>'
+    h += '<h2>🧰 Vehicle Jump Bags</h2><div class="tbl-wrap"><table><thead><tr><th>Vehicle</th><th>Bag</th><th>Last check</th><th>By</th><th>Status</th><th>Missing items</th><th>Expiration dates</th><th></th></tr></thead><tbody>'
       + ab.map(function(v){ var b = S.allBags["org_" + v.id], st = bagState(b), es = obExpSummary(v.id);
         var expCell = !es.total ? '<span class="muted">—</span>' : es.missing === es.total ? '<span class="pill p-warn">Not entered</span>'
           : (es.expired ? '<span class="pill p-bad">' + es.expired + ' expired</span> ' : '') + (es.expiring ? '<span class="pill p-warn">' + es.expiring + ' expiring</span>' : '') + (!es.expired && !es.expiring ? '<span class="pill p-ok">All in date</span>' : '');
-        return '<tr><td><b>' + esc(bagLabel(v)) + '</b></td><td>' + (b ? fmtTs(b.lastAt) : "Never") + '</td><td>' + esc((b && b.by) || "") + '</td><td>' + pillFor(st) + '</td><td style="white-space:normal">'
+        var bv = bagVehicle(v);
+        return '<tr><td>' + (bv ? esc(vName(bv)) : '<span class="muted">—</span>') + '</td><td><b>' + esc(bagLabel(v)) + '</b></td><td>' + (b ? fmtTs(b.lastAt) : "Never") + '</td><td>' + esc((b && b.by) || "") + '</td><td>' + pillFor(st) + '</td><td style="white-space:normal">'
           + (b && b.missing && b.missing.length ? b.missing.map(function(m){ return esc(m.n); }).join(", ") : '<span class="muted">—</span>') + '</td><td>' + expCell + '</td>'
           + '<td><button class="btn sm" data-id="' + esc(v.id) + '" onclick="App.viewObExp(this.dataset.id)">Dates</button></td></tr>'; }).join("") + '</tbody></table></div>';
   }
@@ -2449,8 +2534,8 @@ function panelTiming(){
     + '<label for="st-bagroles">Who must check their own jump bag (roles, comma separated)</label><input id="st-bagroles" value="' + esc((s.bagRoles || []).join(", ")) + '"></div>';
   var all = S.fleet.filter(function(v){ return !isEquipment(v); }).sort(function(a, b){ return String(vName(a)).localeCompare(String(vName(b)), undefined, { numeric: true }); });
   h += '<div class="card"><h3>🚑 Rigs that get checked</h3><div class="row">' + ticks("st-rig", all, s.rigIds || rigList().map(function(v){ return v.id; }), vName) + '</div></div>';
-  var eq = S.fleet.filter(function(v){ return isEquipment(v); }).sort(function(a, b){ return String(a.id).localeCompare(String(b.id), undefined, { numeric: true }); });
-  h += '<div class="card"><h3>🧰 Agency bags & cabinets that get checked</h3><p class="muted" style="margin:0 0 6px">These show in the Bag box of the jump bag check, under the member\'s own Primary Bag. They come from CallDashboard ▸ Fleet (equipment).</p><div class="row">'
+  var eq = S.fleet.filter(isBagEquip).sort(function(a, b){ return String(a.id).localeCompare(String(b.id), undefined, { numeric: true }); });
+  h += '<div class="card"><h3>🎒 Vehicle jump bags that get checked</h3><p class="muted" style="margin:0 0 6px">These show under their vehicle (Rig Checks, Jump Bag, and the Bag box of the check). They come from CallDashboard ▸ Fleet — items of type Jump Bag. Storage rooms aren\'t listed.</p><div class="row">'
     + ticks("st-bagx", eq, s.bagIds || agencyBags().map(function(v){ return v.id; }), bagLabel) + '</div></div>';
   return h + saveRow("saveTiming", "st-msg");
 }
@@ -2780,14 +2865,14 @@ window.App = {
   startBagCheck: startBagCheck, bagHistory: bagHistory, startRigCheck: startRigCheck, rigHistory: rigHistory, rigFixed: rigFixed,
   rigSub: function(s){ S.rigSub = s; render(); },
   ck: ck, ckSection: ckSection, ckNote: ckNote, ckQ: ckQ, ckSecNote: ckSecNote, saveCheck: saveCheck,
-  adminTab: function(t){ S.adminTab = t; render(); }, goHome: goHome, gridFilter: function(v){ S.gridOnlyProblems = v; render(); },
+  adminTab: function(t){ S.adminTab = t; render(); window.scrollTo(0, 0); }, goHome: goHome, gridFilter: function(v){ S.gridOnlyProblems = v; render(); },
   gridCell: gridCell, markNA: markNA, openRecord: openRecord, review: review, deleteRecord: deleteRecord,
   remindTest: remindTest, sendReminders: sendReminders,
   repView: repView, repXlsx: repXlsx, repAll: repAll, repDates: repDates, repPrint: repPrint,
   saveProfile: saveProfile, vfRepl: vfRepl, editBagExp: editBagExp, saveBagExp: saveBagExp, viewBagExp: viewBagExp, phoneTyping: phoneTyping, openProfile: openProfile,
   addType: addType, resetTemplates: resetTemplates, saveSettings: saveSettings,
-  panelTab: function(t){ S.panelTab = t; render(); window.scrollTo(0, 0); }, cedSet: cedSet, cedOp: cedOp, saveRigList: saveRigList, saveBagList: saveBagList,
-  saveDocs: saveDocs, editRigExp: editRigExp, viewObExp: viewObExp, editObExp: editObExp, saveObExp: saveObExp, saveRigExp: saveRigExp, saveTiming: saveTiming, saveMsg: saveMsg, ckPick: ckPick
+  panelTab: function(t){ S.adminTab = { rig: "rigcl", bag: "bagcl" }[t] || t; setTab("admin"); render(); window.scrollTo(0, 0); }, cedSet: cedSet, cedOp: cedOp, saveRigList: saveRigList, saveBagList: saveBagList,
+  saveDocs: saveDocs, editRigExp: editRigExp, expOne: expOne, expOneSave: expOneSave, expOneCancel: expOneCancel, viewObExp: viewObExp, editObExp: editObExp, saveObExp: saveObExp, saveRigExp: saveRigExp, saveTiming: saveTiming, saveMsg: saveMsg, ckPick: ckPick
 };
 window.TRK = { S: S, render: render, memberIssues: memberIssues, recStatus: recStatus, bagState: bagState, rigState: rigState, normUnit: normUnit, smsStamp: smsStamp };
 </script>
