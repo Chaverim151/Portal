@@ -3,11 +3,12 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<meta name="trk-version" content="1.53">
+<meta name="trk-version" content="1.54">
 <meta name="trk-mode" content="mobile">
 <meta name="theme-color" content="#ffffff">
 <title>Compliance</title>
 <!-- 1.32: the same Hatzolah MC icon as CallDashboard, built in (no extra files to upload) -->
+<!-- 1.54: phone tidy-up — tables become cards, short attention box (not on Home), no name squeeze in the top bar -->
 <!-- 1.53: 👤 My Profile moved from a home tile to the top bar -->
 <!-- 1.52: documents shown as a table — View opens the document (with Update inside) -->
 <!-- 1.51: ⚙ Admin "Members" tab → "Units"; no separate Members' Vehicles page (vehicles are on each unit's page) -->
@@ -111,7 +112,25 @@ h2{font-size:1.1rem;margin:18px 0 10px;color:var(--accent)}
 .tb-sub{font-size:.62rem;color:var(--gray);letter-spacing:.08em;text-transform:uppercase}
 .tb-who{text-align:center;font-family:'Oswald',sans-serif;font-weight:700;font-size:.8rem;color:var(--gray);letter-spacing:.04em;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .tb-right{display:flex;align-items:center;gap:6px}
-@media(max-width:600px){.prof-lbl{display:none}}   /* 1.53: phone shows just 👤 */
+.ban-more{color:inherit;font-weight:700}
+.tb-right .btn,#bell{white-space:nowrap;flex-shrink:0}
+@media(max-width:600px){
+  .tb-who{display:none}
+  .tbl-wrap:has(table.stack){border:none;overflow:visible}
+  table.stack thead{display:none}
+  table.stack,table.stack tbody,table.stack tr,table.stack td{display:block;width:100%;box-sizing:border-box}
+  table.stack tr{border:1px solid var(--line);border-radius:10px;margin-bottom:10px;padding:6px 10px;background:#fff}
+  table.stack td{display:flex;justify-content:space-between;align-items:center;gap:10px;border:none;padding:5px 0;white-space:normal;text-align:right}
+  table.stack td::before{content:attr(data-label);color:var(--gray);font-size:.78rem;font-weight:600;text-align:left;flex:0 0 auto}
+  table.stack td:first-child{font-size:1rem;text-align:left;border-bottom:1px solid var(--line);padding-bottom:7px;margin-bottom:2px}
+  table.stack td:first-child::before{display:none}
+  table.stack td:not([data-label]):before,table.stack td[data-label=""]::before{display:none}
+  table.stack td:last-child:empty,table.stack td.blank{display:none}
+  table.stack td .btn{min-height:36px}
+  .modal table.stack tr,#m-body table.stack tr{background:transparent}
+}
+.prof-unit{display:none}
+@media(max-width:600px){.prof-lbl{display:none}.prof-unit{display:inline;margin-left:4px;font-weight:700}}   /* 1.53: phone shows just 👤 */
 #bell{position:relative;background:#fff;border:1px solid var(--field);color:var(--text);border-radius:6px;width:42px;height:38px;font-size:1.1rem;box-shadow:inset 0 0 0 1px rgba(31,35,40,.32)}
 #bell .badge{position:absolute;top:-6px;right:-6px;background:var(--bad);color:#fff;border-radius:999px;font-size:.7rem;font-weight:800;min-width:20px;height:20px;line-height:20px;padding:0 5px}
 /* page header: ← Home + page name (CAD .inner-topbar / .m-subpage-header) */
@@ -162,6 +181,7 @@ h2{font-size:1.1rem;margin:18px 0 10px;color:var(--accent)}
 .trk-mobile .tile:hover{transform:none}
 @media (max-width:640px){.trk-desktop .tiles{grid-template-columns:1fr 1fr}.trk-desktop .tile{aspect-ratio:auto}.trk-desktop .tb-who{display:none}}
 .trk-mobile .tb-who{display:block}
+@media(max-width:600px){.trk-mobile .tb-who{display:none}}   /* 1.54: the unit shows on the 👤 button instead */
 #view{max-width:1100px;margin:0 auto;padding:12px 16px 80px}
 #view.wide{max-width:1600px}   /* 1.48: ⚙ Admin uses the whole screen */
 .grid-tbl th.c{white-space:normal;min-width:64px;max-width:104px;text-align:center;line-height:1.2;vertical-align:bottom}
@@ -325,7 +345,7 @@ td.rep-warn{color:var(--warn);font-weight:700}
     <div class="m-err" id="login-err"></div>
 
     <div style="text-align:center;margin-top:16px"><button class="m-forgot" onclick="App.forgotPw()">Forgot password?</button></div>
-    <div class="m-build">BUILD <span id="li-build">v1.53</span></div>
+    <div class="m-build">BUILD <span id="li-build">v1.54</span></div>
   </div>
 </div>
 <div id="boot" class="empty" style="margin-top:20vh">Signing in…</div>
@@ -339,7 +359,7 @@ td.rep-warn{color:var(--warn);font-weight:700}
     </div>
     <div class="tb-who" id="who"></div>
     <div class="tb-right">
-      <button id="prof-btn" class="btn sm" onclick="App.setTab('profile')" title="My Profile: addresses, phones, emergency contact, uniform"><span aria-hidden="true">👤</span><span class="prof-lbl"> My Profile</span></button>
+      <button id="prof-btn" class="btn sm" onclick="App.setTab('profile')" title="My Profile: addresses, phones, emergency contact, uniform"><span aria-hidden="true">👤</span><span class="prof-lbl"> My Profile</span><span class="prof-unit" id="prof-unit"></span></button>
       <button id="adm-btn" class="btn sm" hidden onclick="App.setTab('admin')" title="Admin: compliance, review, reports, checklists, settings">⚙ Admin</button>
       <button id="bell" onclick="App.openPanel()" aria-label="Notifications">🔔<span class="badge" id="bell-n" hidden></span></button>
       <button class="btn sm" onclick="App.signOut()">Sign out</button>
@@ -405,7 +425,7 @@ function trkSmsPayload(phone, message, unit){
 function trkEmailPayload(email, name, subject, html){ return { to: [{ email: email, name: name || email }], subject: subject, body: html }; }
 
 /* ════════════════════════════════════════════════════════════════════════ */
-var TRK_VERSION = "1.53";
+var TRK_VERSION = "1.54";
 // 1.16: owner asked to block the tracker's notifications for now. While this is true the tracker sends NO texts and
 // NO emails (reminders and test reminders). Sign-in "Forgot password?" still works. Set to false to allow sending again.
 var TRK_SENDING_OFF = true;
@@ -915,6 +935,7 @@ auth.onAuthStateChanged(async function(user){
   S.isLogistics = rolesOf(S.me).indexOf("logistics") >= 0;
   $("login").hidden = true; $("app").hidden = false;
   $("who").textContent = (S.me.unit || "") + (S.me.name ? " · " + S.me.name : "");
+  $("prof-unit").textContent = S.me.unit || "";
   $("adm-btn").hidden = !(S.isAdmin && TRK_MODE === "desktop");
   S.tab = "home"; try { history.replaceState({ trk: "home" }, ""); } catch (e){}
   startListeners();
@@ -1128,9 +1149,11 @@ function renderBell(){
   var mine = memberIssues(S.me, S.myRecords, S.myVehicles, S.myBag);
   var urgent = mine.filter(function(i){ return i.lvl === "bad"; });
   var soon = mine.filter(function(i){ return i.lvl === "warn"; });
+  // 1.54: at most 3 lines, then "+ N more" (the full list is the To do on Home)
+  function few(list){ var top = list.slice(0, 3).map(function(i){ return esc(i.text); }).join("<br>"); return top + (list.length > 3 ? '<br><a href="#" class="ban-more" onclick="App.goHome();return false">+ ' + (list.length - 3) + ' more — see To do</a>' : ''); }
   $("banner").innerHTML = urgent.length
-    ? '<div class="banner"><b>⚠ ' + urgent.length + ' item' + (urgent.length === 1 ? " needs" : "s need") + ' your attention</b>' + urgent.map(function(i){ return esc(i.text); }).join("<br>") + '</div>'
-    : soon.length ? '<div class="banner warn"><b>Coming up soon</b>' + soon.map(function(i){ return esc(i.text); }).join("<br>") + '</div>' : "";
+    ? '<div class="banner"><b>⚠ ' + urgent.length + ' item' + (urgent.length === 1 ? " needs" : "s need") + ' your attention</b>' + few(urgent) + '</div>'
+    : soon.length ? '<div class="banner warn"><b>Coming up soon</b>' + few(soon) + '</div>' : "";
 }
 function renderPanel(n){
   n = n || notifications();
@@ -1189,18 +1212,29 @@ function tileCounts(){
   });
   return c;
 }
+// 1.54: on phones a table turns into one card per row — every cell gets its column name as a label
+function stackTables(root){
+  (root || document).querySelectorAll("table").forEach(function(t){
+    if (t.classList.contains("grid-tbl") || t.dataset.stacked) return;
+    var heads = Array.from(t.querySelectorAll("thead th")).map(function(th){ return th.textContent.trim(); });
+    if (!heads.length) return;
+    t.classList.add("stack"); t.dataset.stacked = "1";
+    t.querySelectorAll("tbody tr").forEach(function(tr){ Array.from(tr.children).forEach(function(td, i){ if (heads[i]) td.setAttribute("data-label", heads[i]); if (i && td.textContent.trim() === "—") td.classList.add("blank"); }); });
+  });
+}
 function render(){
   if (!S.me) return;
   var pg = PAGES[S.tab];
   $("pagehead").hidden = !pg;
   if (pg) $("page-title").textContent = pg.icon + " " + pg.label;
-  $("banner").hidden = S.tab === "admin";
+  $("banner").hidden = S.tab === "admin" || S.tab === "home";   // 1.54: Home has the full To do list
   var v = $("view");
   v.classList.toggle("wide", S.tab === "admin");
   var f = { home: viewHome, profile: viewProfile, docs: viewDocs, imm: viewImm, vehicles: viewVehicles, bag: viewBag, rigs: viewRigs, admin: viewAdmin }[S.tab] || viewHome;
   // keep focus/typing safe: don't redraw a settings form someone is typing in
   if ((S.tab === "profile" || (S.tab === "admin" && (ADMIN_SETTINGS_TABS.indexOf(S.adminTab) >= 0 || S.adminTab === "remind" || S.adminTab === "reports"))) && v.contains(document.activeElement) && /INPUT|TEXTAREA|SELECT/.test(document.activeElement.tagName)){ renderBell(); return; }
   v.innerHTML = f();
+  stackTables(v);
   renderBell();
 }
 
@@ -3437,7 +3471,7 @@ function repPrint(){ document.body.classList.add("printing-report"); window.prin
 /* ════════════════════════════════════════════════════════════════════════
    MODAL
    ════════════════════════════════════════════════════════════════════════ */
-function openModal(title, body, foot){ $("m-title").textContent = title; $("m-body").innerHTML = body; $("m-foot").innerHTML = foot || ""; $("modal-bg").hidden = false; $("m-body").scrollTop = 0; }
+function openModal(title, body, foot){ $("m-title").textContent = title; $("m-body").innerHTML = body; $("m-foot").innerHTML = foot || ""; $("modal-bg").hidden = false; $("m-body").scrollTop = 0; stackTables($("m-body")); }
 function closeModal(){ $("modal-bg").hidden = true; $("m-body").innerHTML = ""; S.check = null; }
 $("modal-bg").addEventListener("click", function(e){ if (e.target === this && !S.check) closeModal(); });
 document.addEventListener("keydown", function(e){ if (e.key === "Escape"){ if (!$("panel").hidden) closePanel(); else if (!$("modal-bg").hidden && !S.check) closeModal(); } });
