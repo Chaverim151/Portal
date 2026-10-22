@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<meta name="trk-version" content="1.14">
+<meta name="trk-version" content="1.15">
 <meta name="trk-mode" content="mobile">
 <meta name="theme-color" content="#ffffff">
 <title>Compliance</title>
@@ -267,7 +267,7 @@ td.rep-warn{color:var(--warn);font-weight:700}
     <div class="m-err" id="login-err"></div>
 
     <div style="text-align:center;margin-top:16px"><button class="m-forgot" onclick="App.forgotPw()">Forgot password?</button></div>
-    <div class="m-build">BUILD <span id="li-build">v1.14</span></div>
+    <div class="m-build">BUILD <span id="li-build">v1.15</span></div>
   </div>
 </div>
 <div id="boot" class="empty" style="margin-top:20vh">Signing in…</div>
@@ -345,7 +345,7 @@ function trkSmsPayload(phone, message, unit){
 function trkEmailPayload(email, name, subject, html){ return { to: [{ email: email, name: name || email }], subject: subject, body: html }; }
 
 /* ════════════════════════════════════════════════════════════════════════ */
-var TRK_VERSION = "1.14";
+var TRK_VERSION = "1.15";
 // tracker.html = computer version (with the admin part); tracker-mobile.html = phone version. Both are made from this one file.
 // Later this becomes the "Compliance" tile on the CAD menu, and the admin part becomes the CAD's Admin ▸ User Compliance tab.
 var TRK_MODE = (document.querySelector('meta[name="trk-mode"]') || {}).content === "mobile" ? "mobile" : "desktop";
@@ -1134,7 +1134,6 @@ async function upScan(){
   try {
     var isPdf = /pdf/i.test(U.file.type) || /\.pdf$/i.test(U.file.name);
     var blob = isPdf ? U.file : await shrinkForScan(U.file, U.rot || 0);
-    if (blob.size > 4 * 1024 * 1024) throw new Error("the file is too big to scan (over 4 MB)");
     var data = await new Promise(function(res, rej){ var r = new FileReader(); r.onload = function(){ res(String(r.result).split(",")[1]); }; r.onerror = rej; r.readAsDataURL(blob); });
     var want = [["number", "Document / license / certificate / policy number"], ["issued", "Issue date"]].concat(t.expires ? [["expires", "Expiration date"]] : []).concat(docFields(t));
     var r = await callFn("docScan", { docType: t.name, fields: want.map(function(w){ return { key: w[0], label: w[1], date: w[0] === "issued" || w[0] === "expires" || w[2] === "date" }; }), mime: isPdf ? "application/pdf" : "image/jpeg", data: data });
