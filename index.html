@@ -3,11 +3,14 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<meta name="trk-version" content="1.49">
+<meta name="trk-version" content="1.52">
 <meta name="trk-mode" content="desktop">
 <meta name="theme-color" content="#ffffff">
 <title>Compliance</title>
 <!-- 1.32: the same Hatzolah MC icon as CallDashboard, built in (no extra files to upload) -->
+<!-- 1.52: documents shown as a table — View opens the document (with Update inside) -->
+<!-- 1.51: ⚙ Admin "Members" tab → "Units"; no separate Members' Vehicles page (vehicles are on each unit's page) -->
+<!-- 1.50: ⚙ Admin ▸ 🧰 Equipment Checklist tab with Vehicle / Bag sub-tabs (moved out of Settings) -->
 <!-- 1.49: bags pop-up — no "Has a personal jump bag" checkbox; + Add bag / Remove instead -->
 <!-- 1.48: ⚙ Admin wider + compliance table headers wrap, so every column fits -->
 <!-- 1.47: admin member page — + Add bag / Remove (no checkbox) -->
@@ -320,7 +323,7 @@ td.rep-warn{color:var(--warn);font-weight:700}
     <div class="m-err" id="login-err"></div>
 
     <div style="text-align:center;margin-top:16px"><button class="m-forgot" onclick="App.forgotPw()">Forgot password?</button></div>
-    <div class="m-build">BUILD <span id="li-build">v1.49</span></div>
+    <div class="m-build">BUILD <span id="li-build">v1.52</span></div>
   </div>
 </div>
 <div id="boot" class="empty" style="margin-top:20vh">Signing in…</div>
@@ -399,7 +402,7 @@ function trkSmsPayload(phone, message, unit){
 function trkEmailPayload(email, name, subject, html){ return { to: [{ email: email, name: name || email }], subject: subject, body: html }; }
 
 /* ════════════════════════════════════════════════════════════════════════ */
-var TRK_VERSION = "1.49";
+var TRK_VERSION = "1.52";
 // 1.16: owner asked to block the tracker's notifications for now. While this is true the tracker sends NO texts and
 // NO emails (reminders and test reminders). Sign-in "Forgot password?" still works. Set to false to allow sending again.
 var TRK_SENDING_OFF = true;
@@ -673,7 +676,7 @@ function rigExpRows(vid){
 }
 function rigExpTable(vid){
   var rs = S.rigStatus[vid] || {}, rows = rigExpRows(vid);
-  if (!rows.length) return '<div class="muted">No expiring items on the list. An admin can add them in ⚙ Admin ▸ Ambulance Checklist.</div>';
+  if (!rows.length) return '<div class="muted">No expiring items on the list. An admin can add them in ⚙ Admin ▸ Equipment Checklist ▸ Vehicle.</div>';
   return expTableOf(rows, 'data-k="rig" data-id="' + esc(vid) + '"', rs.expUpdatedAt, rs.expUpdatedBy);
 }
 function rigExpInputs(vid){
@@ -1256,14 +1259,30 @@ async function pdfThumbFor(file, path){
 }
 
 /* ── My Documents ── */
+// 1.52: documents as a table — one row each; View opens the full card (details, picture, Update)
+function docTable(ownerKey, types, recs, ctx){
+  if (!types.length) return '';
+  return '<div class="tbl-wrap"><table><thead><tr><th>Document</th><th>Status</th><th>Number</th><th>Expires</th><th>Updated</th><th></th></tr></thead><tbody>'
+    + types.map(function(t){
+      var rec = recs[recKey(ownerKey, t.id)], st = recStatus(rec, t), has = rec && rec.status !== "na";
+      var btn = '<button class="btn ' + (rec ? "" : "gold ") + 'sm" data-k="' + esc(ownerKey) + '" data-t="' + esc(t.id) + '" data-c="' + esc(JSON.stringify(ctx)) + '" onclick="App.' + (rec ? 'docView' : 'openUpload') + '(this)">' + (rec ? "View" : "Upload") + '</button>';
+      return '<tr><td><b>' + esc(t.name) + '</b></td><td>' + pillFor(st) + '</td><td>' + (has && rec.number ? esc(rec.number) : '<span class="muted">—</span>') + '</td>'
+        + '<td class="num">' + (t.expires ? (has && rec.expires ? fmtDate(rec.expires) : '<span class="muted">—</span>') : '<span class="muted">Never</span>') + '</td>'
+        + '<td class="num">' + (rec && rec.updatedAt ? fmtTs(rec.updatedAt).split(" ")[0] : '<span class="muted">—</span>') + '</td><td>' + btn + '</td></tr>';
+    }).join("") + '</tbody></table></div>';
+}
+function docView(btn){
+  var t = typeById(btn.dataset.t), ctx = JSON.parse(btn.dataset.c || "{}"), key = recKey(btn.dataset.k, btn.dataset.t), rec = visibleRecords()[key];
+  if (!t) return;
+  openModal("📄 " + t.name + (ctx.unit && ctx.owner !== (S.me && S.me.uid) ? " — " + ctx.unit : ""), docCard(btn.dataset.k, t, rec, ctx).replace('<div class="card doc">', '<div class="card doc" style="margin:10px 0 0;box-shadow:none">'),
+    '<button class="btn" onclick="App.closeModal()">Close</button>');
+}
 function viewDocs(){
   var uid = S.me.uid, h = "";
   [["document", "📄 Documents"], ["certification", "🎓 Certifications"]].forEach(function(c){
     var ts = docTypes("member").filter(function(t){ return t.cat === c[0]; });
     if (!ts.length) return;
-    h += '<h2>' + c[1] + '</h2><div class="docs">';
-    ts.forEach(function(t){ h += docCard(uid, t, S.myRecords[recKey(uid, t.id)], { owner: uid, unit: S.me.unit, name: S.me.name || "" }); });
-    h += '</div>';
+    h += '<h2>' + c[1] + '</h2>' + docTable(uid, ts, S.myRecords, { owner: uid, unit: S.me.unit, name: S.me.name || "" });
   });
   // 1.45: immunizations are part of My Documents
   if (immTypes().length) h += '<div class="row" style="margin-top:18px"><h2 class="grow" style="margin:0">💉 Immunizations</h2><button class="btn gold sm" onclick="App.openImm()">+ Create New Immunization</button></div>'
@@ -2535,11 +2554,12 @@ var ADMIN_SETTINGS_TABS = ["rigcl", "bagcl", "docs", "imm", "timing", "msg"];
 // 1.41: grouped like CallDashboard's admin — main tabs, each with its own sub-tabs. The sub-tab ids (S.adminTab) didn't change.
 var DATES_IN_CHECKS = false;   // 1.42
 var ADMIN_GROUPS = [
-  ["members", "👥 Members", [["grid", "Compliance"], ["profiles", "Profiles"], ["remind", "Reminders"]]],
+  ["members", "👥 Units", [["grid", "Compliance"], ["profiles", "Profiles"], ["remind", "Reminders"]]],
   ["review", "📥 Review", [["review", "Review"]]],
-  ["fleet", "🚑 Vehicles & Bags", [["vehicles", "Members' Vehicles"], ["paper", "Agency Paperwork"], ["bags", "Jump Bags"]]],
+  ["fleet", "🚑 Vehicles & Bags", [["paper", "Agency Paperwork"], ["bags", "Jump Bags"]]],
   ["reports", "📊 Reports", [["reports", "Reports"]]],
-  ["settings", "⚙ Settings", [["rigcl", "🚑 Ambulance Checklist"], ["bagcl", "🎒 Jump Bag Checklist"], ["docs", "📄 Documents"], ["imm", "💉 Immunizations"], ["timing", "⏱ Timing & Equipment"], ["msg", "✉️ Messages"]]]
+  ["equip", "🧰 Equipment Checklist", [["rigcl", "🚑 Vehicle"], ["bagcl", "🎒 Bag"]]],   // 1.50: its own tab with Vehicle / Bag sub-tabs
+  ["settings", "⚙ Settings", [["docs", "📄 Documents"], ["imm", "💉 Immunizations"], ["timing", "⏱ Timing & Equipment"], ["msg", "✉️ Messages"]]]
 ];
 function adminGroupOf(k){ return ADMIN_GROUPS.filter(function(g){ return g[2].some(function(x){ return x[0] === k; }); })[0] || ADMIN_GROUPS[0]; }
 function adminGroup(gid){
@@ -2553,7 +2573,7 @@ function viewAdmin(){
   var cur = adminGroupOf(S.adminTab);
   S.admLast = S.admLast || {}; S.admLast[cur[0]] = S.adminTab;
   var h = '<div class="admin-tabbar">' + ADMIN_GROUPS.map(function(g){
-    var extra = g[0] === "review" && pend ? " (" + pend + ")" : g[0] === "settings" ? (dirty("rigcl") || dirty("bagcl")) : "";
+    var extra = g[0] === "review" && pend ? " (" + pend + ")" : g[0] === "equip" ? (dirty("rigcl") || dirty("bagcl")) : "";
     return '<button class="admin-tab' + (g === cur ? " on" : "") + '" onclick="App.adminGroup(\'' + g[0] + '\')">' + g[1] + extra + '</button>';
   }).join("") + '</div>';
   if (cur[2].length > 1) h += '<div class="admin-subtabs">' + cur[2].map(function(t){
@@ -2619,7 +2639,7 @@ function adminMember(uid){
   var p = S.profiles[uid] || {}, a = p.home || {}, ec = p.emergency || {};
   var vehs = S.allVehicles.filter(function(v){ return v.uid === uid; }), iss = memberIssues(u, S.allRecords, vehs, S.allBags[uid]);
   var ctx = { owner: uid, unit: u.unit, name: u.name || "" };
-  var h = '<div class="row" style="margin-bottom:10px"><button class="btn" onclick="App.openMember(\'\')">← All members</button><span class="grow"></span>'
+  var h = '<div class="row" style="margin-bottom:10px"><button class="btn" onclick="App.openMember(\'\')">← All units</button><span class="grow"></span>'
     + '<button class="btn" data-uid="' + esc(uid) + '" onclick="App.openProfile(this.dataset.uid)">👤 Edit profile</button>'
     + '<button class="btn" data-uid="' + esc(uid) + '" onclick="App.assignBags(this.dataset.uid)">🎒 Bags</button></div>';
   h += '<div class="card"><h3 style="margin-bottom:6px">' + esc(u.unit) + (u.name ? ' · ' + esc(u.name) : '') + '</h3>'
@@ -2632,7 +2652,7 @@ function adminMember(uid){
     + '</div></div>';
   h += '<div class="card"><h3>What needs fixing</h3>' + (iss.length ? iss.map(function(i){ return '<span class="pill p-' + i.lvl + '" style="margin:2px">' + esc(i.text) + '</span>'; }).join(" ") : '<span class="pill p-ok">✅ All good</span>');
   var rl = S.reminderLog[uid]; h += '<div class="muted" style="margin-top:8px">Last reminder: ' + (rl ? fmtTs(rl.lastAt) + (rl.via ? " (" + esc(rl.via) + ")" : "") : "never") + '</div></div>';
-  h += '<h2>📄 Documents & Certifications</h2><div class="docs">' + docTypes("member").filter(function(t){ return t.cat !== "immunization"; }).map(function(t){ return docCard(uid, t, S.allRecords[recKey(uid, t.id)], ctx); }).join("") + '</div>';
+  h += '<h2>📄 Documents & Certifications</h2>' + docTable(uid, docTypes("member").filter(function(t){ return t.cat !== "immunization"; }), S.allRecords, ctx);
   h += '<div class="row" style="margin-top:18px"><h2 class="grow" style="margin:0">💉 Immunizations</h2><button class="btn sm" data-uid="' + esc(uid) + '" onclick="App.openImm(this)">+ Add for them</button></div>' + immTable(uid, true);
   h += '<h2>🚗 Vehicles</h2>';
   if (!vehs.length) h += '<div class="card empty">No vehicles on file.</div>';
@@ -2673,7 +2693,7 @@ function adminGrid(){
     if (!S.gridOnlyProblems) return true;
     return memberIssues(u, S.allRecords, S.allVehicles.filter(function(v){ return v.uid === u.uid; }), S.allBags[u.uid]).length > 0;
   });
-  var h = '<div class="muted" style="margin-bottom:6px">Tap a unit number to see everything for that member.</div><div class="row"><label style="margin:0;display:flex;gap:6px;align-items:center;font-weight:400;color:var(--text)"><input type="checkbox" style="width:auto" ' + (S.gridOnlyProblems ? "checked" : "") + ' onchange="App.gridFilter(this.checked)"> Only members with problems</label></div>' + legend();
+  var h = '<div class="muted" style="margin-bottom:6px">Tap a unit number to see everything for that unit — documents, vehicles, jump bags.</div><div class="row"><label style="margin:0;display:flex;gap:6px;align-items:center;font-weight:400;color:var(--text)"><input type="checkbox" style="width:auto" ' + (S.gridOnlyProblems ? "checked" : "") + ' onchange="App.gridFilter(this.checked)"> Only members with problems</label></div>' + legend();
   h += '<div class="tbl-wrap"><table class="grid-tbl"><thead><tr><th>Unit</th><th>Name</th>' + ts.map(function(t){ return '<th class="c">' + esc(t.name) + '</th>'; }).join("") + '<th class="c">Immunizations</th><th class="c">Vehicles</th><th class="c">Jump bag</th></tr></thead><tbody>';
   users.forEach(function(u){
     h += '<tr><td>' + memberLink(u) + '</td><td>' + esc(u.name || "") + '</td>';
@@ -3442,7 +3462,7 @@ window.App = {
   saveDocs: saveDocs, editRigExp: editRigExp, assignBags: assignBags, addBag: addBag, addBagSave: addBagSave, removeBag: removeBag, lookAfter: lookAfter, asgPrimary: function(v){ if (S._asg){ S._asg.primary = !!v; drawAssign(); } }, asgSave: asgSave,
   asgAdd: function(){ if (!S._asg.primary){ S._asg.primary = true; drawAssign(); return; } S._asg.extra.push({ id: "b" + Date.now().toString(36), name: "" }); drawAssign(); var n = document.querySelectorAll(".asg-name"); if (n.length) n[n.length - 1].focus(); },
   asgDel: function(i){ S._asg.extra.splice(i, 1); drawAssign(); }, asgName: function(i, v){ S._asg.extra[i].name = v; },
-  asgFleet: function(id, on){ var f = S._asg.fleet, i = f.indexOf(id); if (on && i < 0) f.push(id); if (!on && i >= 0) f.splice(i, 1); }, expOne: expOne, vehPics: vehPics, openVeh: openVeh, importLicAddr: importLicAddr, expOneSave: expOneSave, expOneCancel: expOneCancel, viewObExp: viewObExp, editObExp: editObExp, saveObExp: saveObExp, saveRigExp: saveRigExp, saveTiming: saveTiming, saveMsg: saveMsg, ckPick: ckPick
+  asgFleet: function(id, on){ var f = S._asg.fleet, i = f.indexOf(id); if (on && i < 0) f.push(id); if (!on && i >= 0) f.splice(i, 1); }, expOne: expOne, vehPics: vehPics, docView: docView, openVeh: openVeh, importLicAddr: importLicAddr, expOneSave: expOneSave, expOneCancel: expOneCancel, viewObExp: viewObExp, editObExp: editObExp, saveObExp: saveObExp, saveRigExp: saveRigExp, saveTiming: saveTiming, saveMsg: saveMsg, ckPick: ckPick
 };
 window.TRK = { S: S, render: render, memberIssues: memberIssues, recStatus: recStatus, bagState: bagState, rigState: rigState, normUnit: normUnit, smsStamp: smsStamp };
 </script>
