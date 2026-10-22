@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<meta name="trk-version" content="1.15">
+<meta name="trk-version" content="1.17">
 <meta name="trk-mode" content="mobile">
 <meta name="theme-color" content="#ffffff">
 <title>Compliance</title>
@@ -267,7 +267,7 @@ td.rep-warn{color:var(--warn);font-weight:700}
     <div class="m-err" id="login-err"></div>
 
     <div style="text-align:center;margin-top:16px"><button class="m-forgot" onclick="App.forgotPw()">Forgot password?</button></div>
-    <div class="m-build">BUILD <span id="li-build">v1.15</span></div>
+    <div class="m-build">BUILD <span id="li-build">v1.17</span></div>
   </div>
 </div>
 <div id="boot" class="empty" style="margin-top:20vh">Signing in…</div>
@@ -345,7 +345,10 @@ function trkSmsPayload(phone, message, unit){
 function trkEmailPayload(email, name, subject, html){ return { to: [{ email: email, name: name || email }], subject: subject, body: html }; }
 
 /* ════════════════════════════════════════════════════════════════════════ */
-var TRK_VERSION = "1.15";
+var TRK_VERSION = "1.17";
+// 1.16: owner asked to block the tracker's notifications for now. While this is true the tracker sends NO texts and
+// NO emails (reminders and test reminders). Sign-in "Forgot password?" still works. Set to false to allow sending again.
+var TRK_SENDING_OFF = true;
 // tracker.html = computer version (with the admin part); tracker-mobile.html = phone version. Both are made from this one file.
 // Later this becomes the "Compliance" tile on the CAD menu, and the admin part becomes the CAD's Admin ▸ User Compliance tab.
 var TRK_MODE = (document.querySelector('meta[name="trk-mode"]') || {}).content === "mobile" ? "mobile" : "desktop";
@@ -1097,7 +1100,7 @@ function upPick(){
       $("up-fields").innerHTML = upFieldsHtml(t, visibleRecords()[recKey(upOwnerKey() || "", t.id)] || null);
       $("up-fields").dataset.t = t.id;
       Object.keys(keep).forEach(function(k){ var el = $("upf-" + k); if (el && keep[k]) el.value = keep[k]; });
-      if (S.upload.file) upScan();
+      if (S.upload.file && !upIsPdf()) upScan(); else if (S.upload.file) upPdfReady();
     } else if (!t){ $("up-fields").innerHTML = ""; $("up-fields").dataset.t = ""; }
   }
 }
@@ -1116,11 +1119,20 @@ function upFile(){
     toast("That file type isn't accepted. Use BMP, JPG, GIF, PNG or PDF."); $("up-file").value = ""; S.upload.file = null; return;
   }
   if (f.size > 15 * 1024 * 1024){ toast("The file must be under 15 MB."); $("up-file").value = ""; S.upload.file = null; return; }
-  if (/pdf/i.test(f.type) || /\.pdf$/i.test(f.name)){ prev.innerHTML = '<span class="muted">📄 ' + esc(f.name) + ' — Not applicable to PDF uploads</span>'; $("up-rot").hidden = true; return; }
+  if (upIsPdf()){ prev.innerHTML = '<span class="muted">📄 ' + esc(f.name) + ' — Not applicable to PDF uploads</span>'; $("up-rot").hidden = true; upPdfReady(); return; }
   var url = URL.createObjectURL(f);
   prev.innerHTML = '<img id="up-img" alt="Preview of the uploaded image" src="' + url + '">';
   $("up-rot").hidden = false;
   upScan();
+}
+function upIsPdf(){ var f = S.upload && S.upload.file; return !!f && (/pdf/i.test(f.type) || /\.pdf$/i.test(f.name)); }
+// 1.17: PDFs aren't read automatically — the member taps "✨ Scan PDF with AI" (photos are still read straight away)
+function upPdfReady(){
+  var box = $("up-scan"); if (!box) return;
+  box.hidden = false;
+  $("up-scan-msg").textContent = upType() ? "📄 PDF ready. Tap the button to read the details from it." : "📄 Pick the document above, then tap the button to read the details from the PDF.";
+  $("up-scan-btn").textContent = "✨ Scan PDF with AI";
+  $("up-scan-btn").disabled = !upType();
 }
 // ✨ Send the photo to the docScan server function (Gemini — the same key and models as Protocol Search).
 // It fills only boxes the member hasn't typed in, and turns the photo upright if it's sideways.
@@ -1128,9 +1140,9 @@ async function upScan(){
   var U = S.upload, t = upType(), box = $("up-scan"), msg = $("up-scan-msg");
   if (!U.file || !box) return;
   box.hidden = false;
-  if (!t){ msg.textContent = "✨ Pick the document above and the details will be read from the photo."; return; }
+  if (!t){ if (upIsPdf()) upPdfReady(); else msg.textContent = "✨ Pick the document above and the details will be read from the photo."; return; }
   var my = (U.scanN = (U.scanN || 0) + 1);
-  msg.textContent = "✨ Reading the " + t.name + "…"; $("up-scan-btn").disabled = true;
+  msg.textContent = "✨ Reading the " + t.name + "…"; $("up-scan-btn").disabled = true; $("up-scan-btn").textContent = "✨ Scan again";
   try {
     var isPdf = /pdf/i.test(U.file.type) || /\.pdf$/i.test(U.file.name);
     var blob = isPdf ? U.file : await shrinkForScan(U.file, U.rot || 0);
@@ -1143,7 +1155,7 @@ async function upScan(){
     var turn = r && r.rotate ? ((r.rotate % 360) + 360) % 360 : 0;
     if (turn && !isPdf){ U.rot = ((U.rot || 0) + turn) % 360; var img = $("up-img"); if (img) img.style.transform = "rotate(" + U.rot + "deg)"; }
     var notType = r && r.matches === false;
-    msg.innerHTML = (notType ? "⚠ This doesn't look like a " + esc(t.name) + ". " : "") + (filled ? "✨ Filled in " + filled + " box" + (filled === 1 ? "" : "es") + " from the photo — please check them." : "✨ Couldn't read any details — please type them in.")
+    msg.innerHTML = (notType ? "⚠ This doesn't look like a " + esc(t.name) + ". " : "") + (filled ? "✨ Filled in " + filled + " box" + (filled === 1 ? "" : "es") + " from the " + (isPdf ? "PDF" : "photo") + " — please check them." : "✨ Couldn't read any details — please type them in.")
       + (turn ? " Turned the photo upright." : "");
   } catch (e){
     if (my !== U.scanN) return;
@@ -1738,6 +1750,7 @@ function adminBags(){
 function adminRemind(){
   var cool = S.settings.reminderCooldownDays || 7;
   var rows = S.users.map(function(u){ return { u: u, iss: memberIssues(u, S.allRecords, S.allVehicles.filter(function(v){ return v.uid === u.uid; }), S.allBags[u.uid]) }; }).filter(function(r){ return r.iss.length; });
+  if (TRK_SENDING_OFF) return '<div class="banner warn" style="margin:0 0 12px"><b>🔕 Notifications are switched off</b>The tracker is not sending any texts or emails right now. Members still see their own to-do list inside the tracker.</div>';
   var h = '<p class="muted">Sends each member ONE text and/or email listing everything they need to fix. A member who got a reminder in the last ' + cool + ' days is left unticked. Test Mode (CallDashboard ▸ My Settings) sends only to you.</p>';
   h += '<div class="row" style="margin-bottom:10px"><label style="margin:0;display:flex;gap:6px;align-items:center;font-weight:400;color:var(--text)"><input type="checkbox" id="rm-sms" style="width:auto" checked> 💬 Text</label>'
     + '<label style="margin:0;display:flex;gap:6px;align-items:center;font-weight:400;color:var(--text)"><input type="checkbox" id="rm-email" style="width:auto" checked> ✉️ Email</label><span class="grow"></span>'
@@ -1771,6 +1784,7 @@ async function callFn(name, data){
   return j.result;
 }
 async function sendOne(u, iss, viaSms, viaEmail){
+  if (TRK_SENDING_OFF) throw new Error("texts and emails from the tracker are switched off");
   var v = reminderVars(u, iss), T = S.settings.templates, sent = [];
   var ph = trkPhone(u.phone);
   if (viaSms && ph){ var r = await callFn("sendSms", trkSmsPayload(ph, fillTpl(T.sms, v), u.unit)); if (r && r.error) throw new Error(r.error); if (!(r && r.failedCount)) sent.push("text"); }
