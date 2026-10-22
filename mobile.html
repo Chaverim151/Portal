@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<meta name="trk-version" content="1.67">
+<meta name="trk-version" content="1.68">
 <meta name="trk-mode" content="mobile">
 <script>
 // 1.58: a phone that opens the computer version (Portal/ = index.html) is sent to the phone version, like CallDashboard
@@ -66,6 +66,13 @@ html,body{margin:0;background:var(--bg);color:var(--text);font:16px/1.4 -apple-s
 button{font:inherit;cursor:pointer}
 input,select,textarea{font:inherit;color:var(--text);background:#fff;border:1px solid var(--field);border-radius:6px;padding:10px;width:100%}
 input::placeholder,textarea::placeholder{color:#8a929c}
+/* 1.68: phones (iPhone Safari) — boxes never wider than their space; date boxes don't push past the edge or cut the date off */
+input,select,textarea{min-width:0;max-width:100%}
+.row > *,.grid2 > *{min-width:0}
+input[type=date],input[type=time],input[type=datetime-local]{-webkit-appearance:none;appearance:none;display:block;min-height:42px;line-height:1.2;text-align:left}
+input[type=date]::-webkit-date-and-time-value{text-align:left;margin:0;min-height:1.2em}
+input[type=date]::-webkit-calendar-picker-indicator{margin-left:2px}
+select{text-overflow:ellipsis;padding-right:28px}
 input[type=checkbox],input[type=radio]{accent-color:var(--accent)}
 textarea{min-height:70px}
 label{display:block;font-size:.8rem;font-weight:700;color:var(--text);margin:12px 0 4px}
@@ -410,7 +417,7 @@ td.rep-warn{color:var(--warn);font-weight:700}
     <div class="m-err" id="login-err"></div>
 
     <div style="text-align:center;margin-top:16px"><button class="m-forgot" onclick="App.forgotPw()">Forgot password?</button></div>
-    <div class="m-build">BUILD <span id="li-build">v1.67</span></div>
+    <div class="m-build">BUILD <span id="li-build">v1.68</span></div>
   </div>
 </div>
 <div id="boot" class="empty" style="margin-top:20vh">Signing in…</div>
@@ -490,7 +497,7 @@ function trkSmsPayload(phone, message, unit){
 function trkEmailPayload(email, name, subject, html){ return { to: [{ email: email, name: name || email }], subject: subject, body: html }; }
 
 /* ════════════════════════════════════════════════════════════════════════ */
-var TRK_VERSION = "1.67";
+var TRK_VERSION = "1.68";
 // 1.16: owner asked to block the tracker's notifications for now. While this is true the tracker sends NO texts and
 // NO emails (reminders and test reminders). Sign-in "Forgot password?" still works. Set to false to allow sending again.
 var TRK_SENDING_OFF = true;
