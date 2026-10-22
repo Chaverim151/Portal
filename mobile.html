@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<meta name="trk-version" content="1.70">
+<meta name="trk-version" content="1.72">
 <meta name="trk-mode" content="mobile">
 <script>
 // 1.58: a phone that opens the computer version (Portal/ = index.html) is sent to the phone version, like CallDashboard
@@ -417,7 +417,7 @@ td.rep-warn{color:var(--warn);font-weight:700}
     <div class="m-err" id="login-err"></div>
 
     <div style="text-align:center;margin-top:16px"><button class="m-forgot" onclick="App.forgotPw()">Forgot password?</button></div>
-    <div class="m-build">BUILD <span id="li-build">v1.70</span></div>
+    <div class="m-build">BUILD <span id="li-build">v1.72</span></div>
   </div>
 </div>
 <div id="boot" class="empty" style="margin-top:20vh">Signing in…</div>
@@ -497,7 +497,7 @@ function trkSmsPayload(phone, message, unit){
 function trkEmailPayload(email, name, subject, html){ return { to: [{ email: email, name: name || email }], subject: subject, body: html }; }
 
 /* ════════════════════════════════════════════════════════════════════════ */
-var TRK_VERSION = "1.70";
+var TRK_VERSION = "1.72";
 // 1.16: owner asked to block the tracker's notifications for now. While this is true the tracker sends NO texts and
 // NO emails (reminders and test reminders). Sign-in "Forgot password?" still works. Set to false to allow sending again.
 var TRK_SENDING_OFF = true;
@@ -760,7 +760,7 @@ function expPills(s){
 }
 function expTableOf(rows, attrs, at, by){
   return '<div class="tbl-wrap"><table class="exp-tbl"><thead><tr><th>Item</th><th>Expiration</th><th>Validity</th><th>Action</th></tr></thead><tbody>'
-    + rows.map(function(r, i){ return '<tr><td>' + esc(r.item) + '</td><td class="num">' + (r.date ? fmtDash(r.date) : '<span class="muted">—</span>') + '</td><td>' + pillFor(r.st) + '</td><td><button class="btn sm" title="Update this date" ' + attrs + ' data-i="' + i + '" onclick="App.expOne(this)">✎ Update</button></td></tr>'; }).join("")
+    + rows.map(function(r, i){ return '<tr><td>' + esc(r.item) + '</td><td class="num">' + (r.date ? fmtDash(r.date) : '<span class="muted">—</span>') + '</td><td>' + pillFor(r.st) + '</td><td><div class="row" style="flex-wrap:nowrap;gap:6px"><button class="btn gold sm exp-quick" title="Take a photo of the label" ' + attrs + ' data-i="' + i + '" onclick="App.expQuick(this)">📷 Scan</button><button class="btn sm" title="Update this date" ' + attrs + ' data-i="' + i + '" onclick="App.expOne(this)">✎ Update</button></div></td></tr>'; }).join("")
     + '</tbody></table></div><div class="muted" style="margin-top:6px">' + (at ? "Updated " + fmtTs(at) + (by ? " by " + esc(by) : "") : "Dates not entered yet.") + '</div>';
 }
 function expDetails(rows, tableHtml, btnAttrs){
@@ -1345,7 +1345,7 @@ function stackTables(root){
     t.classList.add("stack"); t.dataset.stacked = "1";
     t.querySelectorAll("tbody tr").forEach(function(tr){ Array.from(tr.children).forEach(function(td, i){ if (heads[i]) td.setAttribute("data-label", heads[i]); if (i && td.textContent.trim() === "—") td.classList.add("blank");
       // 1.56: phone cards start folded — only the name, status and expiry show until the card is tapped
-      if (i === 0 || /^(status|validity|expires|expiration)$/i.test(heads[i] || "")) td.classList.add("key"); }); });
+      if (i === 0 || /^(status|validity|expires|expiration)$/i.test(heads[i] || "") || (t.classList.contains("exp-tbl") && /^action$/i.test(heads[i] || ""))) td.classList.add("key"); }); });   // 1.71: date rows keep 📷 Scan / ✎ Update in view
   });
 }
 document.addEventListener("click", function(e){
@@ -1365,7 +1365,7 @@ function render(){
   var f = { home: viewHome, profile: viewProfile, docs: viewDocs, imm: viewImm, restock: viewRestock, vehicles: viewVehicles, bag: viewBag, rigs: viewRigs, admin: viewAdmin }[S.tab] || viewHome;
   // keep focus/typing safe: don't redraw a settings form someone is typing in
   if ((S.tab === "profile" || (S.tab === "admin" && (ADMIN_SETTINGS_TABS.indexOf(S.adminTab) >= 0 || S.adminTab === "remind" || S.adminTab === "reports"))) && v.contains(document.activeElement) && /INPUT|TEXTAREA|SELECT/.test(document.activeElement.tagName)){ renderBell(); return; }
-  v.innerHTML = f();
+  v.innerHTML = f() + (S.tab === "home" ? '<div class="muted" style="text-align:center;font-size:.75rem;margin:18px 0 6px">Compliance Tracker v' + TRK_VERSION + '</div>' : '');   // 1.71: version at the bottom of Home
   stackTables(v);
   renderBell();
 }
@@ -2271,6 +2271,8 @@ function expOne(btn){
     '<button class="btn" onclick="App.expOneCancel()">Cancel</button><button class="btn gold" id="exp1-save" onclick="App.expOneSave()">Save</button>');
   if (TRK_MODE !== "mobile") setTimeout(function(){ var el = $("exp1"); if (el) el.focus(); }, 50);   // 1.70: on phones don't pop the date wheel over the 📷 button
 }
+// 1.71: 📷 Scan straight from a date row — opens that item's date pop-up and the camera together; then tap Save
+function expQuick(btn){ expOne(btn); var sb = document.querySelector('#m-body [data-id="exp1"]'); if (sb) expScan(sb); }
 function expOneCancel(){ var b = S._expBack; closeModal(); if (b && b.reopen) viewObExp(b.id); }
 async function expOneSave(){
   var b = S._expBack, d = ($("exp1") || {}).value || "";
@@ -2793,7 +2795,7 @@ function openProfile(uid){
     '<span class="grow muted" id="apf-msg"></span><button class="btn" onclick="App.closeModal()">Cancel</button><button class="btn gold" data-uid="' + esc(uid) + '" onclick="App.saveProfile(this.dataset.uid)">💾 Save</button>');
 }
 function adminProfiles(){
-  var y = thisYear(), h = '<p class="muted">Click a user to open their page — everything for that user (details, documents, bags, exceptions) is done there. The uniform order is in 📊 Reports ▸ 👕 Uniform order.</p>';   // 1.57
+  var y = thisYear(), h = '<p class="muted">Click a user to open their page — everything for that user (details, documents, bags, exceptions) is done there. The merch order (sizes to order + each person\'s sizes) is in 📊 Reports ▸ 👕 Merch order.</p>';   // 1.57
   h += '<div class="tbl-wrap"><table><thead><tr><th>Unit</th><th>Name</th><th>Date of birth</th><th>Cell</th><th>Home address</th><th>Emergency contact</th><th class="c">Shirt</th><th class="c">Jacket</th></tr></thead><tbody>';
   S.users.forEach(function(u){
     var p = S.profiles[u.uid] || {}, a = p.home || {}, ec = p.emergency || {};
@@ -3694,22 +3696,22 @@ var REPORTS = {
       });
       return { name: "Vehicles", cols: cols, rows: rows };
     } },
-  uniformOrder: { icon: "👕", title: "Uniform order", desc: "How many shirts and jackets of each size to order this year, from everyone's profile.",
+  // 1.72: one merch-order report — the totals to order AND each person's sizes (two sheets in one Excel file)
+  merch: { icon: "👕", title: "Merch order", desc: "What to order this year — how many shirts and jackets of each size — plus each person's sizes (and who hasn't picked yet).",
     build: async function(){
-      var y = thisYear(), sc = {}, jc = {}, filled = 0;
+      var y = thisYear(), sc = {}, jc = {};
       SIZES.forEach(function(z){ sc[z] = 0; jc[z] = 0; });
-      S.users.forEach(function(u){ var p = S.profiles[u.uid]; if (!p) return; filled++; var a = sizeFor(p.shirt, y), b = sizeFor(p.jacket, y); if (a) sc[a]++; if (b) jc[b]++; });
-      var noShirt = S.users.filter(function(u){ return !sizeFor((S.profiles[u.uid] || {}).shirt, y); }).length, noJacket = S.users.filter(function(u){ return !sizeFor((S.profiles[u.uid] || {}).jacket, y); }).length;
-      var rows = SIZES.map(function(z){ return [z, sc[z], jc[z]]; });
-      rows.push(["Total", SIZES.reduce(function(t, z){ return t + sc[z]; }, 0), SIZES.reduce(function(t, z){ return t + jc[z]; }, 0)]);
-      rows.push(["Not picked yet", noShirt, noJacket]);
-      return { name: "Uniform order " + y, cols: [{ h: "Size", w: 14 }, { h: "Shirts", w: 10 }, { h: "Jackets", w: 10 }], rows: rows };
-    } },
-  uniforms: { icon: "👕", title: "Uniform sizes", desc: "Each member's shirt and jacket size for this year and last year.",
-    build: async function(){
-      var y = thisYear();
-      return { name: "Uniform sizes", cols: [{ h: "Unit", w: 9 }, { h: "Name", w: 22 }, { h: "Shirt " + y, w: 11 }, { h: "Jacket " + y, w: 11 }, { h: "Shirt " + (y - 1), w: 11 }, { h: "Jacket " + (y - 1), w: 11 }],
-        rows: S.users.map(function(u){ var p = S.profiles[u.uid] || {}; return [u.unit, u.name || "", sizeFor(p.shirt, y), sizeFor(p.jacket, y), sizeFor(p.shirt, y - 1), sizeFor(p.jacket, y - 1)]; }) };
+      var people = S.users.map(function(u){
+        var p = S.profiles[u.uid] || {}, a = sizeFor(p.shirt, y), b = sizeFor(p.jacket, y);
+        if (a && sc[a] != null) sc[a]++; if (b && jc[b] != null) jc[b]++;
+        return [u.unit, u.name || "", a || "Not picked yet", b || "Not picked yet", sizeFor(p.shirt, y - 1), sizeFor(p.jacket, y - 1)];
+      });
+      people.sort(function(x, z){ var nx = /Not picked/.test(x[2] + x[3]) ? 0 : 1, nz = /Not picked/.test(z[2] + z[3]) ? 0 : 1; return nx - nz || unitNum(x[0]) - unitNum(z[0]); });
+      var tot = SIZES.map(function(z){ return [z, sc[z], jc[z]]; });
+      tot.push(["Total", SIZES.reduce(function(t, z){ return t + sc[z]; }, 0), SIZES.reduce(function(t, z){ return t + jc[z]; }, 0)]);
+      tot.push(["Not picked yet", people.filter(function(r){ return r[2] === "Not picked yet"; }).length, people.filter(function(r){ return r[3] === "Not picked yet"; }).length]);
+      return [{ name: "Merch order " + y, cols: [{ h: "Size", w: 14 }, { h: "Shirts", w: 10 }, { h: "Jackets", w: 10 }], rows: tot },
+        { name: "Sizes by person " + y, cols: [{ h: "Unit", w: 9 }, { h: "Name", w: 22 }, { h: "Shirt " + y, w: 14 }, { h: "Jacket " + y, w: 14 }, { h: "Shirt " + (y - 1) + " (last year)", w: 14 }, { h: "Jacket " + (y - 1) + " (last year)", w: 14 }], rows: people }];
     } }
 };
 function adminReports(){
@@ -3737,8 +3739,10 @@ function repArgs(k){
 }
 function repDates(){ S.repFrom = $("rep-from").value; S.repTo = $("rep-to").value; S.repDays = $("rep-days").value; }
 async function repBuild(k){ repDates(); var r = REPORTS[k]; return r.build.apply(null, repArgs(k)); }
+// 1.72: a report can give one sheet or a list of sheets
+async function repSheets(k){ var x = await repBuild(k); return Array.isArray(x) ? x : [x]; }
 // 1.67: how one report cell looks on screen (the Excel file is unchanged) — colours, status over date, long lists folded
-function repCls(v){ v = String(v); return /^(Not compliant|Expired|Missing|Problems|Never checked|Needs a new copy|Overdue|Rejected)/.test(v) ? "rep-bad" : /^(Expiring|Expires in|Due|Waiting)/.test(v) ? "rep-warn" : /^(Valid|Compliant|All on file|All OK|papers OK)/.test(v) ? "rep-ok" : /^(Not required|None|No bag)$/.test(v) ? "rep-na" : ""; }
+function repCls(v){ v = String(v); return /^(Not compliant|Expired|Missing|Problems|Never checked|Needs a new copy|Overdue|Rejected)/.test(v) ? "rep-bad" : /^(Expiring|Expires in|Due|Waiting|Not picked)/.test(v) ? "rep-warn" : /^(Valid|Compliant|All on file|All OK|papers OK)/.test(v) ? "rep-ok" : /^(Not required|None|No bag)$/.test(v) ? "rep-na" : ""; }
 function repTd(v, c, row){
   if (c.hide) return "";
   var cls = [repCls(v)], pin = c.pin ? "pin" + c.pin : "", h;
@@ -3774,28 +3778,29 @@ function repCell(v, c){
 async function repView(k){
   try {
     toast("Building the report…");
-    var sh = await repBuild(k), r = REPORTS[k];
-    var stamp = smsStamp();
-    S.repHtml = '<div class="card report" id="rep-print"><div class="row"><div class="grow"><h3 style="margin:0">' + r.icon + ' ' + esc(sh.name) + '</h3><div class="muted">' + esc(orgName()) + ' · ' + esc(stamp) + ' · ' + sh.rows.length + ' row' + (sh.rows.length === 1 ? "" : "s") + '</div></div>'
+    var shs = await repSheets(k), r = REPORTS[k];
+    var stamp = smsStamp(), n = shs.reduce(function(t, x){ return t + x.rows.length; }, 0);
+    S.repHtml = '<div class="card report" id="rep-print"><div class="row"><div class="grow"><h3 style="margin:0">' + r.icon + ' ' + esc(shs.length > 1 ? r.title : shs[0].name) + '</h3><div class="muted">' + esc(orgName()) + ' · ' + esc(stamp) + (shs.length > 1 ? '' : ' · ' + n + ' row' + (n === 1 ? "" : "s")) + '</div></div>'
       + '<button class="btn sm" onclick="App.repPrint()">🖨 Print</button><button class="btn gold sm" onclick="App.repXlsx(\'' + k + '\')">⬇ Excel</button></div>'
+      + shs.map(function(sh){ return (shs.length > 1 ? '<h3 style="margin:16px 0 0">' + esc(sh.name) + '</h3>' : '')
       + '<div class="tbl-wrap rep-wrap" style="margin-top:10px"><table class="rep-tbl"><thead><tr>' + sh.cols.map(function(c){ return c.hide ? '' : '<th' + (c.pin ? ' class="pin' + c.pin + '"' : '') + '>' + esc(c.h) + '</th>'; }).join("") + '</tr></thead><tbody>'
-      + (sh.rows.length ? sh.rows.map(function(row){ return '<tr>' + row.map(function(v, i){ return repTd(v, sh.cols[i] || {}, row); }).join("") + '</tr>'; }).join("")
+      + (sh.rows.length ? sh.rows.map(function(row){ return '<tr' + (row[0] === "Total" ? ' style="font-weight:700"' : '') + '>' + row.map(function(v, i){ return repTd(v, sh.cols[i] || {}, row); }).join("") + '</tr>'; }).join("")
         : '<tr><td colspan="' + sh.cols.length + '" class="muted">Nothing to report.</td></tr>')
-      + '</tbody></table></div></div>';
+      + '</tbody></table></div>'; }).join("") + '</div>';
     $("rep-out").innerHTML = S.repHtml;
     $("rep-out").scrollIntoView({ behavior: "smooth", block: "start" });
   } catch (e){ toast("⚠ Couldn't build the report: " + e.message, 6000); }
 }
 function repFileName(name){ return (orgName() + " " + name + " " + todayStr()).replace(/[^\w\- ]+/g, "").replace(/\s+/g, "-") + ".xlsx"; }
 async function repXlsx(k){
-  try { var sh = await repBuild(k); await hzSaveFile(hzXlsxBlob([sh]), repFileName(sh.name)); toast("✓ Downloaded " + sh.name); }
+  try { var shs = await repSheets(k); await hzSaveFile(hzXlsxBlob(shs), repFileName(shs[0].name)); toast("✓ Downloaded " + REPORTS[k].title); }
   catch (e){ toast("⚠ Couldn't make the file: " + e.message, 6000); }
 }
 async function repAll(){
   try {
     toast("Building all reports…");
     var sheets = [];
-    for (var k in REPORTS) sheets.push(await repBuild(k));
+    for (var k in REPORTS) sheets = sheets.concat(await repSheets(k));
     await hzSaveFile(hzXlsxBlob(sheets), repFileName("Compliance report"));
     toast("✓ Downloaded the full compliance report");
   } catch (e){ toast("⚠ Couldn't make the file: " + e.message, 6000); }
@@ -3863,7 +3868,7 @@ window.App = {
   ck: ck, ckSection: ckSection, ckNote: ckNote, ckQ: ckQ, ckSecNote: ckSecNote, saveCheck: saveCheck,
   adminTab: function(t){ S.adminTab = t; S.admMember = null; render(); window.scrollTo(0, 0); }, adminGroup: adminGroup, openMember: openMember, openImm: openImm, immKind: immKind, bagExempt: bagExempt, bagExemptSave: bagExemptSave, immRow: immRow, saveImmList: saveImmList, goHome: goHome, gridFilter: function(v){ S.gridOnlyProblems = v; render(); },
   gridCell: gridCell, markNA: markNA, openRecord: openRecord, review: review, deleteRecord: deleteRecord,
-  remindTest: remindTest, repFixShow: repFixShow, setOptIn: setOptIn, sendReminders: sendReminders,
+  remindTest: remindTest, repFixShow: repFixShow, expQuick: expQuick, setOptIn: setOptIn, sendReminders: sendReminders,
   repView: repView, repXlsx: repXlsx, repAll: repAll, repDates: repDates, repPrint: repPrint,
   saveProfile: saveProfile, vfRepl: vfRepl, editBagExp: editBagExp, saveBagExp: saveBagExp, viewBagExp: viewBagExp, phoneTyping: phoneTyping, openProfile: openProfile,
   addType: addType, resetTemplates: resetTemplates, saveSettings: saveSettings,
