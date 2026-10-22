@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<meta name="trk-version" content="1.59">
+<meta name="trk-version" content="1.61">
 <meta name="trk-mode" content="mobile">
 <script>
 // 1.58: a phone that opens the computer version (Portal/ = index.html) is sent to the phone version, like CallDashboard
@@ -16,6 +16,8 @@
 <meta name="theme-color" content="#ffffff">
 <title>Compliance</title>
 <!-- 1.32: the same Hatzolah MC icon as CallDashboard, built in (no extra files to upload) -->
+<!-- 1.61: removed "+ Create New Document / Immunization" — upload from each document's row -->
+<!-- 1.60: section headings with a button no longer get squeezed on phones -->
 <!-- 1.59: Sign out back in the phone top bar; vehicle papers as a folding table too -->
 <!-- 1.58: phones opening the Portal link go to the phone version (no Admin); phone top bar has no Sign out (it's in My Profile) -->
 <!-- 1.57: Admin "Units" → "Users"; uniform order is a report; overlap fixes -->
@@ -74,6 +76,8 @@ label{display:block;font-size:.8rem;font-weight:700;color:var(--text);margin:12p
 .btn.sm{padding:6px 10px;font-size:.85rem}
 .btn:disabled{opacity:.5;cursor:default}
 .row{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+.row > h2.grow{white-space:nowrap;flex:1 0 auto}   /* 1.60: a heading never splits around its button — the button drops below instead */
+@media(max-width:600px){.row > h2.grow + .btn{margin-left:auto}}
 .grow{flex:1}
 .muted{color:var(--gray);font-size:.85rem}
 .card{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:14px;margin:0 0 12px;box-shadow:0 1px 3px rgba(0,0,0,.08)}
@@ -377,7 +381,7 @@ td.rep-warn{color:var(--warn);font-weight:700}
     <div class="m-err" id="login-err"></div>
 
     <div style="text-align:center;margin-top:16px"><button class="m-forgot" onclick="App.forgotPw()">Forgot password?</button></div>
-    <div class="m-build">BUILD <span id="li-build">v1.59</span></div>
+    <div class="m-build">BUILD <span id="li-build">v1.61</span></div>
   </div>
 </div>
 <div id="boot" class="empty" style="margin-top:20vh">Signing in…</div>
@@ -457,7 +461,7 @@ function trkSmsPayload(phone, message, unit){
 function trkEmailPayload(email, name, subject, html){ return { to: [{ email: email, name: name || email }], subject: subject, body: html }; }
 
 /* ════════════════════════════════════════════════════════════════════════ */
-var TRK_VERSION = "1.59";
+var TRK_VERSION = "1.61";
 // 1.16: owner asked to block the tracker's notifications for now. While this is true the tracker sends NO texts and
 // NO emails (reminders and test reminders). Sign-in "Forgot password?" still works. Set to false to allow sending again.
 var TRK_SENDING_OFF = true;
@@ -1362,9 +1366,10 @@ function viewDocs(){
     h += '<h2>' + c[1] + '</h2>' + docTable(uid, ts, S.myRecords, { owner: uid, unit: S.me.unit, name: S.me.name || "" });
   });
   // 1.45: immunizations are part of My Documents
-  if (immTypes().length) h += '<div class="row" style="margin-top:18px"><h2 class="grow" style="margin:0">💉 Immunizations</h2><button class="btn gold sm" onclick="App.openImm()">+ Create New Immunization</button></div>'
-    + immTable(uid, true) + '<p class="muted">Proof of vaccination, an immunity notice or an exemption notice. One upload can cover several lifetime shots (e.g. an MMR record).</p>';
-  return '<div class="row" style="margin-top:6px"><span class="grow"></span><button class="btn gold" onclick="App.openUpload()">+ Create New Document</button></div>' + h
+  if (immTypes().length) h += '<h2>💉 Immunizations</h2>'
+    + immTable(uid, true) + '<p class="muted">Proof of vaccination, an immunity notice or an exemption notice. Uploading one lifetime shot lets you tick the others the same paper covers (e.g. an MMR record).</p>';
+  // 1.61: no "Create New" buttons — members upload from the row of each document (the lists are set in ⚙ Admin)
+  return h
     + '<p class="muted">Upload a clear, upright photo of the front, or a PDF. An admin checks each upload.</p>';
 }
 
@@ -1800,7 +1805,7 @@ function openUpload(btn, opts){
     + '<div class="scan-box" id="up-scan" hidden><div class="row"><span class="grow" id="up-scan-msg">✨ Reading the document…</span><button class="btn sm" type="button" id="up-scan-btn" onclick="App.upScan()">✨ Scan again</button></div></div>'
     + '<div id="up-fields" data-t="' + (pre ? esc(pre.type.id) : "") + '">' + upFieldsHtml(pre ? pre.type : null, rec) + '</div>'
     + '<label>Upload Progress</label><div class="up-bar"><div id="up-bar-fill"></div></div><div id="up-prog" class="muted" style="margin-top:4px"></div>';
-  openModal(imm ? (imm.pick && rec0imm(imm) ? "Update Immunization" : "Create New Immunization") : pre ? (rec ? "Update " : "Upload ") + pre.type.name : "Create New Document", b,
+  openModal(imm ? (imm.pick && rec0imm(imm) ? "Update Immunization" : "Upload Immunization") : pre ? (rec ? "Update " : "Upload ") + pre.type.name : "Create New Document", b,
     '<button class="btn" onclick="App.closeModal()">Cancel</button><button class="btn gold" id="up-save" onclick="App.saveUpload()">Save</button>');
   if (imm) immKind();
 }
@@ -3545,8 +3550,7 @@ function dropHints(){
     e.preventDefault(); n = 0; document.body.classList.remove("dragging");
     var f = e.dataTransfer.files && e.dataTransfer.files[0]; if (!f || !S.me) return;
     var inp = pickInput(e);
-    if (!inp && $("modal-bg").hidden && S.tab === "docs"){ openUpload(); inp = $("up-file"); }
-    if (!inp){ toast("Open the upload first, then drop the file on it."); return; }
+    if (!inp){ toast("Tap Upload on the document first, then drop the file on it."); return; }
     try { var dt = new DataTransfer(); dt.items.add(f); inp.files = dt.files; } catch (er){ toast("This browser can't take a dropped file — use the file picker."); return; }
     inp.dispatchEvent(new Event("change", { bubbles: true }));
     toast("📎 " + f.name);
