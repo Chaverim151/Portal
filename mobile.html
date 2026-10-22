@@ -1,0 +1,2122 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="trk-version" content="1.14">
+<meta name="trk-mode" content="mobile">
+<meta name="theme-color" content="#ffffff">
+<title>Compliance</title>
+<link href="https://fonts.googleapis.com/css2?family=Oswald:wght@400;600;700&family=Source+Sans+3:wght@300;400;600&display=swap" rel="stylesheet">
+<style>
+/* Basic look — same colours as CallDashboard / HCAD "Basic" (white background, simple buttons) */
+:root{
+  color-scheme:light;
+  --bg:#ffffff; --card:#ffffff; --soft:#f6f7f9; --soft2:#f3f4f6; --line:#d8dde3; --field:#c4cad3;
+  --accent:#1d3f72; --accent-dk:#163259; --pick:#0b5cad;
+  --text:#1f2328; --gray:#5c6672;
+  --ok:#167a3e; --warn:#8a5a00; --bad:#b42318; --info:#0b5cad; --na:#8a929c;
+  --dot-ok:#2e9e57; --dot-warn:#e0a200; --dot-bad:#d93025; --dot-info:#1a73e8; --dot-na:#a7afba;
+}
+*{box-sizing:border-box}
+html,body{margin:0;background:var(--bg);color:var(--text);font:16px/1.4 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif}
+button{font:inherit;cursor:pointer}
+input,select,textarea{font:inherit;color:var(--text);background:#fff;border:1px solid var(--field);border-radius:6px;padding:10px;width:100%}
+input::placeholder,textarea::placeholder{color:#8a929c}
+input[type=checkbox],input[type=radio]{accent-color:var(--accent)}
+textarea{min-height:70px}
+label{display:block;font-size:.8rem;font-weight:700;color:var(--text);margin:12px 0 4px}
+[hidden]{display:none!important}
+.btn{background:#fff;color:var(--text);border:1px solid var(--field);border-radius:6px;padding:10px 14px;font-weight:600;box-shadow:inset 0 0 0 1px rgba(31,35,40,.32)}
+.btn:hover:not(:disabled){filter:brightness(.97)}
+.btn.gold{background:var(--accent);color:#fff;border-color:var(--accent);box-shadow:inset 0 0 0 1px rgba(0,0,0,.25)}
+.btn.gold:hover:not(:disabled){background:var(--accent-dk);filter:none}
+.btn.red{background:#fff;color:var(--bad);border-color:#e3a6a0}
+.btn.green{background:#fff;color:var(--ok);border-color:#9fd3b2}
+.btn.sm{padding:6px 10px;font-size:.85rem}
+.btn:disabled{opacity:.5;cursor:default}
+.row{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+.grow{flex:1}
+.muted{color:var(--gray);font-size:.85rem}
+.card{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:14px;margin:0 0 12px;box-shadow:0 1px 3px rgba(0,0,0,.08)}
+.card h3{margin:0 0 6px;font-size:1rem;color:var(--accent)}
+h2{font-size:1.1rem;margin:18px 0 10px;color:var(--accent)}
+.pill{display:inline-block;border-radius:999px;padding:2px 10px;font-size:.78rem;font-weight:700;white-space:nowrap;border:1px solid transparent}
+.p-ok{background:#eaf6ee;color:var(--ok);border-color:#9fd3b2}
+.p-warn{background:#fff4d6;color:var(--warn);border-color:#e2c27a}
+.p-bad{background:#fdecea;color:var(--bad);border-color:#e3a6a0}
+.p-info{background:#eaf2fb;color:var(--info);border-color:#a9c7ea}
+.p-na{background:var(--soft2);color:var(--gray);border-color:var(--line)}
+
+/* sign in — copied from CallDashboard's phone login (Basic look) */
+#login{min-height:100vh;display:flex;align-items:center;justify-content:center;padding:40px 16px}
+.m-login-box{width:100%;max-width:400px;background:#fff;border:1px solid var(--line);border-radius:18px;padding:36px 32px 32px;animation:fadeUp .5s ease both}
+@keyframes fadeUp{from{opacity:0;transform:translateY(12px)}to{opacity:1;transform:none}}
+.m-login-logo{text-align:center;margin-bottom:22px}
+.m-login-logo img{width:72px}
+.m-login-title{text-align:center;font-family:'Oswald',sans-serif;font-size:1.25rem;font-weight:700;letter-spacing:.07em;text-transform:uppercase;margin-bottom:4px;color:var(--text)}
+.m-login-title span{color:var(--accent)}
+.m-login-sub{text-align:center;font-size:.72rem;color:var(--gray);letter-spacing:.1em;text-transform:uppercase;margin-bottom:28px}
+.m-field{margin-bottom:16px}
+.m-label{display:block;font-size:.72rem;letter-spacing:.1em;text-transform:uppercase;color:var(--gray);margin:0 0 6px;font-weight:400}
+.m-unit-wrap{display:flex;align-items:center;background:var(--soft2);border:1px solid var(--line);border-radius:8px;overflow:hidden;transition:border-color .2s}
+.m-unit-wrap:focus-within{border-color:var(--accent)}
+.m-unit-prefix{padding:12px 10px 12px 14px;font-family:'Oswald',sans-serif;font-size:1rem;font-weight:600;color:var(--accent);border-right:1px solid var(--line);background:rgba(29,63,114,.06);white-space:nowrap}
+.m-unit-input{background:transparent;border:none;padding:12px 14px;color:var(--text);font-size:16px;outline:none;flex:1;border-radius:0}
+.m-input{width:100%;background:var(--soft2);border:1px solid var(--line);border-radius:8px;padding:12px 14px;color:var(--text);font-size:16px;outline:none;transition:border-color .2s}
+.m-input:focus{border-color:var(--accent)}
+.m-pw-wrap{position:relative}
+.m-pw-wrap .m-input{padding-right:44px}
+.m-pw-toggle{position:absolute;right:12px;top:50%;transform:translateY(-50%);background:none;border:none;color:var(--gray);cursor:pointer;padding:4px;display:flex}
+.m-signin-btn{width:100%;margin-top:8px;background:var(--accent);color:#fff;border:none;border-radius:6px;font-size:1rem;font-weight:600;padding:14px;cursor:pointer;box-shadow:inset 0 0 0 1px rgba(0,0,0,.25)}
+.m-signin-btn:hover{background:var(--accent-dk)}
+.m-signin-btn:disabled{opacity:.6;cursor:not-allowed}
+.m-err{margin-top:14px;padding:10px 14px;background:#fdecea;border:1px solid #f2c4bf;border-radius:7px;font-size:.82rem;color:var(--bad);text-align:center;display:none}
+.m-err.show{display:block}
+.m-forgot{background:none;border:none;color:var(--gray);font-size:.78rem;cursor:pointer;text-decoration:underline}
+.m-build{text-align:center;margin-top:18px;font-size:.72rem;font-weight:700;letter-spacing:.1em;color:var(--accent);border:1px solid rgba(29,63,114,.4);border-radius:6px;padding:6px 12px;display:inline-block;position:relative;left:50%;transform:translateX(-50%)}
+
+/* app shell */
+/* top bar — like the CAD (logo, HATZOLAH MC, unit) */
+#topbar{position:sticky;top:0;z-index:20;background:#fff;border-bottom:1px solid var(--line);
+  padding:calc(10px + env(safe-area-inset-top)) 14px 10px;display:grid;grid-template-columns:auto 1fr auto;align-items:center;gap:10px}
+.tb-left{display:flex;align-items:center;gap:10px;min-width:0}
+.tb-left img{width:40px;height:auto}
+.tb-title{font-family:'Oswald',sans-serif;font-weight:700;letter-spacing:.06em;text-transform:uppercase;font-size:1.05rem;color:var(--text);white-space:nowrap}
+.tb-title span{color:var(--accent)}
+.tb-sub{font-size:.62rem;color:var(--gray);letter-spacing:.08em;text-transform:uppercase}
+.tb-who{text-align:center;font-family:'Oswald',sans-serif;font-weight:700;font-size:.8rem;color:var(--gray);letter-spacing:.04em;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.tb-right{display:flex;align-items:center;gap:6px}
+#bell{position:relative;background:#fff;border:1px solid var(--field);color:var(--text);border-radius:6px;width:42px;height:38px;font-size:1.1rem;box-shadow:inset 0 0 0 1px rgba(31,35,40,.32)}
+#bell .badge{position:absolute;top:-6px;right:-6px;background:var(--bad);color:#fff;border-radius:999px;font-size:.7rem;font-weight:800;min-width:20px;height:20px;line-height:20px;padding:0 5px}
+/* page header: ← Home + page name (CAD .inner-topbar / .m-subpage-header) */
+#pagehead{display:flex;align-items:center;gap:14px;padding:12px 20px;border-bottom:1px solid var(--line);background:#fff}
+.back-btn{background:#fff;border:1px solid var(--field);border-radius:6px;color:var(--accent);font-family:'Oswald',sans-serif;font-size:.78rem;font-weight:600;letter-spacing:.08em;text-transform:uppercase;padding:7px 14px;cursor:pointer;box-shadow:inset 0 0 0 1px rgba(31,35,40,.32);flex-shrink:0}
+.page-title{font-family:'Oswald',sans-serif;font-size:1.1rem;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--text)}
+/* home tiles — CAD .big-btn / .m-tile in its Basic look */
+.tiles{display:grid;grid-template-columns:repeat(3,1fr);gap:16px;max-width:820px;margin:20px auto 8px}
+.tile{position:relative;overflow:hidden;background:#fff;border:1px solid #dcc78f;border-radius:16px;box-shadow:0 1px 4px rgba(0,0,0,.08);cursor:pointer;padding:26px 14px 20px;text-align:center;font:inherit;color:var(--text);animation:fadeUp .5s ease both;aspect-ratio:1/.8;display:flex;flex-direction:column;align-items:center;justify-content:center;transition:transform .2s,box-shadow .2s}
+.tile::before{content:"";position:absolute;top:0;left:0;right:0;height:4px;background:var(--strip,var(--accent))}
+.tile:hover{transform:translateY(-3px);box-shadow:0 8px 22px rgba(0,0,0,.12)}
+.tile:active{transform:scale(.98)}
+.tile .ti{font-size:2.4rem;line-height:1;margin-bottom:12px}
+.tile .tl{font-family:'Oswald',sans-serif;font-size:1rem;font-weight:700;letter-spacing:.07em;text-transform:uppercase;display:block;margin-bottom:4px}
+.tile .ts{font-size:.72rem;color:var(--gray);letter-spacing:.03em;line-height:1.4}
+.tile .tb{position:absolute;top:12px;right:12px;background:var(--bad);color:#fff;border-radius:999px;font-size:.72rem;font-weight:800;min-width:22px;height:22px;line-height:22px;padding:0 6px}
+.tile .tb.w{background:#e0a200;color:#1f2328}
+.tile[data-sec="profile"],.tile[data-sec="vehicles"]{--strip:#4a90d9}
+.tile[data-sec="docs"]{--strip:#8b7cef}
+.tile[data-sec="bag"]{--strip:#4caf80}
+.tile[data-sec="rigs"]{--strip:#e0a200}
+.tile[data-sec="admin"]{--strip:#1d3f72}
+/* admin tabs — CAD .admin-tab (underlined) */
+.admin-tabbar{display:flex;overflow-x:auto;border-bottom:1px solid var(--line);margin:0 -16px 14px;padding:0 8px;background:#fff;scrollbar-width:thin}
+.admin-tab{background:none;border:none;border-bottom:3px solid transparent;color:var(--gray);font-family:'Oswald',sans-serif;font-size:.82rem;font-weight:700;letter-spacing:.06em;text-transform:uppercase;padding:12px 14px;cursor:pointer;white-space:nowrap}
+.admin-tab.on{color:var(--accent);border-bottom-color:var(--accent)}
+/* phone version */
+.trk-mobile #topbar{padding:calc(12px + env(safe-area-inset-top)) 12px 12px;gap:8px}
+.trk-mobile .tb-left img{width:34px}
+.trk-mobile .tb-title{font-size:.82rem}
+.trk-mobile .tb-sub{display:none}
+.trk-mobile .tb-who{font-size:.7rem}
+.trk-mobile #pagehead{padding:12px 16px}
+.trk-mobile .tiles{grid-template-columns:1fr 1fr;gap:12px;margin-top:14px}
+.trk-mobile .tile{aspect-ratio:auto;padding:18px 12px 14px}
+.trk-mobile .tile .ti{font-size:2rem;margin-bottom:10px}
+.trk-mobile .tile .tl{font-size:.88rem}
+.trk-mobile .tile .ts{font-size:.65rem}
+.trk-mobile .tile:hover{transform:none}
+@media (max-width:640px){.trk-desktop .tiles{grid-template-columns:1fr 1fr}.trk-desktop .tile{aspect-ratio:auto}.trk-desktop .tb-who{display:none}}
+.trk-mobile .tb-who{display:block}
+#view{max-width:1100px;margin:0 auto;padding:12px 16px 80px}
+#banner:empty{display:none}
+.banner{margin:12px 16px 0;padding:12px 14px;border-radius:10px;background:#fdecea;border:1px solid #e3a6a0;color:#7a1810}
+.banner.warn{background:#fff4d6;border-color:#e2c27a;color:#5c3c00}
+.banner b{display:block;margin-bottom:2px}
+
+/* notification panel */
+#panel-bg{position:fixed;inset:0;background:rgba(0,0,0,.25);z-index:40}
+#panel{position:fixed;top:0;right:0;bottom:0;width:min(420px,100%);background:#fff;border-left:1px solid var(--line);z-index:41;
+  display:flex;flex-direction:column;padding-top:env(safe-area-inset-top);box-shadow:-4px 0 16px rgba(0,0,0,.08)}
+#panel header{display:flex;align-items:center;padding:14px 16px;border-bottom:1px solid var(--line)}
+#panel header b{flex:1;font-size:1.05rem;color:var(--accent)}
+#panel-list{overflow-y:auto;padding:10px 12px}
+.nitem{display:flex;gap:10px;align-items:flex-start;width:100%;text-align:left;background:#fff;border:1px solid var(--line);border-left-width:4px;border-radius:8px;padding:10px 12px;margin-bottom:8px;color:var(--text)}
+.nitem:hover{background:var(--soft)}
+.nitem.bad{border-left-color:var(--dot-bad)} .nitem.warn{border-left-color:var(--dot-warn)} .nitem.info{border-left-color:var(--dot-info)}
+.nitem small{display:block;color:var(--gray)}
+
+/* document cards */
+.docs{display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:12px}
+.doc .top{display:flex;gap:8px;align-items:flex-start}
+.doc .top h3{flex:1}
+.kv{display:grid;grid-template-columns:110px 1fr;gap:2px 8px;font-size:.88rem;margin:8px 0}
+.kv span:nth-child(odd){color:var(--gray)}
+.thumbs{display:flex;gap:6px;flex-wrap:wrap;margin:8px 0}
+.thumbs a{display:block;width:64px;height:64px;border-radius:6px;border:1px solid var(--line);overflow:hidden;background:var(--soft);color:var(--gray);font-size:.7rem;text-align:center;line-height:64px;text-decoration:none}
+.thumbs img{width:100%;height:100%;object-fit:cover}
+.note{font-size:.85rem;background:#fdecea;border:1px solid #f2c4bf;color:#7a1810;border-radius:6px;padding:6px 8px;margin:6px 0}
+
+/* pop-up */
+#modal-bg{position:fixed;inset:0;background:rgba(0,0,0,.35);z-index:50;display:flex;align-items:flex-end;justify-content:center}
+#modal{background:#fff;border:1px solid var(--line);border-radius:14px 14px 0 0;width:min(720px,100%);max-height:94vh;display:flex;flex-direction:column;box-shadow:0 8px 30px rgba(0,0,0,.15)}
+@media (min-width:760px){#modal-bg{align-items:center}#modal{border-radius:14px}}
+#modal header{display:flex;align-items:center;gap:8px;padding:14px 16px;border-bottom:1px solid var(--line)}
+#modal header b{flex:1;font-size:1.05rem;color:var(--accent)}
+#modal .body{overflow-y:auto;padding:4px 16px 16px}
+#modal footer{padding:12px 16px calc(12px + env(safe-area-inset-bottom));border-top:1px solid var(--line);background:var(--soft);display:flex;gap:8px;justify-content:flex-end;flex-wrap:wrap}
+.x{background:none;border:none;color:var(--gray);font-size:1.4rem;padding:0 6px}
+.x:hover{color:var(--bad)}
+
+/* checklists */
+.sec{border:1px solid var(--line);border-radius:10px;margin:12px 0;overflow:hidden}
+.sec-h{display:flex;align-items:center;gap:8px;background:var(--soft2);padding:10px 12px}
+.sec-h b{flex:1;color:var(--accent)}
+.item{display:flex;align-items:center;gap:8px;padding:8px 12px;border-top:1px solid var(--line)}
+.item .nm{flex:1;font-size:.92rem}
+.item .par{color:var(--gray);font-size:.78rem}
+.tog{display:flex;gap:4px}
+.tog button{width:46px;height:38px;border-radius:6px;border:1px solid var(--field);background:#fff;color:var(--gray);font-weight:800;box-shadow:inset 0 0 0 1px rgba(31,35,40,.32)}
+.tog button.ok.on{background:var(--ok);border-color:var(--ok);color:#fff}
+.tog button.bad.on{background:var(--bad);border-color:var(--bad);color:#fff}
+.tog.yn button{width:58px}
+.up-prev{min-height:90px;border:1px dashed var(--field);border-radius:8px;background:var(--soft);display:flex;align-items:center;justify-content:center;padding:10px;overflow:hidden}
+.up-prev img{max-width:100%;max-height:280px;transition:transform .2s}
+.scan-box{margin-top:12px;padding:10px 12px;border:1px solid #a9c7ea;background:#eaf2fb;border-radius:8px;color:#0b3d75;font-size:.9rem}
+input.scanned{background:#eaf2fb;border-color:#a9c7ea}
+.up-bar{height:10px;border-radius:999px;background:var(--soft2);border:1px solid var(--line);overflow:hidden}
+#up-bar-fill{height:100%;width:0;background:var(--accent);transition:width .2s}
+.exp-tbl td.num{font-variant-numeric:tabular-nums}
+.ck-q{background:var(--soft)}
+.item-note{padding:0 12px 10px;border-top:none}
+.item-note input{padding:8px}
+
+/* tables */
+.tbl-wrap{overflow-x:auto;border:1px solid var(--line);border-radius:10px}
+table{border-collapse:collapse;width:100%;font-size:.88rem}
+th,td{padding:8px 10px;border-bottom:1px solid var(--line);text-align:left;white-space:nowrap}
+th{background:var(--soft2);position:sticky;top:0;font-size:.78rem;color:var(--gray)}
+td.c{text-align:center}
+tbody tr:hover{background:var(--soft)}
+.dot{display:inline-block;width:14px;height:14px;border-radius:50%;vertical-align:middle;border:none;padding:0}
+.d-ok{background:var(--dot-ok)} .d-warn{background:var(--dot-warn)} .d-bad{background:var(--dot-bad)} .d-info{background:var(--dot-info)} .d-na{background:var(--dot-na)} .d-missing{background:transparent;border:2px solid var(--dot-bad)}
+.subtabs{display:flex;gap:6px;flex-wrap:wrap;margin:6px 0 12px}
+.subtabs button{background:#fff;border:1px solid var(--field);color:var(--text);border-radius:6px;padding:7px 12px;font-size:.85rem;font-weight:600;box-shadow:inset 0 0 0 1px rgba(31,35,40,.32)}
+.subtabs button.on{background:var(--pick);border-color:var(--pick);color:#fff}
+.legend{display:flex;gap:14px;flex-wrap:wrap;font-size:.8rem;color:var(--gray);margin:8px 0}
+.legend span{display:flex;align-items:center;gap:5px}
+
+td.rep-bad{color:var(--bad);font-weight:700}
+td.rep-warn{color:var(--warn);font-weight:700}
+@media print{
+  body.printing-report > *:not(#app){display:none!important}
+  body.printing-report #topbar,body.printing-report #pagehead,body.printing-report #banner,body.printing-report .admin-tabbar{display:none!important}
+  body.printing-report #view > *:not(#rep-out){display:none!important}
+  body.printing-report .report button{display:none!important}
+  body.printing-report .tbl-wrap{overflow:visible;border:none}
+  body.printing-report th{position:static}
+  body.printing-report td,body.printing-report th{font-size:9pt;white-space:normal}
+}
+#toast{position:fixed;left:50%;bottom:calc(20px + env(safe-area-inset-bottom));transform:translateX(-50%);background:#1f2328;color:#fff;padding:10px 16px;border-radius:8px;z-index:60;max-width:90vw;box-shadow:0 4px 14px rgba(0,0,0,.2)}
+.big-num{font-size:1.8rem;font-weight:800;color:var(--text)}
+.stats{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:10px;margin-bottom:12px}
+/* home tiles: like the CAD's home tiles — 16px corners, gold edge, one soft shadow */
+.stats .card{margin:0;text-align:left;cursor:pointer;color:var(--text);font:inherit;border:1px solid #dcc78f;border-radius:16px;box-shadow:0 1px 4px rgba(0,0,0,.08)}
+.stats .card:hover{background:var(--soft)}
+.empty{color:var(--gray);text-align:center;padding:24px}
+.pf-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:4px 14px}
+.pf-f{min-width:0}
+.pf-ro{padding:10px;border:1px solid var(--line);border-radius:6px;background:var(--soft);min-height:44px;overflow-wrap:anywhere}
+.dtype{display:grid;grid-template-columns:1fr 130px 110px auto auto auto auto;gap:6px;align-items:center;margin-bottom:6px}
+.dtype label{margin:0;display:flex;gap:4px;align-items:center;font-weight:400;color:var(--text);font-size:.8rem}
+.dtype input[type=checkbox]{width:auto}
+@media (max-width:700px){.dtype{grid-template-columns:1fr 1fr;}}
+</style>
+</head>
+<body>
+
+<!-- ═══════════ SIGN IN (same as CallDashboard's login) ═══════════ -->
+<div id="login" hidden>
+  <div class="m-login-box">
+    <div class="m-login-logo">
+      <img id="li-logo" src="https://i.ibb.co/j40wTVT/hatzolah-middelessex-county-final-removebg-preview-1-20231129-233435-0000.png" alt="Logo">
+    </div>
+    <div class="m-login-title" id="li-title">Hatzolah <span>MC</span></div>
+    <div class="m-login-sub">Compliance Tracker — Authorized Personnel Only</div>
+
+    <div class="m-field">
+      <label class="m-label" for="li-unit">Unit Number</label>
+      <div class="m-unit-wrap">
+        <span class="m-unit-prefix" id="li-prefix">MC-</span>
+        <input class="m-unit-input" id="li-unit" type="text" inputmode="numeric" placeholder="Enter Unit ID" maxlength="4" autocomplete="off"
+          oninput="this.value=this.value.replace(/[^0-9]/g,'')">
+      </div>
+    </div>
+
+    <div class="m-field">
+      <label class="m-label" for="li-pw">Password</label>
+      <div class="m-pw-wrap">
+        <input class="m-input" id="li-pw" type="password" placeholder="Enter Password" autocomplete="current-password">
+        <button class="m-pw-toggle" type="button" id="li-eye" onclick="App.togglePw()" aria-label="Show password">
+          <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
+        </button>
+      </div>
+    </div>
+
+    <button class="m-signin-btn" id="li-btn" onclick="App.signIn()">Sign In</button>
+    <div class="m-err" id="login-err"></div>
+
+    <div style="text-align:center;margin-top:16px"><button class="m-forgot" onclick="App.forgotPw()">Forgot password?</button></div>
+    <div class="m-build">BUILD <span id="li-build">v1.14</span></div>
+  </div>
+</div>
+<div id="boot" class="empty" style="margin-top:20vh">Signing in…</div>
+
+<!-- ═══════════ APP ═══════════ -->
+<div id="app" hidden>
+  <div id="topbar">
+    <div class="tb-left">
+      <img id="tb-logo" src="https://i.ibb.co/j40wTVT/hatzolah-middelessex-county-final-removebg-preview-1-20231129-233435-0000.png" alt="">
+      <div class="tb-text"><div class="tb-title" id="tb-title">Hatzolah <span>MC</span></div><div class="tb-sub">Compliance</div></div>
+    </div>
+    <div class="tb-who" id="who"></div>
+    <div class="tb-right">
+      <button id="bell" onclick="App.openPanel()" aria-label="Notifications">🔔<span class="badge" id="bell-n" hidden></span></button>
+      <button class="btn sm" onclick="App.signOut()">Sign out</button>
+    </div>
+  </div>
+  <div id="pagehead" hidden><button class="back-btn" onclick="App.goHome()">← Home</button><div class="page-title" id="page-title"></div></div>
+  <div id="banner"></div>
+  <main id="view"></main>
+</div>
+
+<div id="panel-bg" hidden onclick="App.closePanel()"></div>
+<aside id="panel" hidden>
+  <header><b>🔔 Notifications</b><button class="x" onclick="App.closePanel()" aria-label="Close">✕</button></header>
+  <div id="panel-list"></div>
+</aside>
+
+<div id="modal-bg" hidden>
+  <div id="modal" role="dialog" aria-modal="true">
+    <header><b id="m-title"></b><button class="x" onclick="App.closeModal()" aria-label="Close">✕</button></header>
+    <div class="body" id="m-body"></div>
+    <footer id="m-foot"></footer>
+  </div>
+</div>
+<div id="toast" hidden></div>
+
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-storage-compat.js"></script>
+<script>
+/* ════════════════════════════════════════════════════════════════════════
+   SETUP — the only part you need to change
+   ════════════════════════════════════════════════════════════════════════ */
+var TRK_CONFIG = {
+  // Same project as CallDashboard (copied from mobile.html)
+  firebaseConfig: {
+    apiKey: "AIzaSyDFWxlw9aLIn9HB2L_B6vbhvY5-nlXhpHM",
+    authDomain: "hvac-ops.firebaseapp.com",
+    projectId: "hvac-ops",
+    storageBucket: "hvac-ops.firebasestorage.app",
+    messagingSenderId: "636260762798",
+    appId: "1:636260762798:web:2ae24d5c15f3aeb315993f"
+  },
+
+  // Where your Cloud Functions live (same address CallDashboard calls sendSms / sendEmail on).
+  functionsBase: "https://us-central1-hvac-ops.cloudfunctions.net",   // same as CallDashboard
+  unitPrefix: "MC-"
+};
+
+// Texts and emails go through CallDashboard's own sendSms / sendEmail functions, in the same format
+// mobile.html uses (mSendClickSendSMS / mSendClickSendEmail). In Test Mode the server sends only to you.
+function trkPhone(phone){
+  var raw = String(phone || "").split(/[\/|]/)[0].trim().replace(/\D/g, "");
+  if (raw.length === 11 && raw[0] === "1") raw = raw.slice(1);
+  return raw.length === 10 ? "+1" + raw : "";
+}
+function trkSmsPayload(phone, message, unit){
+  var pu = {}; pu[phone] = unit;
+  var p = { type: "sms", log: { kind: "Compliance reminder", phoneUnits: pu }, messages: [{ to: phone, body: message }] };
+  if (S.me && S.me.sysTestingMode) p.testMode = true;
+  return p;
+}
+function trkEmailPayload(email, name, subject, html){ return { to: [{ email: email, name: name || email }], subject: subject, body: html }; }
+
+/* ════════════════════════════════════════════════════════════════════════ */
+var TRK_VERSION = "1.14";
+// tracker.html = computer version (with the admin part); tracker-mobile.html = phone version. Both are made from this one file.
+// Later this becomes the "Compliance" tile on the CAD menu, and the admin part becomes the CAD's Admin ▸ User Compliance tab.
+var TRK_MODE = (document.querySelector('meta[name="trk-mode"]') || {}).content === "mobile" ? "mobile" : "desktop";
+document.documentElement.classList.add("trk-" + TRK_MODE);
+
+// Fields on each document. Every document has number / issue date / expiration date; these add more.
+// The ✨ scanner (Gemini, same as the CAD's Protocol Search) reads them off the photo.
+var DOC_FIELDS = {
+  dl:  [["fullName", "Name on license"], ["address", "Address on license"], ["dob", "Date of birth", "date"], ["state", "State"], ["licClass", "Class"]],
+  emt: [["fullName", "Name on certificate"], ["state", "State"]],
+  cpr: [["fullName", "Name on card"], ["provider", "Course provider (AHA, Red Cross…)"]],
+  elp: [["fullName", "Name on permit"], ["plate", "Plate on permit"]],
+  cevo:[["fullName", "Name on certificate"]],
+  ins: [["company", "Insurance company"], ["vin", "VIN"], ["insured", "Name of insured"]],
+  reg: [["plate", "Plate"], ["vin", "VIN"], ["regName", "Name on registration"], ["state", "State"]]
+};
+function docFields(t){ return DOC_FIELDS[t.id] || []; }
+var DEFAULT_SETTINGS = {
+  docTypes: [
+    { id: "dl",   name: "Driver's License",       cat: "document",      scope: "member",  expires: true, number: true,  required: true },
+    { id: "emt",  name: "EMT Certification",      cat: "certification", scope: "member",  expires: true, number: true,  required: true },
+    { id: "cpr",  name: "CPR Certification",      cat: "certification", scope: "member",  expires: true, number: false, required: true },
+    { id: "elp",  name: "Emergency Light Permit", cat: "document",      scope: "member",  expires: true, number: true,  required: true },
+    { id: "cevo", name: "CEVO Certification",     cat: "certification", scope: "member",  expires: true, number: false, required: true },
+    { id: "ins",  name: "Vehicle Insurance",      cat: "document",      scope: "vehicle", expires: true, number: true,  required: true },
+    { id: "reg",  name: "Vehicle Registration",   cat: "document",      scope: "vehicle", expires: true, number: false, required: true }
+  ],
+  warnDays: 30,
+  bagIntervalDays: 30,
+  bagRoles: ["responder", "captain", "chief", "backup"],
+  rigIntervalDays: 7,
+  rigIds: null,                 // null = every ambulance found in Fleet
+  rigInspection: [
+    "Headlights, tail lights, turn signals", "Emergency lights", "Siren", "Horn",
+    "Tires (pressure / tread)", "Fuel level", "Oil / fluid leaks", "Wipers & washer fluid",
+    "Mirrors & windows", "Doors & compartments latch", "Stretcher operates & locks",
+    "Portable suction works", "Onboard suction works", "Main O2 pressure", "AED checked & charged",
+    "Radio check", "Patient compartment clean", "Cab clean"
+  ],
+  reminderCooldownDays: 7,
+  bagQuestions: null,           // null = DEFAULT_BAG_QUESTIONS
+  // Jump bag items that expire — each member keeps the date on their own bag (admins add / remove items in ⚙ Settings)
+  expItems: ["AED Pads", "Albuterol-1", "Albuterol-2", "Aspirin", "Burn-Gel", "Epi-Pen - Adult", "Epi-Pen - PED", "Glucometer Test Strips",
+    "Narcan", "Nebulizer Saline-1", "Nebulizer Saline-2", "Oral Glucose-1", "Oral Glucose-2", "Quick-Clot", "Saline Flush-1", "Saline Flush-2"],
+  templates: {
+    sms: "{org} Compliance reminder for {unit}:\n{items}\nPlease update them in the Compliance Tracker:\n{link}\n{time}",
+    emailSubject: "{org} Compliance reminder for {unit}",
+    emailBody: "Hi {name},\n\nThese items need your attention:\n{items}\n\nPlease update them in the Compliance Tracker:\n{link}\n\n{time}"
+  }
+};
+
+// The MC jump bag form. Used when CallDashboard ▸ Admin ▸ Fleet ▸ Restock List ▸ Jump bag hasn't been saved yet.
+var DEFAULT_JUMPBAG = [
+  { name: "AED", items: [ {n:"AED Unit w/Valid In-Service Indicator",par:"1"}, {n:"Pads - Connected",par:"1"}, {n:"Manual Shaving Razor",par:"1"}, {n:"PED Key",par:"1"} ] },
+  { name: "Jump Bag", items: [ {n:"O2 Tank - Secured - w/min 1000 psi",par:"1"}, {n:"BP Cuff - Adult",par:"1"}, {n:"BP Cuff - Lg Adult",par:"1"}, {n:"Stethoscope",par:"1"}, {n:"Pulse Oximeter w/Battery Indicator",par:"1"}, {n:"Glucometer Kit -Complete",par:"1"}, {n:"NRB - Adult",par:"2"}, {n:"NRB - PED",par:"1"}, {n:"Nebulizer",par:"2"}, {n:"NC - Adult",par:"2"}, {n:"NC - PED",par:"1"}, {n:"C-PAP",par:"1"}, {n:"High Risk Kit",par:"2"}, {n:"N95",par:"3"}, {n:"Surgical Mask",par:"4"}, {n:"Gloves - Medium",par:"6 pairs"}, {n:"Gloves - Large",par:"6 pairs"}, {n:"Emesis Bag",par:"2"}, {n:"Ring Cutter",par:"1"}, {n:"Trauma Shears",par:"1"}, {n:"Penlight - Working",par:"1"}, {n:"Triangular Bandages",par:"3"}, {n:"4 x 4",par:"6"}, {n:"5 x 9",par:"2"}, {n:"Multi-Trauma",par:"1"}, {n:"Burn Sheet",par:"1"}, {n:"OB Kit",par:"1"}, {n:"Roller Gauze - 3\"",par:"2"}, {n:"Saline Flush - 10 mL",par:"2"}, {n:"Burn-Gel",par:"1"}, {n:"Quick-Clot",par:"1"}, {n:"Tourniquet",par:"1"}, {n:"Sam Splint",par:"1"}, {n:"Cold Packs",par:"2"}, {n:"Chest Seal",par:"1"}, {n:"Tic Removal Kit",par:"1"}, {n:"Hand-Held Suction",par:"1"}, {n:"OPA Kit - Complete",par:"1"}, {n:"NPA Kit - Complete",par:"1"}, {n:"BVM - Adult",par:"1"}, {n:"BVM - Child",par:"1"} ] },
+  { name: "Jump Bag Meds", items: [ {n:"Oral Glucose",par:"2"}, {n:"Aspirin",par:"12 Tablets"}, {n:"Epi Auto-Injector - Adult",par:"1"}, {n:"Epi Auto-Injector - PED",par:"1"}, {n:"Albuterol",par:"2"}, {n:"Narcan",par:"1"}, {n:"Nebulizer Saline",par:"2"} ] },
+  { name: "Glucometer", items: [ {n:"Glucometer",par:"1"}, {n:"Lancets",par:"4"}, {n:"Alcohol Prep Pads",par:"6"}, {n:"Test Strips",par:"6"} ] }
+];
+// Yes / No checks at the end of each section (from the same form). Editable in ⚙ Settings.
+var DEFAULT_BAG_QUESTIONS = {
+  "AED": ["AED Tested", "Pads In-Date"],
+  "Jump Bag": ["BVMs Opened and Tested (NOT the Military adult in a can) and Ability to Expand and Contract Properly Has Been Confirmed", "Pulse Oximeter Tested and Battery Level at 50% or Better"],
+  "Jump Bag Meds": ["All Meds In-Date"],
+  "Glucometer": ["Glucometer Calibrated", "Alcohol Prep Pads in Date", "Test Strips in Date", "Battery Level at 50% or Better"]
+};
+var DEFAULT_RIG_SUPPLIES = [
+  { name: "Airway", items: [ {n:"NRB - Adult", par:"4"}, {n:"Nasal cannula - Adult", par:"4"}, {n:"BVM - Adult", par:"2"} ] },
+  { name: "Trauma", items: [ {n:"Trauma dressing", par:"4"}, {n:"Tourniquet", par:"2"}, {n:"Cervical collars", par:"1 set"} ] }
+];
+
+/* ════════════════════════════════════════════════════════════════════════
+   FIREBASE
+   ════════════════════════════════════════════════════════════════════════ */
+// 1.13: the tracker runs as its own named Firebase app ("trk"), so its sign-in is kept apart from the CAD's.
+// Same unit number and password, but signing in or out here never signs anyone in or out of CallDashboard
+// (both sites are on chaverim151.github.io, and the default app would share one sign-in with the CAD).
+var trkApp = firebase.initializeApp(TRK_CONFIG.firebaseConfig, "trk");
+var auth = trkApp.auth();
+var db = trkApp.firestore();
+var storage = trkApp.storage();
+auth.setPersistence(firebase.auth.Auth.Persistence.LOCAL).catch(function(){});
+
+/* ════════════════════════════════════════════════════════════════════════
+   STATE
+   ════════════════════════════════════════════════════════════════════════ */
+var S = {
+  user: null, me: null, isAdmin: false, isLogistics: false,
+  settings: clone(DEFAULT_SETTINGS), org: {}, restock: null,
+  myRecords: {}, myVehicles: [], myBag: null, myProfile: null, profiles: {}, myBagExp: {}, allBagExp: {},
+  users: [], allRecords: {}, allVehicles: [], allBags: {}, rigStatus: {}, fleet: [], reminderLog: {},
+  tab: "home", adminTab: "grid", gridOnlyProblems: false,
+  unsubs: [], check: null
+};
+
+/* ════════════════════════════════════════════════════════════════════════
+   SMALL HELPERS
+   ════════════════════════════════════════════════════════════════════════ */
+function clone(o){ return JSON.parse(JSON.stringify(o)); }
+function $(id){ return document.getElementById(id); }
+function esc(s){ return String(s == null ? "" : s).replace(/[&<>"']/g, function(c){ return {"&":"&amp;","<":"&lt;",">":"&gt;","\"":"&quot;","'":"&#39;"}[c]; }); }
+function toast(msg, ms){ var t = $("toast"); t.textContent = msg; t.hidden = false; clearTimeout(toast._t); toast._t = setTimeout(function(){ t.hidden = true; }, ms || 3200); }
+function pad(n){ return (n < 10 ? "0" : "") + n; }
+function todayStr(){ var d = new Date(); return d.getFullYear() + "-" + pad(d.getMonth()+1) + "-" + pad(d.getDate()); }
+function daysUntil(ymd){
+  if (!ymd) return null;
+  var p = ymd.split("-"); var d = new Date(+p[0], +p[1]-1, +p[2]);
+  var t = new Date(); t.setHours(0,0,0,0);
+  return Math.round((d - t) / 86400000);
+}
+function fmtDate(ymd){ if (!ymd) return ""; var p = ymd.split("-"); return p[1] + "/" + p[2] + "/" + p[0]; }
+function fmtTs(ms){
+  if (!ms) return "Never";
+  var d = new Date(ms);
+  return pad(d.getMonth()+1) + "/" + pad(d.getDate()) + "/" + d.getFullYear() + " " + pad(d.getHours()) + ":" + pad(d.getMinutes());
+}
+// The same footer every CallDashboard text ends with: "Date: MM/DD/YYYY  Time: HH:MM" (New Jersey time)
+function smsStamp(){
+  var parts = {};
+  new Intl.DateTimeFormat("en-US", { timeZone: "America/New_York", year: "numeric", month: "2-digit", day: "2-digit", hour: "2-digit", minute: "2-digit", hourCycle: "h23" })
+    .formatToParts(new Date()).forEach(function(p){ parts[p.type] = p.value; });
+  return "Date: " + parts.month + "/" + parts.day + "/" + parts.year + "  Time: " + parts.hour + ":" + parts.minute;
+}
+function normUnit(u){
+  u = String(u || "").trim().toUpperCase().replace(/\s+/g, "");
+  var pre = TRK_CONFIG.unitPrefix.toUpperCase();
+  var bare = pre.replace(/-$/, "");
+  if (/^\d+$/.test(u)) return pre + u;   // same as the CAD: "5" → MC-5, "02" → MC-02
+  if (u.indexOf(bare) === 0 && u.indexOf(pre) !== 0) u = pre + u.slice(bare.length).replace(/^-/, "");
+  return u;
+}
+function unitNum(u){ var m = String(u || "").match(/(\d+)/); return m ? +m[1] : 9999; }
+function daysAgo(ms){ return ms ? Math.floor((Date.now() - ms) / 86400000) : null; }
+function orgName(){ return S.org.textName || S.org.shortName || "MC Hatzolah"; }
+function pageLink(){ return location.origin + location.pathname; }
+function docTypes(scope){ return (S.settings.docTypes || []).filter(function(t){ return !scope || t.scope === scope; }); }
+function typeById(id){ return (S.settings.docTypes || []).filter(function(t){ return t.id === id; })[0]; }
+function userByUid(uid){ return S.users.filter(function(u){ return u.uid === uid; })[0]; }
+function withName(u){ if (u && !u.name) u.name = ((u.firstName || "") + " " + (u.lastName || "")).trim(); return u; }
+function rolesOf(u){ var r = (u && u.roles) || []; if (u && u.role && r.indexOf(u.role) < 0) r = r.concat([u.role]); return r; }
+
+/* ════════════════════════════════════════════════════════════════════════
+   STATUS RULES
+   ════════════════════════════════════════════════════════════════════════ */
+// Record key: member docs  "<uid>__<type>"   personal vehicle "v_<vehicleDocId>__<type>"   rig "org_<vehicleId>__<type>"
+function recKey(owner, type){ return owner + "__" + type; }
+
+function recStatus(rec, type){
+  if (!rec) return type && type.required === false ? { k: "na", lbl: "Optional — not uploaded", lvl: "na" } : { k: "missing", lbl: "Missing", lvl: "bad" };
+  if (rec.status === "na") return { k: "na", lbl: "Not required", lvl: "na" };
+  if (rec.status === "rejected") return { k: "rejected", lbl: "Needs a new copy", lvl: "bad" };
+  if (type && type.expires && rec.expires){
+    var d = daysUntil(rec.expires);
+    if (d < 0) return { k: "expired", lbl: "Expired", lvl: "bad", days: d };
+    if (d <= (S.settings.warnDays || 30)) return { k: "expiring", lbl: "Expires in " + d + " day" + (d === 1 ? "" : "s"), lvl: "warn", days: d };
+  }
+  if (rec.status === "pending") return { k: "pending", lbl: "Waiting for review", lvl: "info" };
+  return { k: "ok", lbl: "Valid", lvl: "ok" };
+}
+function pillFor(st){ return '<span class="pill p-' + st.lvl + '">' + esc(st.lbl) + '</span>'; }
+function dotFor(st, title){ var cls = st.k === "missing" ? "d-missing" : "d-" + st.lvl; return '<span class="dot ' + cls + '" title="' + esc(title || st.lbl) + '"></span>'; }
+
+function fmtDash(ymd){ if (!ymd) return ""; var p = ymd.split("-"); return p[1] + "-" + p[2] + "-" + p[0]; }
+function expState(ymd){
+  if (!ymd) return { k: "missing", lbl: "No date", lvl: "bad" };
+  var d = daysUntil(ymd);
+  if (d < 0) return { k: "expired", lbl: "Expired", lvl: "bad" };
+  if (d <= (S.settings.warnDays || 30)) return { k: "expiring", lbl: "Expires in " + d + " day" + (d === 1 ? "" : "s"), lvl: "warn" };
+  return { k: "ok", lbl: "In Date", lvl: "ok" };
+}
+function bagExpFor(uid){ return uid === (S.me && S.me.uid) ? (S.myBagExp || {}) : (S.allBagExp[uid] || {}); }
+// [{item, date, st}] for every item on the admin's list
+function bagExpRows(uid){
+  var dates = (bagExpFor(uid).dates) || {};
+  return (S.settings.expItems || []).map(function(n){ return { item: n, date: dates[n] || "", st: expState(dates[n]) }; });
+}
+function bagRequired(u){
+  var need = S.settings.bagRoles || [];
+  return rolesOf(u).some(function(r){ return need.indexOf(r) >= 0; }) || (u && u.role === "admin" && need.indexOf("admin") >= 0);
+}
+function bagState(bag){
+  var iv = S.settings.bagIntervalDays || 30;
+  if (!bag || !bag.lastAt) return { k: "due", lbl: "Never checked", lvl: "bad", dueIn: -1 };
+  var dueIn = iv - daysAgo(bag.lastAt);
+  if (dueIn < 0) return { k: "overdue", lbl: "Overdue by " + (-dueIn) + " day" + (dueIn === -1 ? "" : "s"), lvl: "bad", dueIn: dueIn };
+  if (dueIn === 0) return { k: "due", lbl: "Due today", lvl: "bad", dueIn: 0 };
+  if (bag.missing && bag.missing.length) return { k: "missing", lbl: bag.missing.length + " item" + (bag.missing.length === 1 ? "" : "s") + " missing", lvl: "warn", dueIn: dueIn };
+  if (dueIn <= 3) return { k: "soon", lbl: "Due in " + dueIn + " day" + (dueIn === 1 ? "" : "s"), lvl: "warn", dueIn: dueIn };
+  return { k: "ok", lbl: "Checked " + fmtTs(bag.lastAt).split(" ")[0], lvl: "ok", dueIn: dueIn };
+}
+function rigState(rs){
+  var iv = S.settings.rigIntervalDays || 7;
+  if (!rs || !rs.lastAt) return { k: "due", lbl: "Never checked", lvl: "bad" };
+  var dueIn = iv - daysAgo(rs.lastAt);
+  if (rs.problems && rs.problems.length) return { k: "problems", lbl: rs.problems.length + " problem" + (rs.problems.length === 1 ? "" : "s"), lvl: "bad", dueIn: dueIn };
+  if (dueIn <= 0) return { k: "due", lbl: dueIn === 0 ? "Check due today" : "Overdue by " + (-dueIn) + " day" + (dueIn === -1 ? "" : "s"), lvl: "bad", dueIn: dueIn };
+  if (dueIn <= 1) return { k: "soon", lbl: "Due tomorrow", lvl: "warn", dueIn: dueIn };
+  return { k: "ok", lbl: "Checked " + fmtTs(rs.lastAt).split(" ")[0], lvl: "ok", dueIn: dueIn };
+}
+
+// Everything a member must fix: their own documents, their vehicles' documents, their jump bag.
+function memberIssues(u, records, vehicles, bag){
+  var out = [];
+  docTypes("member").forEach(function(t){
+    var st = recStatus(records[recKey(u.uid, t.id)], t);
+    if (st.lvl === "bad" || st.lvl === "warn"){
+      var rec = records[recKey(u.uid, t.id)];
+      var txt = t.name + ": " + (st.k === "expired" ? "expired " + fmtDate(rec.expires) : st.k === "expiring" ? "expires " + fmtDate(rec.expires) : st.k === "missing" ? "not on file" : st.lbl.toLowerCase());
+      out.push({ lvl: st.lvl, text: txt, tab: "docs" });
+    }
+  });
+  vehicles.forEach(function(v){
+    docTypes("vehicle").forEach(function(t){
+      var key = recKey("v_" + v.id, t.id), st = recStatus(records[key], t);
+      if (st.lvl === "bad" || st.lvl === "warn"){
+        var rec = records[key];
+        var txt = (v.name || "Vehicle") + " — " + t.name + ": " + (st.k === "expired" ? "expired " + fmtDate(rec.expires) : st.k === "expiring" ? "expires " + fmtDate(rec.expires) : st.k === "missing" ? "not on file" : st.lbl.toLowerCase());
+        out.push({ lvl: st.lvl, text: txt, tab: "vehicles" });
+      }
+    });
+  });
+  // Logistics units are also reminded about the agency's vehicles (rigs, ERVs): insurance, registration…
+  if (rolesOf(u).indexOf("logistics") >= 0) orgVehicles().forEach(function(v){
+    docTypes("vehicle").forEach(function(t){
+      var rec = S.allRecords[recKey("org_" + v.id, t.id)], st = recStatus(rec, t);
+      if (st.lvl === "bad" || st.lvl === "warn")
+        out.push({ lvl: st.lvl, text: "Agency vehicle " + vName(v) + " — " + t.name + ": " + (st.k === "expired" ? "expired " + fmtDate(rec.expires) : st.k === "expiring" ? "expires " + fmtDate(rec.expires) : st.k === "missing" ? "not on file" : st.lbl.toLowerCase()), tab: "rigs" });
+    });
+  });
+  if (bagRequired(u)){
+    var bs = bagState(bag);
+    if (bs.lvl === "bad") out.push({ lvl: "bad", text: "Jump bag check: " + bs.lbl.toLowerCase(), tab: "bag" });
+    else if (bs.k === "soon") out.push({ lvl: "warn", text: "Jump bag check: " + bs.lbl.toLowerCase(), tab: "bag" });
+    else if (bs.k === "missing") out.push({ lvl: "warn", text: "Jump bag: " + bs.lbl, tab: "bag" });
+    var exp = bagExpFor(u.uid);
+    if (exp.updatedAt) bagExpRows(u.uid).forEach(function(r){
+      if (r.st.k === "expired") out.push({ lvl: "bad", text: "Jump bag — " + r.item + ": expired " + fmtDate(r.date), tab: "bag" });
+      else if (r.st.k === "expiring") out.push({ lvl: "warn", text: "Jump bag — " + r.item + ": expires " + fmtDate(r.date), tab: "bag" });
+    });
+    else if ((S.settings.expItems || []).length) out.push({ lvl: "warn", text: "Jump bag: expiration dates not entered yet", tab: "bag" });
+  }
+  return out;
+}
+
+/* ════════════════════════════════════════════════════════════════════════
+   SIGN IN / OUT
+   ════════════════════════════════════════════════════════════════════════ */
+function loginErr(msg){ var e = $("login-err"); e.textContent = msg || ""; e.classList.toggle("show", !!msg); }
+async function signIn(){
+  var digits = ($("li-unit").value || "").trim(), pw = $("li-pw").value;
+  loginErr("");
+  if (!digits || !pw){ loginErr("Enter unit number and password."); return; }
+  var unit = normUnit(digits);
+  var btn = $("li-btn"); btn.disabled = true; btn.textContent = "Signing in...";
+  try {
+    var snap = await db.collection("unitLookup").doc(unit).get();
+    if (!snap.exists) throw { msg: "Unit not found. Check your unit number." };
+    var email = snap.data().email;
+    if (!email) throw { msg: "No email on file for this unit." };
+    await auth.signInWithEmailAndPassword(email, pw);
+  } catch (e){
+    var c = e && e.code;
+    loginErr(e && e.msg ? e.msg
+      : (c === "auth/wrong-password" || c === "auth/invalid-credential" || c === "auth/invalid-login-credentials") ? "Wrong password. Use your CallDashboard password."
+      : c === "auth/too-many-requests" ? "Too many tries. Wait a few minutes and try again."
+      : (e && e.message) || "Sign in failed.");
+  }
+  btn.disabled = false; btn.textContent = "Sign In";
+}
+function togglePw(){
+  var inp = $("li-pw"); inp.type = inp.type === "password" ? "text" : "password";
+  $("li-eye").style.color = inp.type === "text" ? "var(--accent)" : "var(--gray)";
+}
+// Same as CallDashboard's "Forgot password?": the server emails a reset link to the address on file
+async function forgotPw(){
+  var digits = ($("li-unit").value || "").trim();
+  if (!digits){ loginErr("Enter your unit number first."); return; }
+  loginErr(""); toast("Sending…");
+  try {
+    var r = await fetch(TRK_CONFIG.functionsBase + "/textPasswordLink", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ data: { unit: normUnit(digits) } }) });
+    var j = await r.json().catch(function(){ return {}; });
+    if (!r.ok || j.error) throw new Error((j.error && j.error.message) || ("HTTP " + r.status));
+    toast("✓ " + ((j.result && j.result.message) || "If that unit number is registered, a link was emailed to the address on file."), 6000);
+  } catch (e){ toast("Couldn't send the link: " + e.message, 6000); }
+}
+// Logo, name and unit prefix from Admin ▸ Organization (readable before sign-in, like the CAD's login)
+function applyOrgLogin(o){
+  if (!o) return;
+  if (o.logo){ $("li-logo").src = o.logo; $("tb-logo").src = o.logo; }
+  if (o.unitPrefix){ TRK_CONFIG.unitPrefix = o.unitPrefix; $("li-prefix").textContent = o.unitPrefix; }
+  var short = o.shortName || "";
+  if (short){ var parts = short.split(" "); var last = parts.length > 1 ? parts.pop() : ""; $("li-title").innerHTML = $("tb-title").innerHTML = esc(parts.join(" ")) + (last ? " <span>" + esc(last) + "</span>" : ""); }
+}
+try { applyOrgLogin(JSON.parse(localStorage.getItem("orgCfg") || "null")); } catch (e){}
+db.collection("appdata").doc("org").get().then(function(d){ if (d.exists){ S.org = d.data(); applyOrgLogin(S.org); } }).catch(function(){});
+$("li-build").textContent = "v" + TRK_VERSION;
+$("li-unit").addEventListener("keydown", function(e){ if (e.key === "Enter") $("li-pw").focus(); });
+function signOut(){ stopListeners(); auth.signOut(); }
+$("li-pw").addEventListener("keydown", function(e){ if (e.key === "Enter") signIn(); });
+
+auth.onAuthStateChanged(async function(user){
+  stopListeners();
+  $("boot").hidden = true;
+  if (!user){ $("app").hidden = true; $("login").hidden = false; S.user = null; return; }
+  S.user = user;
+  try {
+    var snap = await db.collection("users").doc(user.uid).get();
+    if (!snap.exists){ toast("No member record for this account. Ask an admin."); auth.signOut(); return; }
+    S.me = withName(Object.assign({ uid: user.uid }, snap.data()));
+  } catch (e){
+    $("boot").hidden = false; $("boot").textContent = "Couldn't load your profile — check your connection. Retrying…";
+    setTimeout(function(){ if (auth.currentUser) location.reload(); }, 5000);
+    return;
+  }
+  S.isAdmin = S.me.role === "admin" || rolesOf(S.me).indexOf("admin") >= 0;
+  S.isLogistics = rolesOf(S.me).indexOf("logistics") >= 0;
+  $("login").hidden = true; $("app").hidden = false;
+  $("who").textContent = (S.me.unit || "") + (S.me.name ? " · " + S.me.name : "");
+  S.tab = "home"; try { history.replaceState({ trk: "home" }, ""); } catch (e){}
+  startListeners();
+  render();
+});
+
+/* ════════════════════════════════════════════════════════════════════════
+   LIVE DATA
+   ════════════════════════════════════════════════════════════════════════ */
+function stopListeners(){ S.unsubs.forEach(function(f){ try { f(); } catch (e){} }); S.unsubs = []; }
+function listen(ref, fn){
+  S.unsubs.push(ref.onSnapshot(fn, function(err){ console.warn("listener", err); if (err.code === "permission-denied") toast("Some data couldn't load (permission). Have the tracker rules been published?", 6000); }));
+}
+var renderSoon = (function(){ var t; return function(){ clearTimeout(t); t = setTimeout(render, 60); }; })();
+
+function startListeners(){
+  var uid = S.user.uid;
+  listen(db.collection("trk_settings").doc("main"), function(d){
+    var s = clone(DEFAULT_SETTINGS);
+    if (d.exists){ var x = d.data(); Object.keys(x).forEach(function(k){ s[k] = x[k]; }); s.templates = Object.assign({}, DEFAULT_SETTINGS.templates, x.templates || {}); }
+    S.settings = s; renderSoon();
+  });
+  listen(db.collection("appdata").doc("restockList"), function(d){ S.restock = d.exists ? d.data() : null; renderSoon(); });
+  db.collection("appdata").doc("org").get().then(function(d){ if (d.exists) S.org = d.data(); }).catch(function(){});
+
+  listen(db.collection("trk_records").where("uid", "==", uid), function(q){
+    S.myRecords = {}; q.forEach(function(d){ S.myRecords[d.id] = Object.assign({ id: d.id }, d.data()); }); renderSoon();
+  });
+  listen(db.collection("trk_myVehicles").where("uid", "==", uid), function(q){
+    S.myVehicles = []; S.myOldVehicles = [];
+    q.forEach(function(d){ var v = Object.assign({ id: d.id }, d.data()); (v.replacedAt ? S.myOldVehicles : S.myVehicles).push(v); });
+    S.myVehicles.sort(function(a, b){ return (a.slot || 9) - (b.slot || 9); });
+    S.myVehicles.sort(function(a, b){ return (a.createdAt || 0) - (b.createdAt || 0); });
+    // vehicle documents are keyed by the vehicle, not the member, so listen to those too
+    listenMyVehicleRecords(); renderSoon();
+  });
+  listen(db.collection("trk_bagStatus").doc(uid), function(d){ S.myBag = d.exists ? d.data() : null; renderSoon(); });
+  listen(db.collection("trk_bagExp").doc(uid), function(d){ S.myBagExp = d.exists ? d.data() : {}; renderSoon(); });
+  listen(db.collection("trk_profiles").doc(uid), function(d){ S.myProfile = d.exists ? d.data() : {}; renderSoon(); });
+
+  if (S.isAdmin || S.isLogistics){
+    listen(db.collection("vehicles"), function(q){
+      S.fleet = []; q.forEach(function(d){ S.fleet.push(Object.assign({ id: d.id }, d.data())); }); renderSoon();
+    });
+    listen(db.collection("trk_rigStatus"), function(q){ S.rigStatus = {}; q.forEach(function(d){ S.rigStatus[d.id] = d.data(); }); renderSoon(); });
+    listen(db.collection("trk_bagStatus"), function(q){ S.allBags = {}; q.forEach(function(d){ S.allBags[d.id] = d.data(); }); renderSoon(); });
+    listen(db.collection("trk_bagExp"), function(q){ S.allBagExp = {}; q.forEach(function(d){ S.allBagExp[d.id] = d.data(); }); renderSoon(); });
+  }
+  if (S.isAdmin){
+    listen(db.collection("users"), function(q){
+      S.users = []; q.forEach(function(d){ var u = d.data(); if (u && u.unit) S.users.push(withName(Object.assign({ uid: d.id }, u))); });
+      S.users.sort(function(a, b){ return unitNum(a.unit) - unitNum(b.unit); }); renderSoon();
+    });
+    listen(db.collection("trk_records"), function(q){ S.allRecords = {}; q.forEach(function(d){ S.allRecords[d.id] = Object.assign({ id: d.id }, d.data()); }); renderSoon(); });
+    listen(db.collection("trk_myVehicles"), function(q){
+      S.allVehicles = []; S.allOldVehicles = [];
+      q.forEach(function(d){ var v = Object.assign({ id: d.id }, d.data()); (v.replacedAt ? S.allOldVehicles : S.allVehicles).push(v); });
+      renderSoon();
+    });
+    listen(db.collection("trk_profiles"), function(q){ S.profiles = {}; q.forEach(function(d){ S.profiles[d.id] = d.data(); }); renderSoon(); });
+    listen(db.collection("trk_reminderLog"), function(q){ S.reminderLog = {}; q.forEach(function(d){ S.reminderLog[d.id] = d.data(); }); renderSoon(); });
+  } else if (S.isLogistics){
+    listen(db.collection("trk_records").where("uid", "==", "org"), function(q){
+      Object.keys(S.allRecords).forEach(function(k){ if (S.allRecords[k].uid === "org") delete S.allRecords[k]; });
+      q.forEach(function(d){ S.allRecords[d.id] = Object.assign({ id: d.id }, d.data()); }); renderSoon();
+    });
+  }
+}
+// Vehicle documents are stored with the member's uid too, so they arrive with myRecords. Nothing extra to do.
+function listenMyVehicleRecords(){}
+
+// Records the signed-in person can see, merged
+function visibleRecords(){ return Object.assign({}, S.allRecords, S.myRecords); }
+
+/* ════════════════════════════════════════════════════════════════════════
+   FLEET (rigs come from CallDashboard's vehicles collection)
+   ════════════════════════════════════════════════════════════════════════ */
+function isEquipment(v){
+  var t = String(v.type || "").toLowerCase(), id = String(v.id || "").toLowerCase(), nm = String(v.name || "").toLowerCase();
+  return ["jumpbag", "storage", "other"].indexOf(t) >= 0 || /bag|jump bag|kit/.test(id) || /jump bag/.test(nm);
+}
+function isAmbulance(v){
+  var t = String(v.type || v.kind || "").toLowerCase();
+  if (/ambulance|rig/.test(t)) return true;
+  if (/erv|car|suv/.test(t)) return false;
+  return /9\d\d/.test(String(v.id) + " " + String(v.name || ""));
+}
+function rigList(){
+  var ids = S.settings.rigIds;
+  return S.fleet.filter(function(v){ return !isEquipment(v) && (ids ? ids.indexOf(v.id) >= 0 : isAmbulance(v)); })
+    .sort(function(a, b){ return String(a.name || a.id).localeCompare(String(b.name || b.id), undefined, { numeric: true }); });
+}
+function orgVehicles(){ return S.fleet.filter(function(v){ return !isEquipment(v); }).sort(function(a, b){ return String(a.name || a.id).localeCompare(String(b.name || b.id), undefined, { numeric: true }); }); }
+function vName(v){ return v.name || v.label || v.id; }
+
+function jumpbagList(){
+  var r = S.restock, list = (r && r.jumpbag && r.jumpbag.length) ? r.jumpbag : DEFAULT_JUMPBAG;
+  var order = ["aed", "jump bag", "jump bag meds", "glucometer"];
+  return list.slice().sort(function(a, b){ var x = order.indexOf(String(a.name).toLowerCase()), y = order.indexOf(String(b.name).toLowerCase()); return (x < 0 ? 99 : x) - (y < 0 ? 99 : y); });
+}
+function bagQuestions(section){
+  var q = S.settings.bagQuestions || DEFAULT_BAG_QUESTIONS, key = Object.keys(q).filter(function(k){ return k.toLowerCase() === String(section).toLowerCase(); })[0];
+  return key ? q[key] : [];
+}
+function rigSupplyList(){ var r = S.restock; return (r && r.sections && r.sections.length) ? r.sections : DEFAULT_RIG_SUPPLIES; }
+
+/* ════════════════════════════════════════════════════════════════════════
+   NOTIFICATIONS (bell panel + banner)
+   ════════════════════════════════════════════════════════════════════════ */
+function notifications(){
+  var list = [];
+  var mine = memberIssues(S.me, S.myRecords, S.myVehicles, S.myBag);
+  mine.forEach(function(i){ list.push({ lvl: i.lvl, title: i.text, sub: "Tap to fix", tab: i.tab }); });
+
+  if (S.isAdmin){
+    var pend = Object.values(S.allRecords).filter(function(r){ return r.status === "pending"; });
+    if (pend.length) list.push({ lvl: "info", title: pend.length + " upload" + (pend.length === 1 ? "" : "s") + " waiting for review", sub: "Admin ▸ Review", tab: "admin", admin: "review" });
+    var bad = 0, warn = 0;
+    S.users.forEach(function(u){
+      var iss = memberIssues(u, S.allRecords, S.allVehicles.filter(function(v){ return v.uid === u.uid; }), S.allBags[u.uid]);
+      if (iss.some(function(i){ return i.lvl === "bad"; })) bad++; else if (iss.length) warn++;
+    });
+    if (bad) list.push({ lvl: "bad", title: bad + " member" + (bad === 1 ? " has" : "s have") + " expired, missing or overdue items", sub: "Admin ▸ Compliance", tab: "admin", admin: "grid" });
+    if (warn) list.push({ lvl: "warn", title: warn + " member" + (warn === 1 ? " has" : "s have") + " items expiring soon", sub: "Admin ▸ Compliance", tab: "admin", admin: "grid" });
+  }
+  if (S.isAdmin || S.isLogistics){
+    rigList().forEach(function(v){
+      var st = rigState(S.rigStatus[v.id]);
+      if (st.lvl !== "ok") list.push({ lvl: st.lvl, title: vName(v) + ": " + st.lbl, sub: "Rig Checks", tab: "rigs" });
+    });
+    if (!S.isLogistics) orgVehicles().forEach(function(v){
+      docTypes("vehicle").forEach(function(t){
+        var st = recStatus(S.allRecords[recKey("org_" + v.id, t.id)], t);
+        if (st.lvl === "bad" || st.lvl === "warn") list.push({ lvl: st.lvl, title: vName(v) + " — " + t.name + ": " + st.lbl.toLowerCase(), sub: "Rig Checks ▸ Paperwork", tab: "rigs" });
+      });
+    });
+    var bagMiss = Object.values(S.allBags).filter(function(b){ return b.missing && b.missing.length; });
+    if (bagMiss.length) list.push({ lvl: "warn", title: bagMiss.length + " jump bag" + (bagMiss.length === 1 ? " is" : "s are") + " missing items", sub: bagMiss.map(function(b){ return b.unit; }).join(", "), tab: S.isAdmin ? "admin" : "rigs", admin: "bags" });
+  }
+  var order = { bad: 0, warn: 1, info: 2 };
+  return list.sort(function(a, b){ return order[a.lvl] - order[b.lvl]; });
+}
+function renderBell(){
+  var n = notifications(), count = n.filter(function(x){ return x.lvl !== "info" || S.isAdmin; }).length;
+  var b = $("bell-n"); b.hidden = !count; b.textContent = count > 99 ? "99+" : count;
+  if (!$("panel").hidden) renderPanel(n);
+  // banner: only the member's own urgent items
+  var mine = memberIssues(S.me, S.myRecords, S.myVehicles, S.myBag);
+  var urgent = mine.filter(function(i){ return i.lvl === "bad"; });
+  var soon = mine.filter(function(i){ return i.lvl === "warn"; });
+  $("banner").innerHTML = urgent.length
+    ? '<div class="banner"><b>⚠ ' + urgent.length + ' item' + (urgent.length === 1 ? " needs" : "s need") + ' your attention</b>' + urgent.map(function(i){ return esc(i.text); }).join("<br>") + '</div>'
+    : soon.length ? '<div class="banner warn"><b>Coming up soon</b>' + soon.map(function(i){ return esc(i.text); }).join("<br>") + '</div>' : "";
+}
+function renderPanel(n){
+  n = n || notifications();
+  $("panel-list").innerHTML = n.length ? n.map(function(x, i){
+    return '<button class="nitem ' + x.lvl + '" onclick="App.goNotif(' + i + ')"><div>' + (x.lvl === "bad" ? "🔴" : x.lvl === "warn" ? "🟡" : "🔵") + '</div><div>' + esc(x.title) + '<small>' + esc(x.sub || "") + '</small></div></button>';
+  }).join("") : '<div class="empty">✅ You\'re all caught up.</div>';
+  S._notifs = n;
+}
+function openPanel(){ $("panel").hidden = false; $("panel-bg").hidden = false; renderPanel(); }
+function closePanel(){ $("panel").hidden = true; $("panel-bg").hidden = true; }
+function goNotif(i){ var x = S._notifs[i]; closePanel(); if (!x) return; if (x.admin) S.adminTab = x.admin; setTab(x.tab === "admin" && TRK_MODE !== "desktop" ? "home" : x.tab); }
+
+/* ════════════════════════════════════════════════════════════════════════
+   RENDER
+   ════════════════════════════════════════════════════════════════════════ */
+var PAGES = {
+  profile:  { icon: "👤", label: "My Profile",   sub: "Addresses, phones, emergency contact, uniform" },
+  docs:     { icon: "📄", label: "My Documents", sub: "License, EMT, CPR, permits, CEVO" },
+  vehicles: { icon: "🚗", label: "My Vehicles",  sub: "Vehicle 1 & 2 · insurance, registration" },
+  bag:      { icon: "🎒", label: "Jump Bag",     sub: "Bag check & expiration dates" },
+  rigs:     { icon: "🚑", label: "Rig Checks",   sub: "Ambulance checks & agency paperwork" },
+  admin:    { icon: "🪪", label: "User Compliance", sub: "Admin · review, reminders, settings" }
+};
+function tabsList(){
+  var t = ["profile", "docs", "vehicles", "bag"];
+  if (S.isAdmin || S.isLogistics) t.push("rigs");
+  if (S.isAdmin && TRK_MODE === "desktop") t.push("admin");   // like the CAD, admin is on the computer
+  return t;
+}
+function setTab(t, fromHistory){
+  if (t === "admin" && TRK_MODE !== "desktop") t = "home";
+  if (t !== "home" && tabsList().indexOf(t) < 0) t = "home";
+  var changed = S.tab !== t;
+  S.tab = t;
+  // phone Back key: a page opened from home gets a history entry, so Back returns home (like CAD 5.21)
+  if (!fromHistory && changed){ try { if (t === "home"){ if (history.state && history.state.trk && history.state.trk !== "home") history.back(); } else history.pushState({ trk: t }, ""); } catch (e){} }
+  render(); window.scrollTo(0, 0);
+}
+function goHome(){ setTab("home"); }
+window.addEventListener("popstate", function(e){
+  if (!S.me) return;
+  if (!$("modal-bg").hidden && !S.check){ closeModal(); try { history.pushState({ trk: S.tab }, ""); } catch (er){} return; }
+  if (!$("panel").hidden){ closePanel(); try { history.pushState({ trk: S.tab }, ""); } catch (er){} return; }
+  setTab((e.state && e.state.trk) || "home", true);
+});
+// red / amber count on each tile = what needs doing there
+function tileCounts(){
+  var c = {};
+  notifications().forEach(function(n){
+    var k = n.tab; if (!PAGES[k]) return;
+    c[k] = c[k] || { bad: 0, warn: 0 }; if (n.lvl === "warn") c[k].warn++; else c[k].bad++;
+  });
+  return c;
+}
+function render(){
+  if (!S.me) return;
+  var pg = PAGES[S.tab];
+  $("pagehead").hidden = !pg;
+  if (pg) $("page-title").textContent = pg.icon + " " + pg.label;
+  $("banner").hidden = S.tab === "admin";
+  var v = $("view");
+  var f = { home: viewHome, profile: viewProfile, docs: viewDocs, vehicles: viewVehicles, bag: viewBag, rigs: viewRigs, admin: viewAdmin }[S.tab] || viewHome;
+  // keep focus/typing safe: don't redraw a settings form someone is typing in
+  if ((S.tab === "profile" || (S.tab === "admin" && S.adminTab === "settings")) && v.contains(document.activeElement) && /INPUT|TEXTAREA|SELECT/.test(document.activeElement.tagName)){ renderBell(); return; }
+  v.innerHTML = f();
+  renderBell();
+}
+
+/* ── Home ── */
+function viewHome(){
+  var cnt = tileCounts();
+  var h = '<div class="tiles">' + tabsList().map(function(k, i){
+    var p = PAGES[k], c = cnt[k], badge = c && (c.bad || c.warn) ? '<span class="tb' + (c.bad ? "" : " w") + '">' + (c.bad || c.warn) + '</span>' : '';
+    return '<button class="tile" data-sec="' + k + '" style="animation-delay:' + (i * 0.04) + 's" onclick="App.setTab(\'' + k + '\')">' + badge
+      + '<span class="ti">' + p.icon + '</span><span class="tl">' + p.label + '</span><span class="ts">' + p.sub + '</span></button>';
+  }).join("") + '</div>';
+  if (S.isAdmin && TRK_MODE === "mobile") h += '<p class="muted" style="text-align:center">User Compliance (admin) is in the computer version.</p>';
+  var n = notifications();
+  h += '<div style="max-width:820px;margin:0 auto"><h2>To do</h2>' + (n.length ? n.map(function(x, i){ return '<button class="nitem ' + x.lvl + '" onclick="App.goNotifHome(' + i + ')"><div>' + (x.lvl === "bad" ? "🔴" : x.lvl === "warn" ? "🟡" : "🔵") + '</div><div>' + esc(x.title) + '<small>' + esc(x.sub || "") + '</small></div></button>'; }).join("") : '<div class="card empty">✅ Nothing to do right now.</div>') + '</div>';
+  S._notifs = n;
+  return h;
+}
+
+/* ── Document cards (shared by member, vehicle and rig paperwork) ── */
+function docCard(ownerKey, t, rec, ctx){
+  var st = recStatus(rec, t);
+  var h = '<div class="card doc"><div class="top"><h3>' + esc(t.name) + '</h3>' + pillFor(st) + '</div>';
+  if (rec && rec.status !== "na"){
+    h += '<div class="kv">';
+    if (rec.number) h += '<span>Number</span><span>' + esc(rec.number) + '</span>';
+    docFields(t).forEach(function(d){ var v = rec.fields && rec.fields[d[0]]; if (v) h += '<span>' + esc(d[1]) + '</span><span>' + esc(d[2] === "date" ? fmtDate(v) : v) + '</span>'; });
+    if (rec.issued) h += '<span>Issued</span><span>' + fmtDate(rec.issued) + '</span>';
+    if (t.expires) h += '<span>Expires</span><span>' + (rec.expires ? fmtDate(rec.expires) : "—") + '</span>';
+    h += '<span>Updated</span><span>' + fmtTs(rec.updatedAt) + (rec.updatedBy ? " by " + esc(rec.updatedBy) : "") + '</span></div>';
+    h += thumbs(rec.files);
+    if (rec.status === "rejected" && rec.reviewNote) h += '<div class="note">Admin: ' + esc(rec.reviewNote) + '</div>';
+  } else if (!rec){
+    h += '<div class="muted" style="margin:6px 0 10px">Nothing uploaded yet.</div>';
+  }
+  h += '<div class="row"><button class="btn gold sm" data-k="' + esc(ownerKey) + '" data-t="' + esc(t.id) + '" data-c="' + esc(JSON.stringify(ctx)) + '" onclick="App.openUpload(this)">' + (rec ? "Update" : "Upload") + '</button>';
+  if (S.isAdmin && rec) h += '<button class="btn sm" data-id="' + esc(recKey(ownerKey, t.id)) + '" onclick="App.openRecord(this.dataset.id)">Admin…</button>';
+  h += '</div></div>';
+  return h;
+}
+function thumbs(files){
+  if (!files || !files.length) return "";
+  return '<div class="thumbs">' + files.map(function(f){
+    var img = /^image\//.test(f.type || "");
+    return '<a href="' + esc(f.url) + '" target="_blank" rel="noopener" title="' + esc(f.name || "") + '">' + (img ? '<img src="' + esc(f.url) + '" alt="" loading="lazy">' : "📄 PDF") + '</a>';
+  }).join("") + '</div>';
+}
+
+/* ── My Documents ── */
+function viewDocs(){
+  var uid = S.me.uid, h = "";
+  [["document", "📄 Documents"], ["certification", "🎓 Certifications"]].forEach(function(c){
+    var ts = docTypes("member").filter(function(t){ return t.cat === c[0]; });
+    if (!ts.length) return;
+    h += '<h2>' + c[1] + '</h2><div class="docs">';
+    ts.forEach(function(t){ h += docCard(uid, t, S.myRecords[recKey(uid, t.id)], { owner: uid, unit: S.me.unit, name: S.me.name || "" }); });
+    h += '</div>';
+  });
+  return '<div class="row" style="margin-top:6px"><span class="grow"></span><button class="btn gold" onclick="App.openUpload()">+ Create New Document</button></div>' + h
+    + '<p class="muted">Upload a clear, upright photo of the front, or a PDF. An admin checks each upload.</p>';
+}
+
+/* ── My Vehicles ── */
+function vTitle(v){ return [v.year, v.make, v.model].filter(Boolean).join(" ") || v.name || "Vehicle"; }
+var FUELS = ["Gas", "Diesel", "Hybrid", "Plug-in Hybrid", "Electric"];
+function viewVehicles(){
+  var full = S.myVehicles.length >= 2;
+  var h = '<div class="row" style="margin-top:6px"><h2 class="grow" style="margin:8px 0">🚗 My Vehicles</h2><button class="btn gold" onclick="App.addVehicle()">+ Add a vehicle</button></div>';
+  if (!S.myVehicles.length) return h + '<div class="card empty">Add the vehicle you respond in (up to two), then upload its insurance card and registration.</div>';
+  S.myVehicles.forEach(function(v){
+    h += '<div class="card"><div class="row"><h3 class="grow">' + (v.slot ? '<span class="pill p-info">Vehicle ' + v.slot + '</span> ' : '') + esc(vTitle(v)) + '</h3>'
+      + '<button class="btn sm" data-id="' + esc(v.id) + '" onclick="App.editVehicle(this.dataset.id)">Edit</button></div>'
+      + '<div class="kv">' + (v.plate ? '<span>Plate</span><span>' + esc(v.plate) + (v.regState ? " (" + esc(v.regState) + ")" : "") + '</span>' : '')
+      + (v.color ? '<span>Color</span><span>' + esc(v.color) + '</span>' : '') + (v.fuel ? '<span>Fuel</span><span>' + esc(v.fuel) + '</span>' : '')
+      + (v.vin ? '<span>VIN</span><span>' + esc(v.vin) + '</span>' : '') + (v.regName ? '<span>Registered to</span><span>' + esc(v.regName) + '</span>' : '') + '</div>'
+      + '<div class="docs" style="margin-top:10px">';
+    docTypes("vehicle").forEach(function(t){
+      h += docCard("v_" + v.id, t, S.myRecords[recKey("v_" + v.id, t.id)], { owner: S.me.uid, unit: S.me.unit, name: S.me.name || "", veh: "v_" + v.id, vehName: vTitle(v) });
+    });
+    h += '</div></div>';
+  });
+  if (full) h += '<p class="muted">You have two vehicles. To add a new one, tap + Add a vehicle and answer Yes to "Replacing vehicle?".</p>';
+  return h;
+}
+function addVehicle(){ vehicleForm(null); }
+function editVehicle(id){ vehicleForm(S.myVehicles.filter(function(v){ return v.id === id; })[0] || S.allVehicles.filter(function(v){ return v.id === id; })[0]); }
+function vehicleForm(v){
+  var mine = S.myVehicles, y = new Date().getFullYear();
+  var taken = {}; mine.forEach(function(x){ if (!v || x.id !== v.id) taken[x.slot] = x; });
+  var freeSlot = !taken[1] ? 1 : !taken[2] ? 2 : 0;
+  var slot = v ? (v.slot || "") : freeSlot || "";
+  function inp(id, label, val, extra){ return '<div class="pf-f"><label for="' + id + '">' + label + '</label><input id="' + id + '" value="' + esc(val || "") + '"' + (extra || "") + '></div>'; }
+  function sel(id, label, val, opts, first){ return '<div class="pf-f"><label for="' + id + '">' + label + '</label><select id="' + id + '"><option value="">' + first + '</option>' + opts.map(function(o){ var ov = Array.isArray(o) ? o[0] : o, ol = Array.isArray(o) ? o[1] : o; return '<option value="' + esc(ov) + '"' + (String(ov) === String(val) ? " selected" : "") + '>' + esc(ol) + '</option>'; }).join("") + '</select></div>'; }
+  var b = '<div class="pf-grid" style="margin-top:6px">'
+    + sel("vf-slot", "Vehicle 1 or 2?", slot, [["1", "Vehicle 1" + (taken[1] ? " — now " + vTitle(taken[1]) : "")], ["2", "Vehicle 2" + (taken[2] ? " — now " + vTitle(taken[2]) : "")]], "Select")
+    + inp("vf-plate", "License Plate", v && v.plate, ' autocapitalize="characters" maxlength="10"')
+    + inp("vf-vin", "VIN #", v && v.vin, ' autocapitalize="characters" maxlength="17" placeholder="17 characters"')
+    + inp("vf-make", "Make", v && v.make, ' placeholder="Ford"')
+    + inp("vf-model", "Model", v && v.model, ' placeholder="Explorer"')
+    + inp("vf-year", "Year", v && v.year, ' inputmode="numeric" maxlength="4" placeholder="' + y + '"')
+    + sel("vf-fuel", "Fuel", v && v.fuel, FUELS, "Select")
+    + sel("vf-state", "Registration State", (v && v.regState) || "NJ", US_STATES, "Select")
+    + inp("vf-color", "Color", v && v.color)
+    + inp("vf-regname", "Name on Registration", v ? v.regName : (S.me.name || ""))
+    + '</div>';
+  if (!v){
+    b += '<label for="vf-repl">Replacing Vehicle?</label><select id="vf-repl" onchange="App.vfRepl()"><option value="no">No</option><option value="yes"' + (freeSlot ? "" : " selected") + '>Yes</option></select>'
+      + '<div id="vf-repl-box"' + (freeSlot ? " hidden" : "") + '>'
+      + (mine.length ? '<label for="vf-repl-which">Which vehicle are you replacing?</label><select id="vf-repl-which">' + mine.map(function(x){ return '<option value="' + esc(x.id) + '">Vehicle ' + (x.slot || "?") + ' — ' + esc(vTitle(x)) + (x.plate ? " (" + esc(x.plate) + ")" : "") + '</option>'; }).join("") + '</select>'
+        + '<div class="muted" style="margin-top:6px">The old vehicle comes off your list. Its papers stay on file for the admin.</div>'
+        : '<div class="muted" style="margin-top:6px">You have no vehicles on file to replace.</div>')
+      + '</div>';
+  }
+  openModal(v ? "Edit vehicle" : "Create New Vehicle", b,
+    (v ? '<button class="btn red" data-id="' + esc(v.id) + '" onclick="App.removeVehicle(this.dataset.id)">Remove</button><span class="grow"></span>' : '')
+    + '<button class="btn" onclick="App.closeModal()">Cancel</button><button class="btn gold" id="vf-save" data-id="' + esc(v ? v.id : "") + '" onclick="App.saveVehicle(this.dataset.id)">Save</button>');
+}
+function vfRepl(){
+  var yes = $("vf-repl").value === "yes"; $("vf-repl-box").hidden = !yes;
+  if (yes && $("vf-repl-which")){ var x = S.myVehicles.filter(function(v){ return v.id === $("vf-repl-which").value; })[0]; if (x && x.slot) $("vf-slot").value = String(x.slot); }
+}
+async function saveVehicle(id){
+  function v(k){ return ($(k) ? $(k).value : "").trim(); }
+  var d = { slot: parseInt(v("vf-slot"), 10) || 0, plate: v("vf-plate").toUpperCase().replace(/\s+/g, ""), vin: v("vf-vin").toUpperCase().replace(/\s+/g, ""),
+    make: v("vf-make"), model: v("vf-model"), year: v("vf-year"), fuel: v("vf-fuel"), regState: v("vf-state"), color: v("vf-color"), regName: v("vf-regname") };
+  var bad = [];
+  if (!d.slot) bad.push("Pick Vehicle 1 or Vehicle 2");
+  if (!d.plate) bad.push("Enter the license plate");
+  if (!d.make || !d.model) bad.push("Enter the make and model");
+  if (!/^(19|20)\d\d$/.test(d.year) || +d.year > new Date().getFullYear() + 1) bad.push("Year must be 4 digits, like 2022");
+  if (d.vin && !/^[A-HJ-NPR-Z0-9]{17}$/.test(d.vin)) bad.push("VIN must be 17 letters/numbers (no I, O or Q)");
+  if (!d.regState) bad.push("Pick the registration state");
+  var replacing = !id && $("vf-repl") && $("vf-repl").value === "yes";
+  var replId = replacing && $("vf-repl-which") ? $("vf-repl-which").value : "";
+  if (replacing && !replId) bad.push("There's no vehicle to replace — answer No to \"Replacing Vehicle?\"");
+  var other = S.myVehicles.filter(function(x){ return x.id !== id && x.id !== replId && x.slot === d.slot; })[0];
+  if (other) bad.push("Vehicle " + d.slot + " is already your " + vTitle(other) + ". Pick the other number, or answer Yes to \"Replacing Vehicle?\"");
+  if (!id && !replacing && S.myVehicles.length >= 2) bad.push("You already have two vehicles. Answer Yes to \"Replacing Vehicle?\"");
+  if (bad.length){ toast(bad.join(". ") + ".", 7000); return; }
+  d.name = [d.year, d.make, d.model].join(" ");
+  $("vf-save").disabled = true;
+  try {
+    if (id) await db.collection("trk_myVehicles").doc(id).update(d);
+    else {
+      var batch = db.batch(), ref = db.collection("trk_myVehicles").doc();
+      batch.set(ref, Object.assign({ uid: S.me.uid, unit: S.me.unit || "", createdAt: Date.now(), replaces: replId || null }, d));
+      if (replId) batch.update(db.collection("trk_myVehicles").doc(replId), { replacedAt: Date.now(), replacedBy: ref.id });
+      await batch.commit();
+    }
+    closeModal(); toast(replId ? "✓ Saved — upload the new vehicle's insurance and registration" : "✓ Saved");
+  } catch (e){ $("vf-save").disabled = false; toast("⚠ Not saved: " + e.message, 6000); }
+}
+async function removeVehicle(id){
+  if (!confirm("Remove this vehicle? Its uploaded papers stay on file for the admin.")) return;
+  try { await db.collection("trk_myVehicles").doc(id).update({ replacedAt: Date.now(), removed: true }); closeModal(); toast("Removed"); } catch (e){ toast("⚠ " + e.message, 6000); }
+}
+
+/* ── Upload form ── */
+// "Create New Document" — same fields as the old system's form.
+// From a document card (btn) the document and vehicle are already known; from "+ Create New Document" the member picks them.
+function openUpload(btn){
+  var pre = null;
+  if (btn && btn.dataset){
+    var t = typeById(btn.dataset.t), ctx = JSON.parse(btn.dataset.c || "{}");
+    pre = { ownerKey: btn.dataset.k, type: t, ctx: ctx };
+  }
+  S.upload = { pre: pre, file: null, rot: 0 };
+  var rec = pre ? visibleRecords()[recKey(pre.ownerKey, pre.type.id)] : null;
+  var b = '';
+  if (pre){
+    b += '<div class="card" style="margin-top:10px;padding:10px 12px"><b>' + esc(pre.type.name) + '</b>' + (pre.ctx.vehName ? '<div class="muted">' + esc(pre.ctx.vehName) + '</div>' : '')
+      + (rec ? '<div class="muted">On file: ' + (rec.expires ? "expires " + fmtDate(rec.expires) : "uploaded " + fmtTs(rec.updatedAt)) + '</div>' : '') + '</div>';
+  } else {
+    var vs = S.myVehicles;
+    b += '<label for="up-isveh">Does this document relate to a vehicle?</label><select id="up-isveh" onchange="App.upPick()"><option value="">Select</option><option value="no">No</option><option value="yes">Yes</option></select>'
+      + '<div id="up-veh-wrap" hidden><label for="up-veh">Which vehicle?</label><select id="up-veh">' + (vs.length ? vs.map(function(v){ return '<option value="' + esc(v.id) + '">Vehicle ' + (v.slot || "") + ' — ' + esc(vTitle(v)) + '</option>'; }).join("") : '<option value="">No vehicles yet — add one in My Vehicles</option>') + '</select></div>'
+      + '<div id="up-type-wrap" hidden><label for="up-type">Document</label><select id="up-type" onchange="App.upPick()"></select></div>';
+  }
+  b += '<label for="up-file">Upload Front Image</label><input id="up-file" type="file" accept="image/bmp,image/jpeg,image/gif,image/png,application/pdf,.bmp,.jpg,.jpeg,.gif,.png,.pdf" onchange="App.upFile()">'
+    + '<div class="muted" style="margin-top:4px">Accepted file types: BMP, JPG, GIF, PNG, PDF</div>'
+    + '<label>Image Preview</label><div class="up-prev" id="up-prev"><span class="muted">Not applicable to PDF uploads</span></div>'
+    + '<div class="row" id="up-rot" hidden style="margin-top:6px"><button class="btn sm" type="button" onclick="App.upRotate(-90)">⟲ Rotate left</button><button class="btn sm" type="button" onclick="App.upRotate(90)">⟳ Rotate right</button></div>'
+    + '<div class="note" style="background:#fff4d6;border-color:#e2c27a;color:#5c3c00;margin-top:10px"><b>Warning:</b> If image is not in the correct upright orientation it will be rejected</div>'
+    + '<div class="scan-box" id="up-scan" hidden><div class="row"><span class="grow" id="up-scan-msg">✨ Reading the document…</span><button class="btn sm" type="button" id="up-scan-btn" onclick="App.upScan()">✨ Scan again</button></div></div>'
+    + '<div id="up-fields" data-t="' + (pre ? esc(pre.type.id) : "") + '">' + upFieldsHtml(pre ? pre.type : null, rec) + '</div>'
+    + '<label>Upload Progress</label><div class="up-bar"><div id="up-bar-fill"></div></div><div id="up-prog" class="muted" style="margin-top:4px"></div>';
+  openModal(pre ? (rec ? "Update " : "Upload ") + pre.type.name : "Create New Document", b,
+    '<button class="btn" onclick="App.closeModal()">Cancel</button><button class="btn gold" id="up-save" onclick="App.saveUpload()">Save</button>');
+}
+function upFieldsHtml(t, rec){
+  if (!t) return '';
+  var x = (rec && rec.fields) || {};
+  function f(id, label, val, type){ return '<div class="pf-f"><label for="upf-' + id + '">' + esc(label) + '</label><input id="upf-' + id + '" data-k="' + id + '"' + (type ? ' type="' + type + '"' : '') + ' value="' + esc(val || "") + '" oninput="this.dataset.typed=1"></div>'; }
+  var h = '<div class="pf-grid" style="margin-top:4px">';
+  if (t.expires) h += f("expires", "Expiration Date", rec && rec.expires, "date");
+  h += f("number", "Document Number", rec && rec.number) + f("issued", "Issue Date", rec && rec.issued, "date");
+  docFields(t).forEach(function(d){ h += f(d[0], d[1], x[d[0]], d[2]); });
+  return h + '</div>';
+}
+function upType(){
+  var p = S.upload.pre; if (p) return p.type;
+  return $("up-type") ? typeById($("up-type").value) : null;
+}
+function upPick(){
+  var isv = $("up-isveh").value;
+  $("up-veh-wrap").hidden = isv !== "yes"; $("up-type-wrap").hidden = !isv;
+  if (isv){
+    var prev = $("up-type").value, ts = docTypes(isv === "yes" ? "vehicle" : "member");
+    if (!$("up-type").dataset.scope || $("up-type").dataset.scope !== isv){
+      $("up-type").innerHTML = '<option value="">Select</option>' + ts.map(function(t){ return '<option value="' + esc(t.id) + '"' + (t.id === prev ? " selected" : "") + '>' + esc(t.name) + '</option>'; }).join("");
+      $("up-type").dataset.scope = isv;
+    }
+    var t = typeById($("up-type").value);
+    if (t && $("up-fields").dataset.t !== t.id){
+      var keep = upReadFields();
+      $("up-fields").innerHTML = upFieldsHtml(t, visibleRecords()[recKey(upOwnerKey() || "", t.id)] || null);
+      $("up-fields").dataset.t = t.id;
+      Object.keys(keep).forEach(function(k){ var el = $("upf-" + k); if (el && keep[k]) el.value = keep[k]; });
+      if (S.upload.file) upScan();
+    } else if (!t){ $("up-fields").innerHTML = ""; $("up-fields").dataset.t = ""; }
+  }
+}
+function upOwnerKey(){
+  var p = S.upload.pre; if (p) return p.ownerKey;
+  if (!$("up-isveh")) return null;
+  return $("up-isveh").value === "yes" ? ($("up-veh").value ? "v_" + $("up-veh").value : null) : S.me.uid;
+}
+function upReadFields(){ var o = {}; document.querySelectorAll("#up-fields input[data-k]").forEach(function(el){ o[el.dataset.k] = el.value.trim(); }); return o; }
+function upFile(){
+  var f = ($("up-file").files || [])[0], prev = $("up-prev");
+  S.upload.file = f || null; S.upload.rot = 0;
+  $("up-bar-fill").style.width = "0"; $("up-prog").textContent = "";
+  if (!f){ prev.innerHTML = '<span class="muted">Not applicable to PDF uploads</span>'; $("up-rot").hidden = true; return; }
+  if (!/^(image\/(bmp|jpeg|gif|png)|application\/pdf)$/i.test(f.type) && !/\.(bmp|jpe?g|gif|png|pdf)$/i.test(f.name)){
+    toast("That file type isn't accepted. Use BMP, JPG, GIF, PNG or PDF."); $("up-file").value = ""; S.upload.file = null; return;
+  }
+  if (f.size > 15 * 1024 * 1024){ toast("The file must be under 15 MB."); $("up-file").value = ""; S.upload.file = null; return; }
+  if (/pdf/i.test(f.type) || /\.pdf$/i.test(f.name)){ prev.innerHTML = '<span class="muted">📄 ' + esc(f.name) + ' — Not applicable to PDF uploads</span>'; $("up-rot").hidden = true; return; }
+  var url = URL.createObjectURL(f);
+  prev.innerHTML = '<img id="up-img" alt="Preview of the uploaded image" src="' + url + '">';
+  $("up-rot").hidden = false;
+  upScan();
+}
+// ✨ Send the photo to the docScan server function (Gemini — the same key and models as Protocol Search).
+// It fills only boxes the member hasn't typed in, and turns the photo upright if it's sideways.
+async function upScan(){
+  var U = S.upload, t = upType(), box = $("up-scan"), msg = $("up-scan-msg");
+  if (!U.file || !box) return;
+  box.hidden = false;
+  if (!t){ msg.textContent = "✨ Pick the document above and the details will be read from the photo."; return; }
+  var my = (U.scanN = (U.scanN || 0) + 1);
+  msg.textContent = "✨ Reading the " + t.name + "…"; $("up-scan-btn").disabled = true;
+  try {
+    var isPdf = /pdf/i.test(U.file.type) || /\.pdf$/i.test(U.file.name);
+    var blob = isPdf ? U.file : await shrinkForScan(U.file, U.rot || 0);
+    if (blob.size > 4 * 1024 * 1024) throw new Error("the file is too big to scan (over 4 MB)");
+    var data = await new Promise(function(res, rej){ var r = new FileReader(); r.onload = function(){ res(String(r.result).split(",")[1]); }; r.onerror = rej; r.readAsDataURL(blob); });
+    var want = [["number", "Document / license / certificate / policy number"], ["issued", "Issue date"]].concat(t.expires ? [["expires", "Expiration date"]] : []).concat(docFields(t));
+    var r = await callFn("docScan", { docType: t.name, fields: want.map(function(w){ return { key: w[0], label: w[1], date: w[0] === "issued" || w[0] === "expires" || w[2] === "date" }; }), mime: isPdf ? "application/pdf" : "image/jpeg", data: data });
+    if (my !== U.scanN) return;   // a newer scan started
+    var got = (r && r.fields) || {}, filled = 0;
+    Object.keys(got).forEach(function(k){ var el = $("upf-" + k), v = got[k]; if (!el || !v || el.dataset.typed) return; el.value = v; el.classList.add("scanned"); filled++; });
+    var turn = r && r.rotate ? ((r.rotate % 360) + 360) % 360 : 0;
+    if (turn && !isPdf){ U.rot = ((U.rot || 0) + turn) % 360; var img = $("up-img"); if (img) img.style.transform = "rotate(" + U.rot + "deg)"; }
+    var notType = r && r.matches === false;
+    msg.innerHTML = (notType ? "⚠ This doesn't look like a " + esc(t.name) + ". " : "") + (filled ? "✨ Filled in " + filled + " box" + (filled === 1 ? "" : "es") + " from the photo — please check them." : "✨ Couldn't read any details — please type them in.")
+      + (turn ? " Turned the photo upright." : "");
+  } catch (e){
+    if (my !== U.scanN) return;
+    msg.textContent = /404|Failed to fetch|not.?found/i.test(e.message) ? "✨ Scanning isn't set up on the server yet — type the details in." : "✨ Couldn't scan (" + e.message + ") — type the details in.";
+  }
+  $("up-scan-btn").disabled = false;
+}
+async function shrinkForScan(file, rot){
+  var f = await shrinkImage(file, rot);
+  try {   // smaller copy for reading: 1600 px is plenty for text
+    var bmp = await createImageBitmap(f), sc = Math.min(1, 1600 / Math.max(bmp.width, bmp.height));
+    if (sc >= 1 && f.type === "image/jpeg") return f;
+    var c = document.createElement("canvas"); c.width = Math.round(bmp.width * sc); c.height = Math.round(bmp.height * sc);
+    c.getContext("2d").drawImage(bmp, 0, 0, c.width, c.height);
+    return await new Promise(function(res){ c.toBlob(res, "image/jpeg", 0.85); });
+  } catch (e){ return f; }
+}
+function upRotate(d){
+  S.upload.rot = ((S.upload.rot || 0) + d + 360) % 360;
+  clearTimeout(S.upload.rotT); S.upload.rotT = setTimeout(function(){ if (S.upload && S.upload.file) upScan(); }, 900);
+  var img = $("up-img"); if (img) img.style.transform = "rotate(" + S.upload.rot + "deg)";
+}
+// Shrink big photos and apply the rotation the member chose (BMP/PNG/JPG become JPG; GIF and PDF are sent as they are)
+async function shrinkImage(file, rot){
+  rot = rot || 0;
+  if (!/^image\/(jpeg|png|webp|bmp|heic|heif)$/i.test(file.type) && !(rot && /^image\//.test(file.type))) return file;
+  try {
+    var bmp = await createImageBitmap(file);
+    var max = 2000, sc = Math.min(1, max / Math.max(bmp.width, bmp.height));
+    var w = Math.round(bmp.width * sc), h = Math.round(bmp.height * sc), side = rot === 90 || rot === 270;
+    var c = document.createElement("canvas"); c.width = side ? h : w; c.height = side ? w : h;
+    var g = c.getContext("2d"); g.translate(c.width / 2, c.height / 2); g.rotate(rot * Math.PI / 180); g.drawImage(bmp, -w / 2, -h / 2, w, h);
+    var blob = await new Promise(function(res){ c.toBlob(res, "image/jpeg", 0.85); });
+    return blob && (rot || blob.size < file.size || /bmp/i.test(file.type)) ? new File([blob], file.name.replace(/\.\w+$/, "") + ".jpg", { type: "image/jpeg" }) : file;
+  } catch (e){ return file; }
+}
+async function saveUpload(){
+  var U = S.upload, pre = U.pre, ownerKey, t, ctx;
+  if (pre){ ownerKey = pre.ownerKey; t = pre.type; ctx = pre.ctx; }
+  else {
+    var isv = $("up-isveh").value;
+    if (!isv){ toast("Answer: does this document relate to a vehicle?"); return; }
+    t = typeById($("up-type").value);
+    if (!t){ toast("Pick which document this is."); return; }
+    if (isv === "yes"){
+      var vid = $("up-veh").value, v = S.myVehicles.filter(function(x){ return x.id === vid; })[0];
+      if (!v){ toast("Add the vehicle in My Vehicles first."); return; }
+      ownerKey = "v_" + v.id; ctx = { owner: S.me.uid, unit: S.me.unit, name: S.me.name || "", veh: "v_" + v.id, vehName: vTitle(v) };
+    } else { ownerKey = S.me.uid; ctx = { owner: S.me.uid, unit: S.me.unit, name: S.me.name || "" }; }
+  }
+  var key = recKey(ownerKey, t.id), rec = visibleRecords()[key] || null;
+  var F = upReadFields(), expires = t.expires ? (F.expires || "") : "";
+  if (t.expires && !expires){ toast("Enter the expiration date."); return; }
+  if (t.expires && daysUntil(expires) < 0 && !confirm("That date has already passed. Save it anyway?")) return;
+  if (!U.file && !(rec && rec.files && rec.files.length)){ toast("Upload the front image (or a PDF)."); return; }
+  $("up-save").disabled = true;
+  var fill = $("up-bar-fill"), prog = $("up-prog");
+  try {
+    var owner = ctx.owner === "org" ? "org" : ctx.owner;
+    var stored = rec && rec.files ? rec.files : [];
+    if (U.file){
+      prog.textContent = "Preparing…";
+      var f = await shrinkImage(U.file, U.rot);
+      var path = "trk/" + owner + "/" + key + "/" + Date.now() + "_" + f.name.replace(/[^\w.\-]/g, "_").slice(-60);
+      var task = storage.ref(path).put(f, { contentType: f.type });
+      if (task && task.on) task.on("state_changed", function(sn){ var pct = sn.totalBytes ? Math.round(sn.bytesTransferred / sn.totalBytes * 100) : 0; fill.style.width = pct + "%"; prog.textContent = "Uploading… " + pct + "%"; });
+      var snap = await task;
+      fill.style.width = "100%"; prog.textContent = "Uploaded 100%";
+      stored = [{ url: await snap.ref.getDownloadURL(), path: path, name: f.name, type: f.type, size: f.size, side: "front" }];
+    }
+    var byAdmin = S.isAdmin;
+    var data = {
+      uid: owner, unit: ctx.unit || "", memberName: ctx.name || "", owner: ownerKey,
+      vehicle: ctx.veh || null, vehName: ctx.vehName || null, typeId: t.id,
+      number: F.number || "", issued: F.issued || "", expires: expires, files: stored,
+      fields: (function(){ var o = {}; docFields(t).forEach(function(d){ if (F[d[0]]) o[d[0]] = F[d[0]]; }); return o; })(),
+      scanned: !!(S.upload.scanN),
+      status: byAdmin ? "approved" : "pending", reviewNote: "",
+      updatedAt: Date.now(), updatedBy: S.me.unit || "", updatedByUid: S.me.uid
+    };
+    if (byAdmin){ data.reviewedBy = S.me.unit || ""; data.reviewedAt = Date.now(); }
+    if (rec && U.file && rec.files && rec.files.length){
+      data.history = (rec.history || []).concat([{ files: rec.files, expires: rec.expires || "", number: rec.number || "", at: rec.updatedAt || 0 }]).slice(-5);
+    } else if (rec && rec.history) data.history = rec.history;
+    await db.collection("trk_records").doc(key).set(data);
+    closeModal(); toast(byAdmin ? "✓ Saved and approved" : "✓ Uploaded — an admin will review it");
+  } catch (e){
+    $("up-save").disabled = false; prog.textContent = "⚠ Upload failed"; fill.style.width = "0";
+    toast("⚠ Not saved: " + e.message, 7000);
+  }
+}
+
+/* ── Jump bag ── */
+function viewBag(){
+  var bs = bagState(S.myBag), iv = S.settings.bagIntervalDays || 30;
+  var h = '<h2>🎒 My Jump Bag</h2><div class="card"><div class="row"><div class="grow"><div class="muted">Last checked</div><b>' + (S.myBag ? fmtTs(S.myBag.lastAt) : "Never") + '</b></div>' + pillFor(bs) + '</div>'
+    + '<div class="muted" style="margin-top:8px">Check your bag every ' + iv + ' days.' + (S.myBag && S.myBag.lastAt ? ' Next check due ' + fmtTs(S.myBag.lastAt + iv * 86400000).split(" ")[0] + '.' : '') + '</div>';
+  if (!bagRequired(S.me)) h += '<div class="muted" style="margin-top:6px">(Not required for your role — you can still log a check.)</div>';
+  if (S.myBag && S.myBag.missing && S.myBag.missing.length){
+    h += '<div class="note" style="background:#fff4d6;border-color:#e2c27a;color:#5c3c00"><b>Missing from your last check:</b><br>' + S.myBag.missing.map(function(m){ return esc(m.n) + (m.note ? " — " + esc(m.note) : ""); }).join("<br>") + '</div>';
+  }
+  h += '<div class="row" style="margin-top:12px"><button class="btn gold" onclick="App.startBagCheck()">✓ Start bag check</button><button class="btn" onclick="App.bagHistory()">🕘 History</button></div></div>';
+  h += '<div class="row" style="margin-top:6px"><h2 class="grow" style="margin:8px 0">⏳ Expiration Dates</h2><button class="btn" onclick="App.editBagExp()">✎ Update dates</button></div>' + expTable(S.me.uid);
+  return h;
+}
+function expTable(uid){
+  var rows = bagExpRows(uid), exp = bagExpFor(uid);
+  if (!rows.length) return '<div class="card empty">No items on the list. An admin can add them in ⚙ Settings.</div>';
+  return '<div class="tbl-wrap"><table class="exp-tbl"><thead><tr><th>Item</th><th>Expires</th><th>Status</th></tr></thead><tbody>'
+    + rows.map(function(r){ return '<tr><td>' + esc(r.item) + '</td><td class="num">' + (r.date ? fmtDash(r.date) : '<span class="muted">—</span>') + '</td><td>' + pillFor(r.st) + '</td></tr>'; }).join("")
+    + '</tbody></table></div><div class="muted" style="margin-top:6px">' + (exp.updatedAt ? "Updated " + fmtTs(exp.updatedAt) + (exp.updatedBy ? " by " + esc(exp.updatedBy) : "") : "Dates not entered yet.") + '</div>';
+}
+function expInputs(uid){
+  var dates = (bagExpFor(uid).dates) || {};
+  return '<div class="sec"><div class="sec-h"><b>⏳ Expiration Dates</b></div>' + (S.settings.expItems || []).map(function(n, i){
+    return '<div class="item"><label class="nm" for="exp-' + i + '" style="margin:0;font-weight:400;font-size:.92rem">' + esc(n) + '</label><input id="exp-' + i + '" type="date" style="width:170px" value="' + esc(dates[n] || "") + '"></div>';
+  }).join("") + '</div>';
+}
+function readExpInputs(){
+  var out = {}, missing = 0;
+  (S.settings.expItems || []).forEach(function(n, i){ var el = $("exp-" + i); var v = el ? el.value : ""; if (v) out[n] = v; else missing++; });
+  return { dates: out, missing: missing };
+}
+function editBagExp(uid){
+  uid = uid || S.me.uid;
+  var u = uid === S.me.uid ? S.me : userByUid(uid);
+  openModal("⏳ Expiration Dates" + (uid !== S.me.uid ? " — " + u.unit : ""), '<p class="muted">Enter the expiration date printed on each item in the bag.</p>' + expInputs(uid),
+    '<button class="btn" onclick="App.closeModal()">Cancel</button><button class="btn gold" id="exp-save" data-uid="' + esc(uid) + '" onclick="App.saveBagExp(this.dataset.uid)">Save</button>');
+}
+async function saveBagExp(uid){
+  var r = readExpInputs();
+  if (r.missing){ toast(r.missing + " item" + (r.missing === 1 ? " has" : "s have") + " no date yet. Fill in every date."); return; }
+  try { await writeBagExp(uid, r.dates); closeModal(); toast("✓ Dates saved"); } catch (e){ toast("⚠ Not saved: " + e.message, 6000); }
+}
+function writeBagExp(uid, dates){
+  var u = uid === S.me.uid ? S.me : userByUid(uid);
+  return db.collection("trk_bagExp").doc(uid).set({ uid: uid, unit: (u && u.unit) || "", dates: dates, updatedAt: Date.now(), updatedBy: S.me.unit || "" });
+}
+function startBagCheck(){
+  var secs = jumpbagList().map(function(x){ return Object.assign({}, x, { questions: bagQuestions(x.name) }); });
+  S.check = { kind: "bag", sections: secs, ans: {}, notes: {}, qa: {}, secNotes: {} };
+  openChecklist("🎒 Jump bag check", "Tap ✓ for each item that's there, or ✗ if it's missing or low. Answer every Yes / No question.", "");
+}
+
+/* ── Rig checks ── */
+function viewRigs(){
+  var rigs = rigList(), sub = S.rigSub || "checks";
+  var h = '<div class="subtabs"><button class="' + (sub === "checks" ? "on" : "") + '" onclick="App.rigSub(\'checks\')">🚑 Rig checks</button><button class="' + (sub === "paper" ? "on" : "") + '" onclick="App.rigSub(\'paper\')">📄 Paperwork</button></div>';
+  if (sub === "paper"){
+    var vs = orgVehicles();
+    if (!vs.length) return h + '<div class="card empty">No vehicles in Admin ▸ Fleet yet.</div>';
+    vs.forEach(function(v){
+      h += '<div class="card"><h3>' + esc(vName(v)) + '</h3><div class="docs" style="margin-top:10px">';
+      docTypes("vehicle").forEach(function(t){ h += docCard("org_" + v.id, t, S.allRecords[recKey("org_" + v.id, t.id)], { owner: "org", unit: v.id, name: "", veh: "org_" + v.id, vehName: vName(v) }); });
+      h += '</div></div>';
+    });
+    return h;
+  }
+  if (!rigs.length) return h + '<div class="card empty">No ambulances found. An admin can pick them in Admin ▸ Settings.</div>';
+  h += '<div class="muted" style="margin-bottom:10px">Each rig is checked every ' + (S.settings.rigIntervalDays || 7) + ' days.</div><div class="docs">';
+  rigs.forEach(function(v){
+    var rs = S.rigStatus[v.id], st = rigState(rs);
+    h += '<div class="card"><div class="row"><h3 class="grow">🚑 ' + esc(vName(v)) + '</h3>' + pillFor(st) + '</div>'
+      + '<div class="kv"><span>Last check</span><span>' + (rs ? fmtTs(rs.lastAt) + " by " + esc(rs.by || "") : "Never") + '</span>'
+      + (rs && rs.mileage ? '<span>Mileage</span><span>' + esc(rs.mileage) + '</span>' : '') + (rs && rs.fuel ? '<span>Fuel</span><span>' + esc(rs.fuel) + '</span>' : '') + '</div>';
+    if (rs && rs.problems && rs.problems.length){
+      h += '<div class="note"><b>Problems:</b><br>' + rs.problems.map(function(p){ return esc(p.n) + (p.note ? " — " + esc(p.note) : ""); }).join("<br>") + '</div>'
+        + '<button class="btn green sm" data-id="' + esc(v.id) + '" onclick="App.rigFixed(this.dataset.id)">✓ Problems fixed</button> ';
+    }
+    h += '<div class="row" style="margin-top:8px"><button class="btn gold" data-id="' + esc(v.id) + '" onclick="App.startRigCheck(this.dataset.id)">Start check</button><button class="btn" data-id="' + esc(v.id) + '" onclick="App.rigHistory(this.dataset.id)">🕘 History</button></div></div>';
+  });
+  return h + '</div>';
+}
+function startRigCheck(id){
+  var v = S.fleet.filter(function(x){ return x.id === id; })[0];
+  var insp = [{ name: "Vehicle inspection", items: (S.settings.rigInspection || []).map(function(n){ return { n: n }; }) }];
+  S.check = { kind: "rig", vid: id, vname: vName(v), sections: insp.concat(rigSupplyList()), ans: {}, notes: {}, qa: {}, secNotes: {} };
+  openChecklist("🚑 " + vName(v) + " check", "Tap ✓ when the item is OK / stocked, ✗ when there's a problem or it's missing.",
+    '<div class="row"><div class="grow"><label>Mileage</label><input id="ck-miles" inputmode="numeric"></div><div class="grow"><label>Fuel</label><select id="ck-fuel"><option value="">—</option><option>Full</option><option>3/4</option><option>1/2</option><option>1/4</option><option>Below 1/4</option></select></div></div>');
+}
+
+/* ── Checklist sheet (bag + rig) ── */
+function openChecklist(title, help, extraTop){
+  var C = S.check;
+  var b = '<p class="muted">' + esc(help) + '</p>' + extraTop;
+  C.sections.forEach(function(sec, si){
+    b += '<div class="sec"><div class="sec-h"><b>' + esc(sec.name) + '</b><button class="btn sm" onclick="App.ckSection(' + si + ')">All OK</button></div>';
+    (sec.items || []).forEach(function(it, ii){
+      var k = si + ":" + ii;
+      b += '<div class="item" id="ck-' + k.replace(":", "-") + '"><div class="nm">' + esc(it.n) + (it.par ? ' <span class="par">· should have ' + esc(it.par) + '</span>' : '') + '</div>'
+        + '<div class="tog"><button class="ok" onclick="App.ck(\'' + k + '\',\'ok\')">✓</button><button class="bad" onclick="App.ck(\'' + k + '\',\'bad\')">✗</button></div></div>'
+        + '<div class="item-note" id="ckn-' + k.replace(":", "-") + '" hidden><input placeholder="What\'s wrong / how many are left?" oninput="App.ckNote(\'' + k + '\',this.value)"></div>';
+    });
+    (sec.questions || []).forEach(function(q, qi){
+      var k = si + ":" + qi;
+      b += '<div class="item ck-q" id="ckq-' + si + '-' + qi + '"><div class="nm"><b>' + esc(q) + '</b></div>'
+        + '<div class="tog yn"><button class="ok" onclick="App.ckQ(\'' + k + '\',\'yes\')">Yes</button><button class="bad" onclick="App.ckQ(\'' + k + '\',\'no\')">No</button></div></div>';
+    });
+    if (C.kind === "bag") b += '<div class="item-note" style="padding-top:10px;border-top:1px solid var(--line)"><label for="cksn-' + si + '" style="margin-top:0">Notes on ' + esc(sec.name) + ' Section</label><textarea id="cksn-' + si + '" rows="2" oninput="App.ckSecNote(' + si + ',this.value)"></textarea></div>';
+    b += '</div>';
+  });
+  if (C.kind === "bag" && (S.settings.expItems || []).length) b += expInputs(S.me.uid);
+  if (C.kind !== "bag") b += '<label>Notes (optional)</label><textarea id="ck-notes"></textarea>';
+  openModal(title, b, '<span id="ck-count" class="muted grow"></span><button class="btn" onclick="App.closeModal()">Cancel</button><button class="btn gold" id="ck-save" onclick="App.saveCheck()">Submit check</button>');
+  ckCount();
+}
+function ck(k, v){
+  var C = S.check; C.ans[k] = C.ans[k] === v ? undefined : v;
+  var row = $("ck-" + k.replace(":", "-"));
+  row.querySelector(".ok").classList.toggle("on", C.ans[k] === "ok");
+  row.querySelector(".bad").classList.toggle("on", C.ans[k] === "bad");
+  $("ckn-" + k.replace(":", "-")).hidden = C.ans[k] !== "bad";
+  ckCount();
+}
+function ckSection(si){
+  var C = S.check;
+  (C.sections[si].items || []).forEach(function(it, ii){ var k = si + ":" + ii; if (C.ans[k] !== "bad"){ C.ans[k] = undefined; ck(k, "ok"); } });
+}
+function ckNote(k, v){ S.check.notes[k] = v; }
+function ckQ(k, v){
+  var C = S.check; C.qa[k] = C.qa[k] === v ? undefined : v;
+  var row = $("ckq-" + k.replace(":", "-"));
+  row.querySelector(".ok").classList.toggle("on", C.qa[k] === "yes");
+  row.querySelector(".bad").classList.toggle("on", C.qa[k] === "no");
+  ckCount();
+}
+function ckSecNote(si, v){ S.check.secNotes[si] = v; }
+function ckCount(){
+  var C = S.check, total = 0, done = 0, bad = 0;
+  C.sections.forEach(function(s, si){
+    (s.items || []).forEach(function(it, ii){ total++; var a = C.ans[si + ":" + ii]; if (a) done++; if (a === "bad") bad++; });
+    (s.questions || []).forEach(function(q, qi){ total++; var a = C.qa[si + ":" + qi]; if (a) done++; if (a === "no") bad++; });
+  });
+  $("ck-count").textContent = done + " of " + total + " checked" + (bad ? " · " + bad + " problem" + (bad === 1 ? "" : "s") : "");
+}
+async function saveCheck(){
+  var C = S.check, results = [], problems = [], left = 0;
+  C.sections.forEach(function(s, si){ (s.items || []).forEach(function(it, ii){
+    var k = si + ":" + ii, a = C.ans[k];
+    if (!a) left++;
+    results.push({ s: s.name, n: it.n, par: it.par || "", ok: a === "ok", note: C.notes[k] || "" });
+    if (a === "bad") problems.push({ s: s.name, n: it.n, note: C.notes[k] || "" });
+  }); });
+  var answers = [], qLeft = 0, secNotes = [];
+  C.sections.forEach(function(s, si){
+    (s.questions || []).forEach(function(q, qi){
+      var a = C.qa[si + ":" + qi];
+      if (!a) qLeft++;
+      answers.push({ s: s.name, q: q, a: a || "" });
+      if (a === "no") problems.push({ s: s.name, n: q + ": No", note: (C.secNotes[si] || "").trim() });
+    });
+    if ((C.secNotes[si] || "").trim()) secNotes.push({ s: s.name, note: C.secNotes[si].trim() });
+  });
+  if (left || qLeft){
+    toast([left ? left + " item" + (left === 1 ? " isn't" : "s aren't") + " checked yet — tap ✓ or ✗" : "", qLeft ? qLeft + " Yes / No question" + (qLeft === 1 ? " isn't" : "s aren't") + " answered" : ""].filter(Boolean).join(". ") + ".", 6000);
+    var first = document.querySelector("#m-body .item:not(.ck-q) .tog:not(:has(.on))") || document.querySelector("#m-body .ck-q .tog:not(:has(.on))");
+    if (first) first.closest(".item").scrollIntoView({ block: "center", behavior: "smooth" });
+    return;
+  }
+  var expR = C.kind === "bag" && (S.settings.expItems || []).length ? readExpInputs() : null;
+  if (expR && expR.missing){ toast(expR.missing + " expiration date" + (expR.missing === 1 ? " is" : "s are") + " empty. Fill in every date at the bottom.", 6000); return; }
+  $("ck-save").disabled = true;
+  var now = Date.now(), notes = $("ck-notes") ? $("ck-notes").value.trim() : secNotes.map(function(x){ return x.s + ": " + x.note; }).join(" · ");
+  try {
+    var batch = db.batch();
+    if (C.kind === "bag"){
+      batch.set(db.collection("trk_bagChecks").doc(), { uid: S.me.uid, unit: S.me.unit || "", at: now, results: results, answers: answers, sectionNotes: secNotes, missing: problems, notes: notes });
+      if (expR) batch.set(db.collection("trk_bagExp").doc(S.me.uid), { uid: S.me.uid, unit: S.me.unit || "", dates: expR.dates, updatedAt: now, updatedBy: S.me.unit || "" });
+      batch.set(db.collection("trk_bagStatus").doc(S.me.uid), { uid: S.me.uid, unit: S.me.unit || "", name: S.me.name || "", lastAt: now, missing: problems, notes: notes });
+    } else {
+      var miles = $("ck-miles").value.trim(), fuel = $("ck-fuel").value;
+      batch.set(db.collection("trk_rigChecks").doc(), { vehicleId: C.vid, rig: C.vname, uid: S.me.uid, unit: S.me.unit || "", at: now, results: results, problems: problems, mileage: miles, fuel: fuel, notes: notes });
+      batch.set(db.collection("trk_rigStatus").doc(C.vid), { vehicleId: C.vid, rig: C.vname, lastAt: now, by: S.me.unit || "", byUid: S.me.uid, problems: problems, mileage: miles, fuel: fuel, notes: notes });
+    }
+    await batch.commit();
+    closeModal(); S.check = null;
+    toast(problems.length ? "✓ Saved — " + problems.length + " problem" + (problems.length === 1 ? "" : "s") + " reported" : "✓ Saved — all good");
+  } catch (e){ $("ck-save").disabled = false; toast("⚠ Not saved: " + e.message, 7000); }
+}
+async function rigFixed(id){
+  if (!confirm("Mark this rig's problems as fixed?")) return;
+  try { await db.collection("trk_rigStatus").doc(id).update({ problems: [], fixedAt: Date.now(), fixedBy: S.me.unit || "" }); toast("✓ Marked fixed"); }
+  catch (e){ toast("⚠ " + e.message, 6000); }
+}
+async function bagHistory(uid){
+  uid = uid || S.me.uid;
+  openModal("🎒 Bag check history", '<div class="empty">Loading…</div>', '<button class="btn" onclick="App.closeModal()">Close</button>');
+  try {
+    var q = await db.collection("trk_bagChecks").where("uid", "==", uid).get(), rows = [];
+    q.forEach(function(d){ rows.push(d.data()); });
+    rows.sort(function(a, b){ return b.at - a.at; });
+    $("m-body").innerHTML = rows.length ? rows.slice(0, 25).map(histRow).join("") : '<div class="empty">No checks yet.</div>';
+  } catch (e){ $("m-body").innerHTML = '<div class="empty">Couldn\'t load: ' + esc(e.message) + '</div>'; }
+}
+async function rigHistory(id){
+  openModal("🕘 Rig check history", '<div class="empty">Loading…</div>', '<button class="btn" onclick="App.closeModal()">Close</button>');
+  try {
+    var q = await db.collection("trk_rigChecks").where("vehicleId", "==", id).get(), rows = [];
+    q.forEach(function(d){ rows.push(d.data()); });
+    rows.sort(function(a, b){ return b.at - a.at; });
+    $("m-body").innerHTML = rows.length ? rows.slice(0, 25).map(histRow).join("") : '<div class="empty">No checks yet.</div>';
+  } catch (e){ $("m-body").innerHTML = '<div class="empty">Couldn\'t load: ' + esc(e.message) + '</div>'; }
+}
+function histRow(r){
+  var probs = r.problems || r.missing || [];
+  return '<div class="card"><div class="row"><b class="grow">' + fmtTs(r.at) + '</b><span class="muted">' + esc(r.unit || "") + '</span>'
+    + (probs.length ? '<span class="pill p-bad">' + probs.length + ' problem' + (probs.length === 1 ? "" : "s") + '</span>' : '<span class="pill p-ok">All OK</span>') + '</div>'
+    + (r.mileage || r.fuel ? '<div class="muted">' + (r.mileage ? "Mileage " + esc(r.mileage) + " " : "") + (r.fuel ? "· Fuel " + esc(r.fuel) : "") + '</div>' : '')
+    + (probs.length ? '<div class="note">' + probs.map(function(p){ return esc(p.n) + (p.note ? " — " + esc(p.note) : ""); }).join("<br>") + '</div>' : '')
+    + (r.sectionNotes && r.sectionNotes.length ? r.sectionNotes.map(function(x){ return '<div class="muted">Notes on ' + esc(x.s) + ': ' + esc(x.note) + '</div>'; }).join("")
+       : r.notes ? '<div class="muted">Notes: ' + esc(r.notes) + '</div>' : '') + '</div>';
+}
+
+/* ════════════════════════════════════════════════════════════════════════
+   MY PROFILE  (trk_profiles/{uid}; unit, email, name and cell come from CallDashboard)
+   ════════════════════════════════════════════════════════════════════════ */
+var US_STATES = "AL AK AR AZ CA CO CT DC DE FL GA HI IA ID IL IN KS KY LA MA MD ME MI MN MO MS MT NC NE NH NJ NM NV NY ND OH OK OR PA RI SC SD TN TX UT VT VA WA WI WV WY".split(" ");
+var SIZES = ["S", "M", "L", "1XL", "2XL", "3XL", "4XL"];
+function thisYear(){ return new Date().getFullYear(); }
+// Same as the CAD's hzPhoneTyping: 7325557777 → 732-555-7777 as you type
+function fmtPhone(v){
+  var d = String(v || "").replace(/\D/g, "");
+  if (/[+x#]/i.test(v) || d.length > 11) return v;
+  if (d.length === 11 && d[0] === "1") d = d.slice(1);
+  if (d.length > 6) return d.slice(0, 3) + "-" + d.slice(3, 6) + "-" + d.slice(6, 10);
+  if (d.length > 3) return d.slice(0, 3) + "-" + d.slice(3);
+  return d;
+}
+function phoneTyping(el){ el.value = fmtPhone(el.value); }
+function sizeFor(map, year){ return (map && map[year]) || ""; }
+
+// px = id prefix so the same form works on the page (pf-) and in the admin pop-up (apf-)
+function profileForm(u, p, px){
+  p = p || {};
+  var y = thisYear();
+  function inp(id, label, val, extra){ return '<div class="pf-f"><label for="' + px + id + '">' + label + '</label><input id="' + px + id + '" value="' + esc(val || "") + '"' + (extra || "") + '></div>'; }
+  function ro(label, val){ return '<div class="pf-f"><label>' + label + '</label><div class="pf-ro">' + (val ? esc(val) : '<span class="muted">—</span>') + '</div></div>'; }
+  function sel(id, label, val, opts, first){ return '<div class="pf-f"><label for="' + px + id + '">' + label + '</label><select id="' + px + id + '"><option value="">' + first + '</option>' + opts.map(function(o){ return '<option' + (o === val ? " selected" : "") + '>' + o + '</option>'; }).join("") + '</select></div>'; }
+  function addr(k, title){
+    var a = p[k] || {};
+    return '<div class="card"><h3>' + title + '</h3><div class="pf-grid">'
+      + inp(k + "-1", title, a.line1, ' autocomplete="address-line1"').replace(title + '</label>', 'Street</label>')
+      + inp(k + "-2", "Address 2", a.line2)
+      + inp(k + "-city", "City", a.city)
+      + sel(k + "-state", "State", a.state, US_STATES, "Select")
+      + inp(k + "-zip", "Zip", a.zip, ' inputmode="numeric" maxlength="10"')
+      + '</div></div>';
+  }
+  var ec = p.emergency || {}, ph = p.phones || {};
+  var h = '<div class="card"><h3>My Profile</h3><div class="pf-grid">';
+  // 1.14: unit, e-mail and name belong to CallDashboard (they are what members sign in with), so they are
+  // shown here but changed only in CallDashboard ▸ Admin ▸ Users. Date of birth is the tracker's own (admins edit it).
+  h += ro("Unit", u.unit) + ro("E-Mail", u.email) + ro("Name", u.name)
+    + (S.isAdmin ? '<div class="pf-f"><label for="' + px + 'dob">Date of Birth</label><input id="' + px + 'dob" type="date" value="' + esc(p.dob || "") + '"></div>'
+                 : ro("Date of Birth", p.dob ? fmtDate(p.dob) : ""))
+    + '</div><div class="muted" style="margin-top:8px">🔒 ' + (S.isAdmin ? "Unit, e-mail and name are changed in CallDashboard ▸ Admin ▸ Users." : "Only an admin can change these. Ask an admin if something is wrong.") + '</div></div>';
+  h += '<h2>Addresses</h2>' + addr("home", "Home Address") + addr("work", "Work Address");
+  h += '<h2>Phone Numbers</h2><div class="card"><div class="pf-grid">'
+    + ro("Cell Phone", fmtPhone(u.phone))
+    + inp("ph-home", "Home Phone", ph.home, ' type="tel" inputmode="tel" oninput="App.phoneTyping(this)"')
+    + inp("ph-work", "Work Phone", ph.work, ' type="tel" inputmode="tel" oninput="App.phoneTyping(this)"')
+    + '</div><div class="muted" style="margin-top:8px">To change your cell phone, use CallDashboard ▸ ⚙ My Settings (it sends a code to the new number).</div></div>';
+  h += '<h2>Emergency Contact</h2><div class="card"><div class="pf-grid">'
+    + inp("ec-first", "First Name", ec.first) + inp("ec-last", "Last Name", ec.last) + inp("ec-rel", "Relationship", ec.relationship)
+    + inp("ec-home", "Home Phone", ec.home, ' type="tel" inputmode="tel" oninput="App.phoneTyping(this)"')
+    + inp("ec-cell", "Cell Phone", ec.cell, ' type="tel" inputmode="tel" oninput="App.phoneTyping(this)"')
+    + '</div></div>';
+  h += '<h2>Uniform</h2><div class="card"><div class="pf-grid">'
+    + sel("shirt", "Shirt Size (" + y + ")", sizeFor(p.shirt, y), SIZES, "Select")
+    + ro("Last Year Shirt Size (" + (y - 1) + ")", sizeFor(p.shirt, y - 1))
+    + sel("jacket", "Jacket Size (" + y + ")", sizeFor(p.jacket, y), SIZES, "Select")
+    + ro("Last Year Jacket Size (" + (y - 1) + ")", sizeFor(p.jacket, y - 1))
+    + '</div></div>';
+  return h;
+}
+function readProfileForm(px, old){
+  function v(id){ var el = $(px + id); return el ? el.value.trim() : ""; }
+  function addr(k){ return { line1: v(k + "-1"), line2: v(k + "-2"), city: v(k + "-city"), state: v(k + "-state"), zip: v(k + "-zip") }; }
+  var y = String(thisYear());
+  var shirt = Object.assign({}, (old && old.shirt) || {}), jacket = Object.assign({}, (old && old.jacket) || {});
+  if (v("shirt")) shirt[y] = v("shirt"); else delete shirt[y];
+  if (v("jacket")) jacket[y] = v("jacket"); else delete jacket[y];
+  return {
+    dob: S.isAdmin ? v("dob") : ((old && old.dob) || ""), home: addr("home"), work: addr("work"),
+    phones: { home: v("ph-home"), work: v("ph-work") },
+    emergency: { first: v("ec-first"), last: v("ec-last"), relationship: v("ec-rel"), home: v("ec-home"), cell: v("ec-cell") },
+    shirt: shirt, jacket: jacket
+  };
+}
+function profileProblems(d){
+  var bad = [];
+  ["home", "work"].forEach(function(k){ var z = d[k].zip; if (z && !/^\d{5}(-\d{4})?$/.test(z)) bad.push((k === "home" ? "Home" : "Work") + " zip must be 5 digits"); });
+  [["Home phone", d.phones.home], ["Work phone", d.phones.work], ["Emergency contact home phone", d.emergency.home], ["Emergency contact cell phone", d.emergency.cell]]
+    .forEach(function(x){ if (x[1] && x[1].replace(/\D/g, "").length < 10) bad.push(x[0] + " looks too short"); });
+  if (d.dob && d.dob > todayStr()) bad.push("Date of birth is in the future");
+  return bad;
+}
+function viewProfile(){
+  if (S.myProfile === null) return '<div class="empty">Loading…</div>';
+  var p = S.myProfile || {};
+  return profileForm(S.me, p, "pf-")
+    + '<div class="row" style="position:sticky;bottom:0;background:var(--bg);padding:10px 0;border-top:1px solid var(--line)"><span class="grow muted" id="pf-msg">' + (p.updatedAt ? "Last saved " + fmtTs(p.updatedAt) : "") + '</span>'
+    + '<button class="btn gold" onclick="App.saveProfile()">💾 Save profile</button></div>';
+}
+async function saveProfile(uid){
+  var mine = !uid, px = mine ? "pf-" : "apf-", target = uid || S.me.uid;
+  var old = mine ? S.myProfile : S.profiles[target];
+  var d = readProfileForm(px, old), bad = profileProblems(d);
+  var u = mine ? S.me : userByUid(target);
+  if (bad.length){ toast(bad.join(". ") + ".", 6000); return; }
+  var msg = $(mine ? "pf-msg" : "apf-msg");
+  if (msg) msg.textContent = "⏳ Saving…";
+  try {
+    d.uid = target; d.unit = (u && u.unit) || ""; d.name = (u && u.name) || "";
+    d.updatedAt = Date.now(); d.updatedBy = S.me.unit || "";
+    await db.collection("trk_profiles").doc(target).set(d);
+    if (msg) msg.textContent = "✓ Saved";
+    toast("✓ Profile saved");
+    if (mine){ document.activeElement && document.activeElement.blur(); render(); } else closeModal();
+  } catch (e){ if (msg) msg.textContent = "⚠ Not saved: " + e.message; toast("⚠ Not saved: " + e.message, 7000); }
+}
+function openProfile(uid){
+  var u = userByUid(uid); if (!u) return;
+  openModal("👤 " + u.unit + (u.name ? " · " + u.name : ""), profileForm(u, S.profiles[uid] || {}, "apf-"),
+    '<span class="grow muted" id="apf-msg"></span><button class="btn" onclick="App.closeModal()">Cancel</button><button class="btn gold" data-uid="' + esc(uid) + '" onclick="App.saveProfile(this.dataset.uid)">💾 Save</button>');
+}
+function adminProfiles(){
+  var y = thisYear(), sc = {}, jc = {}, filled = 0;
+  SIZES.forEach(function(z){ sc[z] = 0; jc[z] = 0; });
+  S.users.forEach(function(u){ var p = S.profiles[u.uid]; if (!p) return; filled++; var a = sizeFor(p.shirt, y), b = sizeFor(p.jacket, y); if (a) sc[a]++; if (b) jc[b]++; });
+  var noShirt = S.users.filter(function(u){ return !sizeFor((S.profiles[u.uid] || {}).shirt, y); }).length;
+  var h = '<div class="card"><h3>Uniform order ' + y + '</h3><div class="tbl-wrap"><table><thead><tr><th></th>' + SIZES.map(function(z){ return '<th class="c">' + z + '</th>'; }).join("") + '<th class="c">Total</th></tr></thead><tbody>'
+    + '<tr><td><b>Shirts</b></td>' + SIZES.map(function(z){ return '<td class="c">' + sc[z] + '</td>'; }).join("") + '<td class="c"><b>' + SIZES.reduce(function(t, z){ return t + sc[z]; }, 0) + '</b></td></tr>'
+    + '<tr><td><b>Jackets</b></td>' + SIZES.map(function(z){ return '<td class="c">' + jc[z] + '</td>'; }).join("") + '<td class="c"><b>' + SIZES.reduce(function(t, z){ return t + jc[z]; }, 0) + '</b></td></tr>'
+    + '</tbody></table></div><div class="muted" style="margin-top:8px">' + filled + ' of ' + S.users.length + ' members have filled in a profile · ' + noShirt + ' haven\'t picked a ' + y + ' shirt size.</div></div>';
+  h += '<div class="tbl-wrap"><table><thead><tr><th>Unit</th><th>Name</th><th>Date of birth</th><th>Cell</th><th>Home address</th><th>Emergency contact</th><th class="c">Shirt</th><th class="c">Jacket</th><th></th></tr></thead><tbody>';
+  S.users.forEach(function(u){
+    var p = S.profiles[u.uid] || {}, a = p.home || {}, ec = p.emergency || {};
+    h += '<tr><td><b>' + esc(u.unit) + '</b></td><td>' + esc(u.name || "") + '</td><td>' + (p.dob ? fmtDate(p.dob) : '<span class="muted">—</span>') + '</td><td>' + esc(fmtPhone(u.phone)) + '</td>'
+      + '<td>' + (a.line1 ? esc(a.line1 + (a.city ? ", " + a.city : "") + (a.state ? " " + a.state : "")) : '<span class="muted">—</span>') + '</td>'
+      + '<td>' + (ec.first || ec.last ? esc((ec.first + " " + ec.last).trim() + (ec.relationship ? " (" + ec.relationship + ")" : "")) + '<br><span class="muted">' + esc(ec.cell || ec.home || "") + '</span>' : '<span class="muted">—</span>') + '</td>'
+      + '<td class="c">' + esc(sizeFor(p.shirt, y) || "—") + '</td><td class="c">' + esc(sizeFor(p.jacket, y) || "—") + '</td>'
+      + '<td><button class="btn sm" data-uid="' + esc(u.uid) + '" onclick="App.openProfile(this.dataset.uid)">Open</button></td></tr>';
+  });
+  return h + '</tbody></table></div>';
+}
+
+/* ════════════════════════════════════════════════════════════════════════
+   ADMIN
+   ════════════════════════════════════════════════════════════════════════ */
+function viewAdmin(){
+  var tabs = [["grid", "👥 Compliance"], ["review", "📥 Review"], ["vehicles", "🚗 Vehicles"], ["bags", "🎒 Jump Bags"], ["profiles", "👤 Profiles"], ["reports", "📊 Reports"], ["remind", "📣 Reminders"], ["settings", "⚙ Settings"]];
+  var pend = Object.values(S.allRecords).filter(function(r){ return r.status === "pending"; }).length;
+  var h = '<div class="admin-tabbar">' + tabs.map(function(t){ return '<button class="admin-tab' + (S.adminTab === t[0] ? " on" : "") + '" onclick="App.adminTab(\'' + t[0] + '\')">' + t[1] + (t[0] === "review" && pend ? " (" + pend + ")" : "") + '</button>'; }).join("") + '</div>';
+  return h + ({ grid: adminGrid, review: adminReview, vehicles: adminVehicles, bags: adminBags, profiles: adminProfiles, reports: adminReports, remind: adminRemind, settings: adminSettings }[S.adminTab] || adminGrid)();
+}
+function legend(){
+  return '<div class="legend"><span><i class="dot d-ok"></i>Valid</span><span><i class="dot d-info"></i>Waiting for review</span><span><i class="dot d-warn"></i>Expiring soon</span><span><i class="dot d-bad"></i>Expired / rejected / overdue</span><span><i class="dot d-missing"></i>Missing</span><span><i class="dot d-na"></i>Not required</span></div>';
+}
+function adminGrid(){
+  var ts = docTypes("member");
+  var users = S.users.filter(function(u){
+    if (!S.gridOnlyProblems) return true;
+    return memberIssues(u, S.allRecords, S.allVehicles.filter(function(v){ return v.uid === u.uid; }), S.allBags[u.uid]).length > 0;
+  });
+  var h = '<div class="row"><label style="margin:0;display:flex;gap:6px;align-items:center;font-weight:400;color:var(--text)"><input type="checkbox" style="width:auto" ' + (S.gridOnlyProblems ? "checked" : "") + ' onchange="App.gridFilter(this.checked)"> Only members with problems</label></div>' + legend();
+  h += '<div class="tbl-wrap"><table><thead><tr><th>Unit</th><th>Name</th>' + ts.map(function(t){ return '<th class="c">' + esc(t.name) + '</th>'; }).join("") + '<th class="c">Vehicles</th><th class="c">Jump bag</th></tr></thead><tbody>';
+  users.forEach(function(u){
+    h += '<tr><td><b>' + esc(u.unit) + '</b></td><td>' + esc(u.name || "") + '</td>';
+    ts.forEach(function(t){
+      var key = recKey(u.uid, t.id), rec = S.allRecords[key], st = recStatus(rec, t);
+      h += '<td class="c"><button class="dot ' + (st.k === "missing" ? "d-missing" : "d-" + st.lvl) + '" style="cursor:pointer" title="' + esc(t.name + ": " + st.lbl + (rec && rec.expires ? " (" + fmtDate(rec.expires) + ")" : "")) + '" data-id="' + esc(key) + '" data-uid="' + esc(u.uid) + '" data-t="' + esc(t.id) + '" onclick="App.gridCell(this)"></button></td>';
+    });
+    var vs = S.allVehicles.filter(function(v){ return v.uid === u.uid; }), worst = "ok";
+    vs.forEach(function(v){ docTypes("vehicle").forEach(function(t){ var l = recStatus(S.allRecords[recKey("v_" + v.id, t.id)], t).lvl; if (l === "bad") worst = "bad"; else if (l === "warn" && worst !== "bad") worst = "warn"; else if (l === "info" && worst === "ok") worst = "info"; }); });
+    h += '<td class="c">' + (vs.length ? '<span class="dot d-' + worst + '"></span> ' + vs.length : '<span class="muted">—</span>') + '</td>';
+    var bs = bagRequired(u) || S.allBags[u.uid] ? bagState(S.allBags[u.uid]) : null;
+    h += '<td class="c">' + (bs ? '<span class="dot d-' + bs.lvl + '" title="' + esc(bs.lbl) + '"></span>' : '<span class="muted">—</span>') + '</td></tr>';
+  });
+  h += '</tbody></table></div>';
+  if (!users.length) h += '<div class="empty">' + (S.gridOnlyProblems ? "✅ No one has problems." : "No members found.") + '</div>';
+  return h;
+}
+function gridCell(btn){
+  var rec = S.allRecords[btn.dataset.id];
+  if (rec) return openRecord(btn.dataset.id);
+  // nothing on file → offer to upload on their behalf or mark not required
+  var u = userByUid(btn.dataset.uid), t = typeById(btn.dataset.t);
+  openModal(t.name + " — " + u.unit, '<p>' + esc(u.name || u.unit) + ' hasn\'t uploaded this yet.</p>',
+    '<button class="btn" data-id="' + esc(btn.dataset.id) + '" data-uid="' + esc(u.uid) + '" data-t="' + esc(t.id) + '" onclick="App.markNA(this)">Mark not required</button>'
+    + '<button class="btn gold" data-k="' + esc(u.uid) + '" data-t="' + esc(t.id) + '" data-c="' + esc(JSON.stringify({ owner: u.uid, unit: u.unit, name: u.name || "" })) + '" onclick="App.openUpload(this)">Upload for them</button>');
+}
+async function markNA(btn){
+  var u = userByUid(btn.dataset.uid);
+  try {
+    await db.collection("trk_records").doc(btn.dataset.id).set({ uid: u.uid, unit: u.unit, memberName: u.name || "", owner: u.uid, vehicle: null, vehName: null, typeId: btn.dataset.t, status: "na", files: [], updatedAt: Date.now(), updatedBy: S.me.unit || "", updatedByUid: S.me.uid, reviewedBy: S.me.unit || "", reviewedAt: Date.now() });
+    closeModal(); toast("Marked not required");
+  } catch (e){ toast("⚠ " + e.message, 6000); }
+}
+function openRecord(id){
+  var rec = S.allRecords[id] || S.myRecords[id]; if (!rec) return;
+  var t = typeById(rec.typeId) || { name: rec.typeId, expires: true, number: true };
+  var st = recStatus(rec, t);
+  var b = '<div class="row" style="margin-top:10px"><b class="grow">' + esc(rec.unit) + (rec.memberName ? " · " + esc(rec.memberName) : "") + (rec.vehName ? " · " + esc(rec.vehName) : "") + '</b>' + pillFor(st) + '</div>'
+    + '<div class="kv">' + (rec.number ? '<span>Number</span><span>' + esc(rec.number) + '</span>' : '') + (rec.issued ? '<span>Issued</span><span>' + fmtDate(rec.issued) + '</span>' : '')
+    + (rec.expires ? '<span>Expires</span><span>' + fmtDate(rec.expires) + '</span>' : '')
+    + docFields(t).map(function(d){ var v = rec.fields && rec.fields[d[0]]; return v ? '<span>' + esc(d[1]) + '</span><span>' + esc(d[2] === "date" ? fmtDate(v) : v) + '</span>' : ""; }).join("")
+    + '<span>Uploaded</span><span>' + fmtTs(rec.updatedAt) + ' by ' + esc(rec.updatedBy || "") + (rec.scanned ? " · ✨ scanned" : "") + '</span>'
+    + (rec.reviewedBy ? '<span>Reviewed</span><span>' + fmtTs(rec.reviewedAt) + ' by ' + esc(rec.reviewedBy) + '</span>' : '') + '</div>' + thumbs(rec.files)
+    + (rec.history && rec.history.length ? '<div class="muted">' + rec.history.length + ' earlier cop' + (rec.history.length === 1 ? "y" : "ies") + ' kept.</div>' : '')
+    + '<label>Note to the member (shown if you reject)</label><input id="rv-note" value="' + esc(rec.reviewNote || "") + '" placeholder="e.g. Photo is blurry — please retake">';
+  openModal(t.name, b,
+    '<button class="btn red sm" data-id="' + esc(id) + '" onclick="App.deleteRecord(this.dataset.id)">Delete</button>'
+    + (rec.status !== "na" ? '<button class="btn sm" data-id="' + esc(id) + '" onclick="App.review(this.dataset.id,\'na\')">Not required</button>' : '')
+    + '<span class="grow"></span><button class="btn red" data-id="' + esc(id) + '" onclick="App.review(this.dataset.id,\'rejected\')">Reject</button>'
+    + '<button class="btn green" data-id="' + esc(id) + '" onclick="App.review(this.dataset.id,\'approved\')">Approve</button>');
+}
+async function review(id, status){
+  var note = ($("rv-note") || {}).value || "";
+  if (status === "rejected" && !note.trim()){ toast("Write a short note so the member knows what to fix."); return; }
+  try {
+    await db.collection("trk_records").doc(id).update({ status: status, reviewNote: status === "rejected" ? note.trim() : "", reviewedBy: S.me.unit || "", reviewedAt: Date.now() });
+    closeModal(); toast(status === "approved" ? "✓ Approved" : status === "rejected" ? "Rejected — the member will see your note" : "Marked not required");
+  } catch (e){ toast("⚠ " + e.message, 6000); }
+}
+async function deleteRecord(id){
+  if (!confirm("Delete this record? The member will have to upload it again.")) return;
+  var rec = S.allRecords[id];
+  try {
+    await db.collection("trk_records").doc(id).delete();
+    (rec && rec.files || []).forEach(function(f){ if (f.path) storage.ref(f.path).delete().catch(function(){}); });
+    closeModal(); toast("Deleted");
+  } catch (e){ toast("⚠ " + e.message, 6000); }
+}
+function adminReview(){
+  var pend = Object.values(S.allRecords).filter(function(r){ return r.status === "pending"; }).sort(function(a, b){ return a.updatedAt - b.updatedAt; });
+  if (!pend.length) return '<div class="card empty">✅ Nothing waiting for review.</div>';
+  return '<div class="docs">' + pend.map(function(r){
+    var t = typeById(r.typeId) || { name: r.typeId };
+    return '<div class="card"><div class="row"><h3 class="grow">' + esc(t.name) + '</h3><span class="muted">' + esc(r.unit) + '</span></div>'
+      + '<div class="muted">' + esc(r.memberName || "") + (r.vehName ? " · " + esc(r.vehName) : "") + '</div>'
+      + '<div class="kv">' + (r.number ? '<span>Number</span><span>' + esc(r.number) + '</span>' : '') + (r.expires ? '<span>Expires</span><span>' + fmtDate(r.expires) + '</span>' : '') + '<span>Uploaded</span><span>' + fmtTs(r.updatedAt) + '</span></div>'
+      + thumbs(r.files) + '<button class="btn gold sm" data-id="' + esc(r.id) + '" onclick="App.openRecord(this.dataset.id)">Review…</button></div>';
+  }).join("") + '</div>';
+}
+function adminVehicles(){
+  var h = '<h2>Members\' vehicles</h2>' + legend();
+  function table(list, old){
+    var t = '<div class="tbl-wrap"><table><thead><tr><th>Unit</th><th>#</th><th>Vehicle</th><th>Plate</th><th>VIN</th><th>Color</th><th>Fuel</th><th>Registered to</th>'
+      + (old ? '<th>Taken off</th>' : docTypes("vehicle").map(function(t){ return '<th class="c">' + esc(t.name) + '</th>'; }).join("")) + '</tr></thead><tbody>';
+    list.slice().sort(function(a, b){ return unitNum(a.unit) - unitNum(b.unit) || (a.slot || 9) - (b.slot || 9); }).forEach(function(v){
+      t += '<tr><td><b>' + esc(v.unit) + '</b></td><td>' + (v.slot || "") + '</td><td>' + esc(vTitle(v)) + '</td><td>' + esc(v.plate || "") + (v.regState ? ' <span class="muted">' + esc(v.regState) + '</span>' : '') + '</td>'
+        + '<td>' + esc(v.vin || "") + '</td><td>' + esc(v.color || "") + '</td><td>' + esc(v.fuel || "") + '</td><td>' + esc(v.regName || "") + '</td>';
+      if (old) t += '<td>' + fmtTs(v.replacedAt).split(" ")[0] + (v.removed ? " (removed)" : " (replaced)") + '</td>';
+      else docTypes("vehicle").forEach(function(ty){
+        var key = recKey("v_" + v.id, ty.id), rec = S.allRecords[key], st = recStatus(rec, ty);
+        t += '<td class="c">' + (rec ? '<button class="dot d-' + st.lvl + '" style="cursor:pointer" title="' + esc(st.lbl) + '" data-id="' + esc(key) + '" onclick="App.openRecord(this.dataset.id)"></button>' : dotFor(st)) + '</td>';
+      });
+      t += '</tr>';
+    });
+    return t + '</tbody></table></div>';
+  }
+  h += S.allVehicles.length ? table(S.allVehicles, false) : '<div class="card empty">No member vehicles yet.</div>';
+  if ((S.allOldVehicles || []).length) h += '<h2>Replaced / removed vehicles</h2>' + table(S.allOldVehicles, true);
+  h += '<h2>Organization vehicles</h2><p class="muted">Rig and ERV insurance / registration are in 🚑 Rig Checks ▸ 📄 Paperwork.</p>';
+  return h;
+}
+function viewBagExp(uid){
+  var u = userByUid(uid);
+  openModal("⏳ " + u.unit + " — Expiration Dates", expTable(uid), '<button class="btn" onclick="App.closeModal()">Close</button><button class="btn gold" data-uid="' + esc(uid) + '" onclick="App.editBagExp(this.dataset.uid)">✎ Edit dates</button>');
+}
+function adminBags(){
+  var users = S.users.filter(function(u){ return bagRequired(u) || S.allBags[u.uid]; });
+  var h = '<p class="muted">Every ' + (S.settings.bagIntervalDays || 30) + ' days. Change it in ⚙ Settings.</p>';
+  h += '<div class="tbl-wrap"><table><thead><tr><th>Unit</th><th>Name</th><th>Last check</th><th>Status</th><th>Missing items</th><th>Expiration dates</th><th></th></tr></thead><tbody>';
+  users.forEach(function(u){
+    var b = S.allBags[u.uid], st = bagState(b);
+    var er = bagExpRows(u.uid), ex = er.filter(function(r){ return r.st.k === "expired"; }), so = er.filter(function(r){ return r.st.k === "expiring"; });
+    var expCell = !bagExpFor(u.uid).updatedAt ? '<span class="pill p-warn">Not entered</span>'
+      : ex.length ? '<span class="pill p-bad">' + ex.length + ' expired</span> <span class="muted">' + ex.map(function(r){ return esc(r.item); }).join(", ") + '</span>'
+      : so.length ? '<span class="pill p-warn">' + so.length + ' expiring</span> <span class="muted">' + so.map(function(r){ return esc(r.item); }).join(", ") + '</span>'
+      : '<span class="pill p-ok">All in date</span>';
+    h += '<tr><td><b>' + esc(u.unit) + '</b></td><td>' + esc(u.name || "") + '</td><td>' + (b ? fmtTs(b.lastAt) : "Never") + '</td><td>' + pillFor(st) + '</td>'
+      + '<td style="white-space:normal">' + (b && b.missing && b.missing.length ? b.missing.map(function(m){ return esc(m.n); }).join(", ") : '<span class="muted">—</span>') + '</td>'
+      + '<td style="white-space:normal">' + expCell + '</td>'
+      + '<td><div class="row" style="flex-wrap:nowrap"><button class="btn sm" data-uid="' + esc(u.uid) + '" onclick="App.viewBagExp(this.dataset.uid)">Dates</button><button class="btn sm" data-uid="' + esc(u.uid) + '" onclick="App.bagHistory(this.dataset.uid)">History</button></div></td></tr>';
+  });
+  return h + '</tbody></table></div>';
+}
+
+/* ── Reminders ── */
+function adminRemind(){
+  var cool = S.settings.reminderCooldownDays || 7;
+  var rows = S.users.map(function(u){ return { u: u, iss: memberIssues(u, S.allRecords, S.allVehicles.filter(function(v){ return v.uid === u.uid; }), S.allBags[u.uid]) }; }).filter(function(r){ return r.iss.length; });
+  var h = '<p class="muted">Sends each member ONE text and/or email listing everything they need to fix. A member who got a reminder in the last ' + cool + ' days is left unticked. Test Mode (CallDashboard ▸ My Settings) sends only to you.</p>';
+  h += '<div class="row" style="margin-bottom:10px"><label style="margin:0;display:flex;gap:6px;align-items:center;font-weight:400;color:var(--text)"><input type="checkbox" id="rm-sms" style="width:auto" checked> 💬 Text</label>'
+    + '<label style="margin:0;display:flex;gap:6px;align-items:center;font-weight:400;color:var(--text)"><input type="checkbox" id="rm-email" style="width:auto" checked> ✉️ Email</label><span class="grow"></span>'
+    + '<button class="btn sm" onclick="App.remindTest()">Send a test to me</button><button class="btn gold" onclick="App.sendReminders()">Send to ticked members</button></div>';
+  if (!rows.length) return h + '<div class="card empty">✅ No one needs a reminder.</div>' + (S.rmMsg ? '<div class="muted">' + esc(S.rmMsg) + '</div>' : '');
+  h += '<div class="tbl-wrap"><table><thead><tr><th><input type="checkbox" style="width:auto" onchange="document.querySelectorAll(\'.rm-pick\').forEach(function(c){c.checked=this.checked}.bind(this))"></th><th>Unit</th><th>Items</th><th>Last reminder</th></tr></thead><tbody>';
+  rows.forEach(function(r){
+    var last = S.reminderLog[r.u.uid], recent = last && daysAgo(last.lastAt) < cool;
+    h += '<tr><td><input type="checkbox" class="rm-pick" style="width:auto" value="' + esc(r.u.uid) + '" ' + (recent ? "" : "checked") + '></td><td><b>' + esc(r.u.unit) + '</b><br><span class="muted">' + esc(r.u.name || "") + '</span></td>'
+      + '<td style="white-space:normal">' + r.iss.map(function(i){ return '<span class="pill p-' + i.lvl + '" style="margin:1px">' + esc(i.text) + '</span>'; }).join(" ") + '</td>'
+      + '<td>' + (last ? fmtTs(last.lastAt) + '<br><span class="muted">' + esc(last.via || "") + '</span>' : '<span class="muted">Never</span>') + '</td></tr>';
+  });
+  return h + '</tbody></table></div><div id="rm-prog" class="muted" style="margin-top:10px">' + esc(S.rmMsg || "") + '</div>';
+}
+function fillTpl(tpl, v){ return String(tpl || "").replace(/\{(\w+)\}/g, function(m, k){ return v[k] != null ? v[k] : m; }); }
+function reminderVars(u, iss){
+  return { name: (u.name || u.unit || "").split(" ")[0], unit: u.unit || "", org: orgName(), items: iss.map(function(i){ return "- " + i.text; }).join("\n"), link: pageLink(), time: smsStamp() };
+}
+function emailHtml(subject, text){
+  var accent = S.org.accent || "#c9a84c";
+  var body = esc(text).replace(/(https?:\/\/[^\s<]+)/g, '<a href="$1" style="color:' + esc(accent) + '">$1</a>').replace(/\n/g, "<br>");
+  return '<div style="font-family:Arial,sans-serif;max-width:560px;margin:auto;border:1px solid #ddd;border-radius:10px;overflow:hidden">'
+    + '<div style="background:#0f1b30;color:' + esc(accent) + ';padding:14px 18px;font-weight:bold;font-size:17px">' + esc(subject) + '</div>'
+    + '<div style="padding:16px 18px;color:#222;font-size:15px;line-height:1.5">' + body + '</div></div>';
+}
+async function callFn(name, data){
+  var tok = await auth.currentUser.getIdToken();
+  var r = await fetch(TRK_CONFIG.functionsBase + "/" + name, { method: "POST", headers: { "Content-Type": "application/json", "Authorization": "Bearer " + tok }, body: JSON.stringify({ data: data }) });
+  var j = await r.json().catch(function(){ return {}; });
+  if (!r.ok || j.error) throw new Error((j.error && j.error.message) || ("HTTP " + r.status));
+  return j.result;
+}
+async function sendOne(u, iss, viaSms, viaEmail){
+  var v = reminderVars(u, iss), T = S.settings.templates, sent = [];
+  var ph = trkPhone(u.phone);
+  if (viaSms && ph){ var r = await callFn("sendSms", trkSmsPayload(ph, fillTpl(T.sms, v), u.unit)); if (r && r.error) throw new Error(r.error); if (!(r && r.failedCount)) sent.push("text"); }
+  if (viaEmail && u.email){ var subj = fillTpl(T.emailSubject, v); await callFn("sendEmail", trkEmailPayload(u.email, u.name, subj, emailHtml(subj, fillTpl(T.emailBody, v)))); sent.push("email"); }
+  return sent;
+}
+async function remindTest(){
+  var viaSms = $("rm-sms").checked, viaEmail = $("rm-email").checked;
+  var sample = [{ lvl: "bad", text: "EMT Certification: expired 09/30/2026" }, { lvl: "warn", text: "Jump bag check: due in 2 days" }];
+  try { var s = await sendOne(S.me, sample, viaSms, viaEmail); toast(s.length ? "✓ Test " + s.join(" + ") + " sent to you" : "Nothing sent — your profile has no phone/email for the ticked channels", 6000); }
+  catch (e){ toast("⚠ Test failed: " + e.message, 8000); }
+}
+async function sendReminders(){
+  var viaSms = $("rm-sms").checked, viaEmail = $("rm-email").checked;
+  if (!viaSms && !viaEmail){ toast("Tick Text, Email or both."); return; }
+  var picks = Array.from(document.querySelectorAll(".rm-pick:checked")).map(function(c){ return c.value; });
+  if (!picks.length){ toast("Tick at least one member."); return; }
+  if (!confirm("Send reminders to " + picks.length + " member" + (picks.length === 1 ? "" : "s") + "?")) return;
+  var ok = 0, fail = [];
+  for (var i = 0; i < picks.length; i++){
+    var u = userByUid(picks[i]); if (!u) continue;
+    S.rmMsg = "";
+    if ($("rm-prog")) $("rm-prog").textContent = "Sending " + (i + 1) + " of " + picks.length + " (" + u.unit + ")…";
+    var iss = memberIssues(u, S.allRecords, S.allVehicles.filter(function(v){ return v.uid === u.uid; }), S.allBags[u.uid]);
+    try {
+      var s = await sendOne(u, iss, viaSms, viaEmail);
+      if (s.length){ ok++; await db.collection("trk_reminderLog").doc(u.uid).set({ unit: u.unit, lastAt: Date.now(), lastBy: S.me.unit || "", via: s.join(" + "), items: iss.map(function(x){ return x.text; }) }); }
+      else fail.push(u.unit + " (no phone/email)");
+    } catch (e){ fail.push(u.unit + " (" + e.message + ")"); }
+  }
+  S.rmMsg = "✓ Sent to " + ok + "." + (fail.length ? " Not sent: " + fail.join(", ") : "");
+  render();
+}
+
+/* ── Settings ── */
+function adminSettings(){
+  var s = S.settings, T = s.templates;
+  var h = '<div class="card"><h3>📄 Documents & certifications</h3><p class="muted">"Member" = each person uploads their own. "Vehicle" = uploaded for each vehicle.</p><div id="st-types">';
+  (s.docTypes || []).forEach(function(t, i){ h += typeRow(t, i); });
+  h += '</div><button class="btn sm" onclick="App.addType()">+ Add a document type</button></div>';
+  h += '<div class="card"><h3>⏱ Timing</h3><div class="row">'
+    + '<div class="grow"><label>Warn this many days before expiry</label><input id="st-warn" type="number" min="1" max="180" value="' + esc(s.warnDays) + '"></div>'
+    + '<div class="grow"><label>Jump bag check every (days)</label><input id="st-bag" type="number" min="1" max="365" value="' + esc(s.bagIntervalDays) + '"></div>'
+    + '<div class="grow"><label>Rig check every (days)</label><input id="st-rig" type="number" min="1" max="90" value="' + esc(s.rigIntervalDays) + '"></div>'
+    + '<div class="grow"><label>Don\'t re-remind within (days)</label><input id="st-cool" type="number" min="0" max="60" value="' + esc(s.reminderCooldownDays) + '"></div></div>'
+    + '<label>Who must check a jump bag (roles, comma separated)</label><input id="st-bagroles" value="' + esc((s.bagRoles || []).join(", ")) + '"></div>';
+  var all = orgVehicles(), sel = s.rigIds || rigList().map(function(v){ return v.id; });
+  h += '<div class="card"><h3>🚑 Rigs that get checked</h3><div class="row">' + (all.length ? all.map(function(v){
+    return '<label style="margin:0;display:flex;gap:6px;align-items:center;font-weight:400;color:var(--text);border:1px solid var(--line);border-radius:8px;padding:6px 10px"><input type="checkbox" class="st-rig" style="width:auto" value="' + esc(v.id) + '" ' + (sel.indexOf(v.id) >= 0 ? "checked" : "") + '> ' + esc(vName(v)) + '</label>';
+  }).join("") : '<span class="muted">No vehicles in Fleet.</span>') + '</div>'
+    + '<label>Vehicle inspection items (one per line)</label><textarea id="st-insp" rows="8">' + esc((s.rigInspection || []).join("\n")) + '</textarea>'
+    + '<label for="st-exp">Jump bag items that expire (one per line — add or remove items)</label><textarea id="st-exp" rows="10">' + esc((s.expItems || []).join("\n")) + '</textarea>'
+    + '<label for="st-bagq">Jump bag Yes / No checks (one per line, written as  Section: question)</label><textarea id="st-bagq" rows="9">' + esc(bagQText()) + '</textarea>'
+    + '<p class="muted">The supply items for rig checks and jump bag checks come from CallDashboard ▸ Admin ▸ Fleet ▸ 📦 Restock List (Ambulance and Jump bag tabs). Edit them there.</p></div>';
+  h += '<div class="card"><h3>✉️ Message templates</h3><p class="muted">Words in {braces} are filled in: {name} {unit} {org} {items} {link} {time}. {time} gives "Date: MM/DD/YYYY  Time: HH:MM".</p>'
+    + '<label>Text message</label><textarea id="st-sms" rows="6">' + esc(T.sms) + '</textarea>'
+    + '<label>Email subject</label><input id="st-esub" value="' + esc(T.emailSubject) + '">'
+    + '<label>Email body</label><textarea id="st-ebody" rows="8">' + esc(T.emailBody) + '</textarea>'
+    + '<button class="btn sm" style="margin-top:8px" onclick="App.resetTemplates()">Restore default wording</button></div>';
+  h += '<div class="row"><span class="grow"></span><span id="st-msg" class="muted"></span><button class="btn gold" onclick="App.saveSettings()">💾 Save settings</button></div>';
+  return h;
+}
+function typeRow(t, i){
+  return '<div class="dtype" data-i="' + i + '"><input class="t-name" value="' + esc(t.name) + '" placeholder="Name">'
+    + '<select class="t-cat"><option value="document"' + (t.cat === "document" ? " selected" : "") + '>Document</option><option value="certification"' + (t.cat === "certification" ? " selected" : "") + '>Certification</option></select>'
+    + '<select class="t-scope"><option value="member"' + (t.scope === "member" ? " selected" : "") + '>Member</option><option value="vehicle"' + (t.scope === "vehicle" ? " selected" : "") + '>Vehicle</option></select>'
+    + '<label><input type="checkbox" class="t-exp"' + (t.expires ? " checked" : "") + '> Expires</label>'
+    + '<label><input type="checkbox" class="t-num"' + (t.number ? " checked" : "") + '> Number</label>'
+    + '<label><input type="checkbox" class="t-req"' + (t.required !== false ? " checked" : "") + '> Required</label>'
+    + '<button class="x" title="Remove" onclick="this.parentNode.remove()">✕</button><input type="hidden" class="t-id" value="' + esc(t.id) + '"></div>';
+}
+function bagQText(){
+  var q = S.settings.bagQuestions || DEFAULT_BAG_QUESTIONS, out = [];
+  Object.keys(q).forEach(function(sec){ (q[sec] || []).forEach(function(x){ out.push(sec + ": " + x); }); });
+  return out.join("\n");
+}
+function parseBagQ(text){
+  var q = {};
+  text.split("\n").forEach(function(line){ var i = line.indexOf(":"); if (i < 1) return; var sec = line.slice(0, i).trim(), x = line.slice(i + 1).trim(); if (!sec || !x) return; (q[sec] = q[sec] || []).push(x); });
+  return q;
+}
+function addType(){ $("st-types").insertAdjacentHTML("beforeend", typeRow({ id: "", name: "", cat: "certification", scope: "member", expires: true, number: false, required: true }, -1)); }
+function resetTemplates(){ $("st-sms").value = DEFAULT_SETTINGS.templates.sms; $("st-esub").value = DEFAULT_SETTINGS.templates.emailSubject; $("st-ebody").value = DEFAULT_SETTINGS.templates.emailBody; }
+async function saveSettings(){
+  var types = [], used = {};
+  document.querySelectorAll("#st-types .dtype").forEach(function(r){
+    var name = r.querySelector(".t-name").value.trim(); if (!name) return;
+    var id = r.querySelector(".t-id").value || name.toLowerCase().replace(/[^a-z0-9]+/g, "").slice(0, 16) || ("t" + Date.now());
+    while (used[id]) id += "x"; used[id] = 1;
+    types.push({ id: id, name: name, cat: r.querySelector(".t-cat").value, scope: r.querySelector(".t-scope").value, expires: r.querySelector(".t-exp").checked, number: r.querySelector(".t-num").checked, required: r.querySelector(".t-req").checked });
+  });
+  if (!types.length){ toast("Keep at least one document type."); return; }
+  var num = function(id, def){ var n = parseInt($(id).value, 10); return isNaN(n) ? def : n; };
+  var data = {
+    docTypes: types,
+    warnDays: num("st-warn", 30), bagIntervalDays: Math.max(1, num("st-bag", 30)), rigIntervalDays: Math.max(1, num("st-rig", 7)), reminderCooldownDays: num("st-cool", 7),
+    bagRoles: $("st-bagroles").value.split(",").map(function(x){ return x.trim().toLowerCase(); }).filter(Boolean),
+    rigIds: Array.from(document.querySelectorAll(".st-rig:checked")).map(function(c){ return c.value; }),
+    bagQuestions: parseBagQ($("st-bagq").value),
+    expItems: $("st-exp").value.split("\n").map(function(x){ return x.trim(); }).filter(Boolean).filter(function(x, i, a){ return a.indexOf(x) === i; }),
+    rigInspection: $("st-insp").value.split("\n").map(function(x){ return x.trim(); }).filter(Boolean),
+    templates: { sms: $("st-sms").value, emailSubject: $("st-esub").value, emailBody: $("st-ebody").value },
+    updatedAt: Date.now(), updatedBy: S.me.unit || ""
+  };
+  $("st-msg").textContent = "⏳ Saving…";
+  try { await db.collection("trk_settings").doc("main").set(data); $("st-msg").textContent = "✓ Saved"; document.activeElement && document.activeElement.blur(); setTimeout(render, 300); }
+  catch (e){ $("st-msg").textContent = "⚠ Not saved: " + e.message; }
+}
+
+/* ════════════════════════════════════════════════════════════════════════
+   REPORTS (admin) — Excel files built in the page with the CAD's own writer (hzXlsxBlob)
+   ════════════════════════════════════════════════════════════════════════ */
+function hzXlsxBlob(sheets) {
+  var enc = new TextEncoder();
+  var esc = function(v) { return String(v == null ? "" : v).replace(/[&<>"]/g, function(c) { return { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]; }).replace(/[\u0000-\u0008\u000B\u000C\u000E-\u001F]/g, ""); };
+  var colName = function(i) { var s = ""; i++; while (i > 0) { var m = (i - 1) % 26; s = String.fromCharCode(65 + m) + s; i = Math.floor((i - 1) / 26); } return s; };
+  var serial = function(d) { return (d.getTime() - d.getTimezoneOffset() * 60000) / 86400000 + 25569; };   // local date/time as an Excel number
+  var files = [];
+  var add = function(path, text) { files.push({ path: path, data: enc.encode(text) }); };
+  add("[Content_Types].xml", '<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types"><Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/><Default Extension="xml" ContentType="application/xml"/><Override PartName="/xl/workbook.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet.main+xml"/><Override PartName="/xl/styles.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.styles+xml"/>' +
+    sheets.map(function(s, i) { return '<Override PartName="/xl/worksheets/sheet' + (i + 1) + '.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.worksheet+xml"/>'; }).join("") + '</Types>');
+  add("_rels/.rels", '<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument" Target="xl/workbook.xml"/></Relationships>');
+  add("xl/workbook.xml", '<?xml version="1.0" encoding="UTF-8" standalone="yes"?><workbook xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships"><sheets>' +
+    sheets.map(function(s, i) { return '<sheet name="' + esc(s.name.slice(0, 31)) + '" sheetId="' + (i + 1) + '" r:id="rId' + (i + 1) + '"/>'; }).join("") + '</sheets>' +
+    '<definedNames>' + sheets.map(function(s, i) { return s.rows.length ? '<definedName name="_xlnm._FilterDatabase" localSheetId="' + i + '" hidden="1">\'' + esc(s.name.slice(0, 31)) + '\'!$A$1:$' + colName(s.cols.length - 1) + '$' + (s.rows.length + 1) + '</definedName>' : ''; }).join("") + '</definedNames></workbook>');
+  add("xl/_rels/workbook.xml.rels", '<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">' +
+    sheets.map(function(s, i) { return '<Relationship Id="rId' + (i + 1) + '" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/worksheet" Target="worksheets/sheet' + (i + 1) + '.xml"/>'; }).join("") +
+    '<Relationship Id="rId' + (sheets.length + 1) + '" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/styles" Target="styles.xml"/></Relationships>');
+  // styles: 0 normal · 1 bold header · 2 date · 3 date + time · 4 wrapped text
+  add("xl/styles.xml", '<?xml version="1.0" encoding="UTF-8" standalone="yes"?><styleSheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main"><numFmts count="2"><numFmt numFmtId="164" formatCode="yyyy-mm-dd"/><numFmt numFmtId="165" formatCode="yyyy-mm-dd hh:mm"/></numFmts>' +
+    '<fonts count="2"><font><sz val="11"/><name val="Calibri"/></font><font><b/><sz val="11"/><color rgb="FFFFFFFF"/><name val="Calibri"/></font></fonts>' +
+    '<fills count="3"><fill><patternFill patternType="none"/></fill><fill><patternFill patternType="gray125"/></fill><fill><patternFill patternType="solid"><fgColor rgb="FF1F3864"/><bgColor indexed="64"/></patternFill></fill></fills>' +
+    '<borders count="1"><border><left/><right/><top/><bottom/><diagonal/></border></borders><cellStyleXfs count="1"><xf numFmtId="0" fontId="0" fillId="0" borderId="0"/></cellStyleXfs>' +
+    '<cellXfs count="5"><xf numFmtId="0" fontId="0" fillId="0" borderId="0" xfId="0" applyAlignment="1"><alignment vertical="top"/></xf><xf numFmtId="0" fontId="1" fillId="2" borderId="0" xfId="0" applyFont="1" applyFill="1"/><xf numFmtId="164" fontId="0" fillId="0" borderId="0" xfId="0" applyNumberFormat="1" applyAlignment="1"><alignment vertical="top"/></xf><xf numFmtId="165" fontId="0" fillId="0" borderId="0" xfId="0" applyNumberFormat="1" applyAlignment="1"><alignment vertical="top"/></xf><xf numFmtId="0" fontId="0" fillId="0" borderId="0" xfId="0" applyAlignment="1"><alignment vertical="top" wrapText="1"/></xf></cellXfs>' +
+    '<cellStyles count="1"><cellStyle name="Normal" xfId="0" builtinId="0"/></cellStyles></styleSheet>');
+  sheets.forEach(function(s, si) {
+    var cell = function(ref, v, t) {
+      if (v === null || v === undefined || v === "") return "";
+      if ((t === "d" || t === "dt") && v instanceof Date && !isNaN(v)) return '<c r="' + ref + '" s="' + (t === "d" ? 2 : 3) + '"><v>' + (t === "d" ? Math.floor(serial(v)) : serial(v)) + '</v></c>';
+      if (typeof v === "number" && isFinite(v)) return '<c r="' + ref + '"><v>' + v + '</v></c>';
+      return '<c r="' + ref + '" t="inlineStr"' + (t === "w" ? ' s="4"' : '') + '><is><t xml:space="preserve">' + esc(v) + '</t></is></c>';
+    };
+    var xml = '<?xml version="1.0" encoding="UTF-8" standalone="yes"?><worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main"><sheetViews><sheetView workbookViewId="0"><pane ySplit="1" topLeftCell="A2" activePane="bottomLeft" state="frozen"/></sheetView></sheetViews>' +
+      '<cols>' + s.cols.map(function(c, i) { return '<col min="' + (i + 1) + '" max="' + (i + 1) + '" width="' + (c.w || 14) + '" customWidth="1"/>'; }).join("") + '</cols><sheetData>' +
+      '<row r="1">' + s.cols.map(function(c, i) { return '<c r="' + colName(i) + '1" t="inlineStr" s="1"><is><t>' + esc(c.h) + '</t></is></c>'; }).join("") + '</row>' +
+      s.rows.map(function(r, ri) { return '<row r="' + (ri + 2) + '">' + r.map(function(v, ci) { return cell(colName(ci) + (ri + 2), v, s.cols[ci] && s.cols[ci].t); }).join("") + '</row>'; }).join("") +
+      '</sheetData>' + (s.rows.length ? '<autoFilter ref="A1:' + colName(s.cols.length - 1) + (s.rows.length + 1) + '"/>' : '') + '</worksheet>';
+    add("xl/worksheets/sheet" + (si + 1) + ".xml", xml);
+  });
+  // zip (stored)
+  var crcT = hzXlsxBlob._crc || (hzXlsxBlob._crc = (function() { var t = new Uint32Array(256); for (var n = 0; n < 256; n++) { var c = n; for (var k = 0; k < 8; k++) c = c & 1 ? 0xEDB88320 ^ (c >>> 1) : c >>> 1; t[n] = c >>> 0; } return t; })());
+  var crc32 = function(b) { var c = 0xFFFFFFFF; for (var i = 0; i < b.length; i++) c = crcT[(c ^ b[i]) & 0xFF] ^ (c >>> 8); return (c ^ 0xFFFFFFFF) >>> 0; };
+  var parts = [], central = [], offset = 0;
+  var u16 = function(v) { return [v & 255, (v >>> 8) & 255]; }, u32 = function(v) { return [v & 255, (v >>> 8) & 255, (v >>> 16) & 255, (v >>> 24) & 255]; };
+  files.forEach(function(f) {
+    var name = enc.encode(f.path), crc = crc32(f.data), size = f.data.length;
+    var local = new Uint8Array([].concat([0x50, 0x4b, 0x03, 0x04], u16(20), u16(0x0800), u16(0), u16(0), u16(0x21), u32(crc), u32(size), u32(size), u16(name.length), u16(0)));
+    parts.push(local, name, f.data);
+    central.push(new Uint8Array([].concat([0x50, 0x4b, 0x01, 0x02], u16(20), u16(20), u16(0x0800), u16(0), u16(0), u16(0x21), u32(crc), u32(size), u32(size), u16(name.length), u16(0), u16(0), u16(0), u16(0), u32(0), u32(offset))), name);
+    offset += local.length + name.length + size;
+  });
+  var cdSize = central.reduce(function(a, p) { return a + p.length; }, 0);
+  var end = new Uint8Array([].concat([0x50, 0x4b, 0x05, 0x06], u16(0), u16(0), u16(files.length), u16(files.length), u32(cdSize), u32(offset), u16(0)));
+  return new Blob(parts.concat(central, [end]), { type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" });
+}
+// Save a file: phones get the Share sheet (Save to Files, AirDrop, email…) when they support it; otherwise download.
+function hzSaveFile(blob, filename) {
+  try {
+    var file = new File([blob], filename, { type: blob.type });
+    if (/iPhone|iPad|iPod|Android/i.test(navigator.userAgent) && navigator.canShare && navigator.canShare({ files: [file] }))
+      return navigator.share({ files: [file], title: filename }).catch(function() {});
+  } catch (e) {}
+  var url = URL.createObjectURL(blob), a = document.createElement("a");
+  a.href = url; a.download = filename; document.body.appendChild(a); a.click(); document.body.removeChild(a);
+  setTimeout(function() { URL.revokeObjectURL(url); }, 4000);
+  return Promise.resolve();
+}
+
+function ymdDate(ymd){ if (!ymd) return null; var p = ymd.split("-"); return new Date(+p[0], +p[1] - 1, +p[2]); }
+function msDate(ms){ return ms ? new Date(ms) : null; }
+function overallFor(u){
+  var iss = memberIssues(u, S.allRecords, S.allVehicles.filter(function(v){ return v.uid === u.uid; }), S.allBags[u.uid]);
+  var bad = iss.filter(function(i){ return i.lvl === "bad"; }).length, warn = iss.length - bad;
+  return { iss: iss, label: bad ? "Not compliant" : warn ? "Expiring soon" : "Compliant", bad: bad, warn: warn };
+}
+var REPORTS = {
+  members: { icon: "👥", title: "Member compliance", desc: "Every member: each document's status and expiry, vehicles, jump bag, and an overall result.",
+    build: async function(){
+      var ts = docTypes("member"), cols = [{ h: "Unit", w: 9 }, { h: "Name", w: 22 }, { h: "Overall", w: 15 }, { h: "Problems", w: 10 }];
+      ts.forEach(function(t){ cols.push({ h: t.name, w: 18 }); if (t.expires) cols.push({ h: t.name + " expires", w: 14, t: "d" }); });
+      cols = cols.concat([{ h: "Vehicles", w: 9 }, { h: "Vehicle papers", w: 18 }, { h: "Jump bag check", w: 18 }, { h: "Last bag check", w: 16, t: "dt" }, { h: "Expired bag items", w: 30, t: "w" }, { h: "Everything to fix", w: 60, t: "w" }]);
+      var rows = S.users.map(function(u){
+        var o = overallFor(u), r = [u.unit, u.name || "", o.label, o.iss.length];
+        ts.forEach(function(t){ var rec = S.allRecords[recKey(u.uid, t.id)]; r.push(recStatus(rec, t).lbl); if (t.expires) r.push(rec && rec.expires ? ymdDate(rec.expires) : ""); });
+        var vs = S.allVehicles.filter(function(v){ return v.uid === u.uid; }), vbad = 0;
+        vs.forEach(function(v){ docTypes("vehicle").forEach(function(t){ var l = recStatus(S.allRecords[recKey("v_" + v.id, t.id)], t).lvl; if (l === "bad" || l === "warn") vbad++; }); });
+        var b = S.allBags[u.uid], bs = bagRequired(u) || b ? bagState(b).lbl : "Not required";
+        var exp = bagExpRows(u.uid).filter(function(x){ return x.st.k === "expired"; }).map(function(x){ return x.item; }).join(", ");
+        return r.concat([vs.length, vs.length ? (vbad ? vbad + " need attention" : "OK") : "", bs, b ? msDate(b.lastAt) : "", exp, o.iss.map(function(i){ return i.text; }).join("\n")]);
+      });
+      return { name: "Member compliance", cols: cols, rows: rows };
+    } },
+  expiring: { icon: "⏳", title: "Expired & expiring", desc: "Everything that's expired or expires within the next N days: documents, vehicles, agency vehicles, jump bag items.", days: true,
+    build: async function(days){
+      var rows = [], lim = days;
+      function add(unit, name, cat, item, ymd){ if (!ymd) return; var d = daysUntil(ymd); if (d > lim) return; rows.push([unit, name, cat, item, ymdDate(ymd), d, d < 0 ? "Expired" : "Expiring"]); }
+      S.users.forEach(function(u){
+        docTypes("member").forEach(function(t){ var rec = S.allRecords[recKey(u.uid, t.id)]; if (t.expires && rec && rec.status !== "na") add(u.unit, u.name || "", t.cat === "certification" ? "Certification" : "Document", t.name, rec.expires); });
+        S.allVehicles.filter(function(v){ return v.uid === u.uid; }).forEach(function(v){ docTypes("vehicle").forEach(function(t){ var rec = S.allRecords[recKey("v_" + v.id, t.id)]; if (rec) add(u.unit, u.name || "", "Personal vehicle", vTitle(v) + " — " + t.name, rec.expires); }); });
+        var dates = (bagExpFor(u.uid).dates) || {};
+        (S.settings.expItems || []).forEach(function(n){ add(u.unit, u.name || "", "Jump bag item", n, dates[n]); });
+      });
+      orgVehicles().forEach(function(v){ docTypes("vehicle").forEach(function(t){ var rec = S.allRecords[recKey("org_" + v.id, t.id)]; if (rec) add("Agency", "", "Agency vehicle", vName(v) + " — " + t.name, rec.expires); }); });
+      rows.sort(function(a, b){ return a[5] - b[5]; });
+      return { name: "Expired & expiring", cols: [{ h: "Unit", w: 9 }, { h: "Name", w: 22 }, { h: "Type", w: 16 }, { h: "Item", w: 36 }, { h: "Expires", w: 12, t: "d" }, { h: "Days left", w: 10 }, { h: "Status", w: 11 }], rows: rows };
+    } },
+  bagchecks: { icon: "🎒", title: "Jump bag checks", desc: "Every jump bag check in a date range, with anything missing, failed checks and notes.", range: true,
+    build: async function(from, to){
+      var q = await db.collection("trk_bagChecks").where("at", ">=", from).get(), rows = [];
+      q.forEach(function(d){ var x = d.data(); if (x.at > to) return; var u = userByUid(x.uid) || {};
+        rows.push([msDate(x.at), x.unit || u.unit || "", u.name || "", (x.missing || []).length ? "Problems" : "All OK", (x.missing || []).map(function(m){ return m.n + (m.note ? " (" + m.note + ")" : ""); }).join("\n"), (x.sectionNotes || []).map(function(n){ return n.s + ": " + n.note; }).join("\n") || x.notes || ""]); });
+      rows.sort(function(a, b){ return b[0] - a[0]; });
+      return { name: "Jump bag checks", cols: [{ h: "Date", w: 16, t: "dt" }, { h: "Unit", w: 9 }, { h: "Name", w: 22 }, { h: "Result", w: 10 }, { h: "Missing / failed", w: 50, t: "w" }, { h: "Notes", w: 40, t: "w" }], rows: rows };
+    } },
+  rigchecks: { icon: "🚑", title: "Rig checks", desc: "Every rig check in a date range: who, mileage, fuel, problems and notes.", range: true,
+    build: async function(from, to){
+      var q = await db.collection("trk_rigChecks").where("at", ">=", from).get(), rows = [];
+      q.forEach(function(d){ var x = d.data(); if (x.at > to) return;
+        rows.push([msDate(x.at), x.rig || x.vehicleId, x.unit || "", x.mileage || "", x.fuel || "", (x.problems || []).length ? "Problems" : "All OK", (x.problems || []).map(function(m){ return m.n + (m.note ? " (" + m.note + ")" : ""); }).join("\n"), x.notes || ""]); });
+      rows.sort(function(a, b){ return b[0] - a[0]; });
+      return { name: "Rig checks", cols: [{ h: "Date", w: 16, t: "dt" }, { h: "Rig", w: 10 }, { h: "Checked by", w: 11 }, { h: "Mileage", w: 10 }, { h: "Fuel", w: 9 }, { h: "Result", w: 10 }, { h: "Problems", w: 50, t: "w" }, { h: "Notes", w: 40, t: "w" }], rows: rows };
+    } },
+  vehicles: { icon: "🚗", title: "Vehicles", desc: "Members' vehicles and agency vehicles with plate, VIN and insurance / registration expiry.",
+    build: async function(){
+      var vt = docTypes("vehicle"), cols = [{ h: "Owner", w: 9 }, { h: "Name", w: 22 }, { h: "#", w: 4 }, { h: "Vehicle", w: 26 }, { h: "Plate", w: 10 }, { h: "State", w: 6 }, { h: "VIN", w: 20 }, { h: "Color", w: 10 }, { h: "Fuel", w: 10 }, { h: "Name on registration", w: 22 }];
+      vt.forEach(function(t){ cols.push({ h: t.name, w: 18 }); cols.push({ h: t.name + " expires", w: 13, t: "d" }); });
+      var rows = [];
+      S.allVehicles.slice().sort(function(a, b){ return unitNum(a.unit) - unitNum(b.unit) || (a.slot || 9) - (b.slot || 9); }).forEach(function(v){
+        var u = userByUid(v.uid) || {}, r = [v.unit, u.name || "", v.slot || "", vTitle(v), v.plate || "", v.regState || "", v.vin || "", v.color || "", v.fuel || "", v.regName || ""];
+        vt.forEach(function(t){ var rec = S.allRecords[recKey("v_" + v.id, t.id)]; r.push(recStatus(rec, t).lbl); r.push(rec && rec.expires ? ymdDate(rec.expires) : ""); });
+        rows.push(r);
+      });
+      orgVehicles().forEach(function(v){
+        var r = ["Agency", "", "", vName(v), "", "", "", "", "", ""];
+        vt.forEach(function(t){ var rec = S.allRecords[recKey("org_" + v.id, t.id)]; r.push(recStatus(rec, t).lbl); r.push(rec && rec.expires ? ymdDate(rec.expires) : ""); });
+        rows.push(r);
+      });
+      return { name: "Vehicles", cols: cols, rows: rows };
+    } },
+  uniforms: { icon: "👕", title: "Uniform sizes", desc: "Each member's shirt and jacket size for this year and last year.",
+    build: async function(){
+      var y = thisYear();
+      return { name: "Uniform sizes", cols: [{ h: "Unit", w: 9 }, { h: "Name", w: 22 }, { h: "Shirt " + y, w: 11 }, { h: "Jacket " + y, w: 11 }, { h: "Shirt " + (y - 1), w: 11 }, { h: "Jacket " + (y - 1), w: 11 }],
+        rows: S.users.map(function(u){ var p = S.profiles[u.uid] || {}; return [u.unit, u.name || "", sizeFor(p.shirt, y), sizeFor(p.jacket, y), sizeFor(p.shirt, y - 1), sizeFor(p.jacket, y - 1)]; }) };
+    } }
+};
+function adminReports(){
+  var t = todayStr(), m = new Date(); m.setDate(m.getDate() - 30);
+  var from = S.repFrom || (m.getFullYear() + "-" + pad(m.getMonth() + 1) + "-" + pad(m.getDate())), to = S.repTo || t;
+  var h = '<div class="card"><div class="row"><div class="grow"><h3 style="margin:0">📊 Compliance reports</h3><div class="muted">Pick a report to see it here, or download it as an Excel file.</div></div>'
+    + '<button class="btn gold" onclick="App.repAll()">⬇ Everything (one Excel file)</button></div>'
+    + '<div class="row" style="margin-top:10px">'
+    + '<div><label for="rep-from" style="margin-top:0">Checks from</label><input id="rep-from" type="date" value="' + esc(from) + '" onchange="App.repDates()"></div>'
+    + '<div><label for="rep-to" style="margin-top:0">to</label><input id="rep-to" type="date" value="' + esc(to) + '" onchange="App.repDates()"></div>'
+    + '<div><label for="rep-days" style="margin-top:0">Expiring within (days)</label><input id="rep-days" type="number" min="0" max="365" style="width:110px" value="' + esc(S.repDays || 60) + '" onchange="App.repDates()"></div></div></div>';
+  h += '<div class="docs">' + Object.keys(REPORTS).map(function(k){
+    var r = REPORTS[k];
+    return '<div class="card"><h3>' + r.icon + ' ' + esc(r.title) + '</h3><div class="muted" style="min-height:2.8em">' + esc(r.desc) + (r.range ? " (uses the dates above)" : r.days ? " (uses the days above)" : "") + '</div>'
+      + '<div class="row" style="margin-top:10px"><button class="btn sm" onclick="App.repView(\'' + k + '\')">👁 View</button><button class="btn gold sm" onclick="App.repXlsx(\'' + k + '\')">⬇ Excel</button></div></div>';
+  }).join("") + '</div>';
+  h += '<div id="rep-out">' + (S.repHtml || "") + '</div>';
+  return h;
+}
+function repArgs(k){
+  var r = REPORTS[k];
+  if (r.range){ var a = ymdDate(S.repFrom || $("rep-from").value), b = ymdDate(S.repTo || $("rep-to").value); if (!a || !b) throw new Error("Pick both dates"); if (a > b){ var x = a; a = b; b = x; } return [a.getTime(), b.getTime() + 86399999]; }
+  if (r.days) return [Math.max(0, parseInt(S.repDays || 60, 10) || 0)];
+  return [];
+}
+function repDates(){ S.repFrom = $("rep-from").value; S.repTo = $("rep-to").value; S.repDays = $("rep-days").value; }
+async function repBuild(k){ repDates(); var r = REPORTS[k]; return r.build.apply(null, repArgs(k)); }
+function repCell(v, c){
+  if (v instanceof Date) return c.t === "d" ? pad(v.getMonth() + 1) + "/" + pad(v.getDate()) + "/" + v.getFullYear() : fmtTs(v.getTime());
+  return esc(v == null ? "" : v).replace(/\n/g, "<br>");
+}
+async function repView(k){
+  try {
+    toast("Building the report…");
+    var sh = await repBuild(k), r = REPORTS[k];
+    var stamp = smsStamp();
+    S.repHtml = '<div class="card report" id="rep-print"><div class="row"><div class="grow"><h3 style="margin:0">' + r.icon + ' ' + esc(sh.name) + '</h3><div class="muted">' + esc(orgName()) + ' · ' + esc(stamp) + ' · ' + sh.rows.length + ' row' + (sh.rows.length === 1 ? "" : "s") + '</div></div>'
+      + '<button class="btn sm" onclick="App.repPrint()">🖨 Print</button><button class="btn gold sm" onclick="App.repXlsx(\'' + k + '\')">⬇ Excel</button></div>'
+      + '<div class="tbl-wrap" style="margin-top:10px"><table><thead><tr>' + sh.cols.map(function(c){ return '<th>' + esc(c.h) + '</th>'; }).join("") + '</tr></thead><tbody>'
+      + (sh.rows.length ? sh.rows.map(function(row){ return '<tr>' + row.map(function(v, i){ var c = sh.cols[i] || {}; var cls = /^(Not compliant|Expired|Missing|Problems|Never checked|Needs a new copy)/.test(String(v)) ? ' class="rep-bad"' : /^(Expiring|Expires in|Due)/.test(String(v)) ? ' class="rep-warn"' : ""; return '<td' + cls + (c.t === "w" ? ' style="white-space:normal;min-width:220px"' : '') + '>' + repCell(v, c) + '</td>'; }).join("") + '</tr>'; }).join("")
+        : '<tr><td colspan="' + sh.cols.length + '" class="muted">Nothing to report.</td></tr>')
+      + '</tbody></table></div></div>';
+    $("rep-out").innerHTML = S.repHtml;
+    $("rep-out").scrollIntoView({ behavior: "smooth", block: "start" });
+  } catch (e){ toast("⚠ Couldn't build the report: " + e.message, 6000); }
+}
+function repFileName(name){ return (orgName() + " " + name + " " + todayStr()).replace(/[^\w\- ]+/g, "").replace(/\s+/g, "-") + ".xlsx"; }
+async function repXlsx(k){
+  try { var sh = await repBuild(k); await hzSaveFile(hzXlsxBlob([sh]), repFileName(sh.name)); toast("✓ Downloaded " + sh.name); }
+  catch (e){ toast("⚠ Couldn't make the file: " + e.message, 6000); }
+}
+async function repAll(){
+  try {
+    toast("Building all reports…");
+    var sheets = [];
+    for (var k in REPORTS) sheets.push(await repBuild(k));
+    await hzSaveFile(hzXlsxBlob(sheets), repFileName("Compliance report"));
+    toast("✓ Downloaded the full compliance report");
+  } catch (e){ toast("⚠ Couldn't make the file: " + e.message, 6000); }
+}
+function repPrint(){ document.body.classList.add("printing-report"); window.print(); setTimeout(function(){ document.body.classList.remove("printing-report"); }, 500); }
+
+/* ════════════════════════════════════════════════════════════════════════
+   MODAL
+   ════════════════════════════════════════════════════════════════════════ */
+function openModal(title, body, foot){ $("m-title").textContent = title; $("m-body").innerHTML = body; $("m-foot").innerHTML = foot || ""; $("modal-bg").hidden = false; $("m-body").scrollTop = 0; }
+function closeModal(){ $("modal-bg").hidden = true; $("m-body").innerHTML = ""; S.check = null; }
+$("modal-bg").addEventListener("click", function(e){ if (e.target === this && !S.check) closeModal(); });
+document.addEventListener("keydown", function(e){ if (e.key === "Escape"){ if (!$("panel").hidden) closePanel(); else if (!$("modal-bg").hidden && !S.check) closeModal(); } });
+// re-check due dates every 10 minutes while open
+setInterval(function(){ if (S.me) render(); }, 600000);
+
+/* ════════════════════════════════════════════════════════════════════════
+   Everything the page's buttons call (onclick handlers need these on window)
+   ════════════════════════════════════════════════════════════════════════ */
+window.App = {
+  signIn: signIn, signOut: signOut, togglePw: togglePw, forgotPw: forgotPw, setTab: setTab, openPanel: openPanel, closePanel: closePanel, goNotif: goNotif,
+  goNotifHome: goNotif,
+  openUpload: openUpload, saveUpload: saveUpload, upPick: upPick, upFile: upFile, upRotate: upRotate, upScan: upScan, closeModal: closeModal,
+  addVehicle: addVehicle, editVehicle: editVehicle, saveVehicle: saveVehicle, removeVehicle: removeVehicle,
+  startBagCheck: startBagCheck, bagHistory: bagHistory, startRigCheck: startRigCheck, rigHistory: rigHistory, rigFixed: rigFixed,
+  rigSub: function(s){ S.rigSub = s; render(); },
+  ck: ck, ckSection: ckSection, ckNote: ckNote, ckQ: ckQ, ckSecNote: ckSecNote, saveCheck: saveCheck,
+  adminTab: function(t){ S.adminTab = t; render(); }, goHome: goHome, gridFilter: function(v){ S.gridOnlyProblems = v; render(); },
+  gridCell: gridCell, markNA: markNA, openRecord: openRecord, review: review, deleteRecord: deleteRecord,
+  remindTest: remindTest, sendReminders: sendReminders,
+  repView: repView, repXlsx: repXlsx, repAll: repAll, repDates: repDates, repPrint: repPrint,
+  saveProfile: saveProfile, vfRepl: vfRepl, editBagExp: editBagExp, saveBagExp: saveBagExp, viewBagExp: viewBagExp, phoneTyping: phoneTyping, openProfile: openProfile,
+  addType: addType, resetTemplates: resetTemplates, saveSettings: saveSettings
+};
+window.TRK = { S: S, render: render, memberIssues: memberIssues, recStatus: recStatus, bagState: bagState, rigState: rigState, normUnit: normUnit, smsStamp: smsStamp };
+</script>
+</body>
+</html>
