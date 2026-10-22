@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<meta name="trk-version" content="1.72">
+<meta name="trk-version" content="1.73">
 <meta name="trk-mode" content="desktop">
 <script>
 // 1.58: a phone that opens the computer version (Portal/ = index.html) is sent to the phone version, like CallDashboard
@@ -303,6 +303,10 @@ body.dragging #m-body .drop-hint{color:var(--accent);font-weight:700}
 tr.click-row{cursor:pointer}
 tr.click-row:hover td{background:#f3f7fc}
 .item .exp-cam{flex:0 0 auto;padding:6px 9px}
+.scan-st{font-size:.85rem;margin:6px 0 0;padding:6px 10px;border-radius:6px;background:#eaf2fb;color:#0b3d75}
+.scan-st.ok{background:#e6f4ea;color:#14532d}
+.scan-st.bad{background:#fdecec;color:#8a1c1c}
+.sec .scan-st{margin:0 12px 8px}
 @media (max-width:360px){.item input[type=date]{width:138px!important;padding-left:6px;padding-right:4px}.item .exp-cam{padding:6px 7px}}
 .item .par{color:var(--gray);font-size:.78rem}
 .tog{display:flex;gap:4px}
@@ -417,7 +421,7 @@ td.rep-warn{color:var(--warn);font-weight:700}
     <div class="m-err" id="login-err"></div>
 
     <div style="text-align:center;margin-top:16px"><button class="m-forgot" onclick="App.forgotPw()">Forgot password?</button></div>
-    <div class="m-build">BUILD <span id="li-build">v1.72</span></div>
+    <div class="m-build">BUILD <span id="li-build">v1.73</span></div>
   </div>
 </div>
 <div id="boot" class="empty" style="margin-top:20vh">Signing in…</div>
@@ -497,7 +501,7 @@ function trkSmsPayload(phone, message, unit){
 function trkEmailPayload(email, name, subject, html){ return { to: [{ email: email, name: name || email }], subject: subject, body: html }; }
 
 /* ════════════════════════════════════════════════════════════════════════ */
-var TRK_VERSION = "1.72";
+var TRK_VERSION = "1.73";
 // 1.16: owner asked to block the tracker's notifications for now. While this is true the tracker sends NO texts and
 // NO emails (reminders and test reminders). Sign-in "Forgot password?" still works. Set to false to allow sending again.
 var TRK_SENDING_OFF = true;
@@ -2062,13 +2066,18 @@ async function upScan(){
 }
 // 1.69: a medication's expiry with no day of the month (e.g. "2027-03", "03/2027", "MAR 2027") = the LAST day of that month
 function expDateFrom(raw){
-  var v = String(raw || "").trim().toUpperCase(), y, m, d, M = { JAN:1, FEB:2, MAR:3, APR:4, MAY:5, JUN:6, JUL:7, AUG:8, SEP:9, OCT:10, NOV:11, DEC:12 }, x;
-  if ((x = v.match(/^(\d{4})-(\d{1,2})-(\d{1,2})$/))){ y = +x[1]; m = +x[2]; d = +x[3]; }
-  else if ((x = v.match(/^(\d{1,2})[\/.\-](\d{1,2})[\/.\-](\d{2}|\d{4})$/))){ m = +x[1]; d = +x[2]; y = +x[3]; }
-  else if ((x = v.match(/^(\d{4})[\/.\-](\d{1,2})$/))){ y = +x[1]; m = +x[2]; }
-  else if ((x = v.match(/^(\d{1,2})[\/.\-](\d{2}|\d{4})$/))){ m = +x[1]; y = +x[2]; }
-  else if ((x = v.match(/^([A-Z]{3})[A-Z]*\.?[\s\-\/]*(\d{2}|\d{4})$/)) && M[x[1]]){ m = M[x[1]]; y = +x[2]; }
-  else if ((x = v.match(/^(\d{2}|\d{4})[\s\-\/]*([A-Z]{3})[A-Z]*$/)) && M[x[2]]){ y = +x[1]; m = M[x[2]]; }
+  // 1.73: labels say "EXP 2027-03", "Exp: 03/2027", "USE BY 31 MAR 2027", "2027 MAR"… — find the date anywhere in the text
+  var v = String(raw || "").toUpperCase().replace(/[,:]/g, " ").replace(/\s+/g, " ").trim(), y, m, d, x;
+  var M = { JAN:1, FEB:2, MAR:3, APR:4, MAY:5, JUN:6, JUL:7, AUG:8, SEP:9, SEPT:9, OCT:10, NOV:11, DEC:12 }, MN = "(JAN|FEB|MAR|APR|MAY|JUN|JUL|AUG|SEPT?|OCT|NOV|DEC)[A-Z]*\\.?";
+  function mon(t){ return M[t.replace(/[^A-Z]/g, "").slice(0, 4)] || M[t.replace(/[^A-Z]/g, "").slice(0, 3)]; }
+  if ((x = v.match(/(?:^|\D)(\d{4})[\-\/. ](\d{1,2})[\-\/. ](\d{1,2})(?:\D|$)/))){ y = +x[1]; m = +x[2]; d = +x[3]; }
+  else if ((x = v.match(/(?:^|\D)(\d{1,2})[\-\/. ](\d{1,2})[\-\/. ](\d{4}|\d{2})(?:\D|$)/))){ m = +x[1]; d = +x[2]; y = +x[3]; }
+  else if ((x = v.match(new RegExp("(?:^|\\D)(\\d{1,2}) ?-?" + MN + " ?-?(\\d{4}|\\d{2})(?:\\D|$)")))){ d = +x[1]; m = mon(x[2]); y = +x[3]; }
+  else if ((x = v.match(new RegExp(MN + " ?(\\d{1,2}) (\\d{4})(?:\\D|$)")))){ m = mon(x[1]); d = +x[2]; y = +x[3]; }
+  else if ((x = v.match(/(?:^|\D)(\d{4})[\-\/. ](\d{1,2})(?:\D|$)/))){ y = +x[1]; m = +x[2]; }
+  else if ((x = v.match(/(?:^|\D)(\d{1,2})[\-\/. ](\d{4}|\d{2})(?:\D|$)/))){ m = +x[1]; y = +x[2]; }
+  else if ((x = v.match(new RegExp(MN + " ?-?(\\d{4}|\\d{2})(?:\\D|$)")))){ m = mon(x[1]); y = +x[2]; }
+  else if ((x = v.match(new RegExp("(?:^|\\D)(\\d{4}) ?-?" + MN)))){ y = +x[1]; m = mon(x[2]); }
   else return "";
   if (y < 100) y += 2000;
   if (!(m >= 1 && m <= 12) || y < 2000 || y > 2100) return "";
@@ -2079,24 +2088,33 @@ function expDateFrom(raw){
 }
 // 1.65: 📷 next to each item in an Expiration Dates form — photo of the label → the AI reads the date into the box
 function expScan(btn){
-  var pick = document.createElement("input"); pick.type = "file"; pick.accept = "image/*"; pick.setAttribute("capture", "environment");
-  pick.onchange = async function(){
-    var f = pick.files && pick.files[0]; if (!f) return;
-    var el = $(btn.dataset.id), n = btn.dataset.n, label = btn.textContent; if (!el) return;
-    btn.disabled = true; btn.textContent = label.length > 3 ? "⏳ Reading the label…" : "⏳";
+  // 1.73: the file box is put in the page (iPhones can lose a box that isn't), and what happened is written under the button
+  var old = $("exp-pick"); if (old) old.remove();
+  var pick = document.createElement("input"); pick.type = "file"; pick.accept = "image/*"; pick.id = "exp-pick";
+  pick.setAttribute("capture", "environment"); pick.style.cssText = "position:fixed;left:-9999px;width:1px;height:1px;opacity:0";
+  document.body.appendChild(pick);
+  function note(msg, kind){
+    var host = btn.closest(".item") || btn, st = host.nextElementSibling && host.nextElementSibling.classList.contains("scan-st") ? host.nextElementSibling : null;
+    if (!st){ st = document.createElement("div"); st.className = "scan-st"; host.parentNode.insertBefore(st, host.nextSibling); }
+    st.textContent = msg; st.className = "scan-st " + (kind || "");
+  }
+  pick.addEventListener("change", async function(){
+    var f = pick.files && pick.files[0]; if (!f){ pick.remove(); return; }
+    var el = $(btn.dataset.id), n = btn.dataset.n, label = btn.dataset.lbl || btn.textContent; btn.dataset.lbl = label; if (!el){ pick.remove(); return; }
+    btn.disabled = true; btn.textContent = label.length > 3 ? "⏳ Reading the label…" : "⏳"; note("⏳ Reading the label…");
     try {
       var blob = await shrinkForScan(f, 0);
       var data = await new Promise(function(res, rej){ var r = new FileReader(); r.onload = function(){ res(String(r.result).split(",")[1]); }; r.onerror = rej; r.readAsDataURL(blob); });
-      var r = await callFn("docScan", { docType: "label on " + n + " (medical supply)", mime: "image/jpeg", data: data,
-        fields: [{ key: "expires", label: "Expiration/use-by date exactly as printed, as YYYY-MM-DD, or YYYY-MM if no day is printed" }] });
-      var v = expDateFrom(r && r.fields && r.fields.expires);
-      if (v){ el.value = v; el.classList.add("scanned"); toast("✓ " + n + ": " + fmtDate(v) + (r.matches === false ? " — check it's the right item" : "")); }
-      else toast("Couldn't read a date for " + n + " — try a closer photo, or type it in.", 5000);
+      var r = await callFn("docScan", { docType: "medication / medical supply label (" + n + ")", mime: "image/jpeg", data: data,
+        fields: [{ key: "expires", label: "Expiration or use-by date. Answer YYYY-MM-DD, or YYYY-MM if no day shown" }] });
+      var raw = (r && r.fields && r.fields.expires) || "", v = expDateFrom(raw);
+      if (v){ el.value = v; el.classList.add("scanned"); note("✓ Read " + fmtDate(v) + (/^\d{4}-\d{2}$/.test(String(raw).trim()) || !/\d{1,2}[\-\/. ]\d{1,2}[\-\/. ]\d{2,4}|\d{4}-\d{2}-\d{2}/.test(raw) ? " (no day on the label — last day of the month)" : "") + " — check it, then Save.", "ok"); }
+      else note(raw ? "Read \"" + raw + "\" but couldn't make a date of it — type it in." : "Couldn't find a date on that photo — get closer to the EXP date, in good light, and try again (or type it in).", "bad");
     } catch (e){
-      toast(/404|Failed to fetch|not.?found/i.test(e.message) ? "Scanning isn't set up on the server yet — type the date in." : "Couldn't scan (" + e.message + ") — type the date in.", 6000);
+      note(/404|Failed to fetch|not.?found/i.test(e.message) ? "Scanning isn't set up on the server yet — type the date in." : /exhausted|Too many/i.test(e.message) ? "Too many scans this hour — try again later, or type it in." : "Couldn't scan (" + e.message + ") — type the date in.", "bad");
     }
-    btn.disabled = false; btn.textContent = label;
-  };
+    btn.disabled = false; btn.textContent = label; pick.remove();
+  });
   pick.click();
 }
 async function shrinkForScan(file, rot){
