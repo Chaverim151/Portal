@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<meta name="trk-version" content="1.65">
+<meta name="trk-version" content="1.67">
 <meta name="trk-mode" content="mobile">
 <script>
 // 1.58: a phone that opens the computer version (Portal/ = index.html) is sent to the phone version, like CallDashboard
@@ -293,7 +293,10 @@ body.dragging #m-body .drop-hint{color:var(--accent);font-weight:700}
 .sec-h b{flex:1;color:var(--accent)}
 .item{display:flex;align-items:center;gap:8px;padding:8px 12px;border-top:1px solid var(--line)}
 .item .nm{flex:1;font-size:.92rem}
+tr.click-row{cursor:pointer}
+tr.click-row:hover td{background:#f3f7fc}
 .item .exp-cam{flex:0 0 auto;padding:6px 9px}
+@media (max-width:360px){.item input[type=date]{width:138px!important;padding-left:6px;padding-right:4px}.item .exp-cam{padding:6px 7px}}
 .item .par{color:var(--gray);font-size:.78rem}
 .tog{display:flex;gap:4px}
 .tog button{width:46px;height:38px;border-radius:6px;border:1px solid var(--field);background:#fff;color:var(--gray);font-weight:800;box-shadow:inset 0 0 0 1px rgba(31,35,40,.32)}
@@ -331,12 +334,29 @@ tbody tr:hover{background:var(--soft)}
 
 td.rep-bad{color:var(--bad);font-weight:700}
 td.rep-warn{color:var(--warn);font-weight:700}
+.rep-bad{color:var(--bad);font-weight:700} .rep-warn{color:var(--warn);font-weight:700} .rep-ok{color:var(--ok,#1a7f37)} .rep-na{color:var(--gray)}
+/* 1.67: report table — short rows, top-aligned, Unit + Name stay in view when scrolling sideways */
+.rep-wrap{max-height:70vh;overflow:auto}
+.rep-tbl td,.rep-tbl th{vertical-align:top}
+.rep-tbl th{white-space:normal;min-width:90px;max-width:150px;line-height:1.25}
+.rep-tbl td{max-width:220px;white-space:normal}
+.rep-tbl td.rep-wide{min-width:200px}
+.rep-tbl td.rep-lines{min-width:190px}
+.rep-tbl .rep-sub{font-size:.78rem;color:var(--gray);font-weight:400;margin-top:2px}
+.rep-tbl td b + .rep-sub{white-space:nowrap}
+.rep-fold summary{cursor:pointer;white-space:nowrap}
+.rep-fold ul{margin:6px 0 0;padding-left:18px;font-weight:400;color:var(--text);font-size:.82rem;min-width:240px}
+.rep-tbl .pin1,.rep-tbl .pin2{position:sticky;background:#fff;z-index:1}
+.rep-tbl th.pin1,.rep-tbl th.pin2{z-index:3;background:var(--soft2)}
+.rep-tbl .pin1{left:0;min-width:70px} .rep-tbl .pin2{left:70px;min-width:110px;box-shadow:1px 0 0 var(--line)}
+.rep-tbl tbody tr:nth-child(even) td{background:#f7f9fb}
 @media print{
   body.printing-report > *:not(#app){display:none!important}
   body.printing-report #topbar,body.printing-report #pagehead,body.printing-report #banner,body.printing-report .admin-tabbar,body.printing-report .admin-subtabs{display:none!important}
   body.printing-report #view > *:not(#rep-out){display:none!important}
   body.printing-report .report button{display:none!important}
-  body.printing-report .tbl-wrap{overflow:visible;border:none}
+  body.printing-report .tbl-wrap{overflow:visible;border:none;max-height:none}
+  body.printing-report .rep-tbl .pin1,body.printing-report .rep-tbl .pin2{position:static;box-shadow:none}
   body.printing-report th{position:static}
   body.printing-report td,body.printing-report th{font-size:9pt;white-space:normal}
 }
@@ -390,7 +410,7 @@ td.rep-warn{color:var(--warn);font-weight:700}
     <div class="m-err" id="login-err"></div>
 
     <div style="text-align:center;margin-top:16px"><button class="m-forgot" onclick="App.forgotPw()">Forgot password?</button></div>
-    <div class="m-build">BUILD <span id="li-build">v1.65</span></div>
+    <div class="m-build">BUILD <span id="li-build">v1.67</span></div>
   </div>
 </div>
 <div id="boot" class="empty" style="margin-top:20vh">Signing in…</div>
@@ -470,7 +490,7 @@ function trkSmsPayload(phone, message, unit){
 function trkEmailPayload(email, name, subject, html){ return { to: [{ email: email, name: name || email }], subject: subject, body: html }; }
 
 /* ════════════════════════════════════════════════════════════════════════ */
-var TRK_VERSION = "1.65";
+var TRK_VERSION = "1.67";
 // 1.16: owner asked to block the tracker's notifications for now. While this is true the tracker sends NO texts and
 // NO emails (reminders and test reminders). Sign-in "Forgot password?" still works. Set to false to allow sending again.
 var TRK_SENDING_OFF = true;
@@ -695,8 +715,14 @@ function recKey(owner, type){ return owner + "__" + type; }
 // 1.64: things an admin says one user doesn't need — settings.exceptions[uid] = { docs: [typeIds, incl. imm_<id>], items: ["Section::Item"] }
 function exceptionsOf(uid){ var x = ((S.settings || {}).exceptions || {})[uid] || {}; return { docs: x.docs || [], items: x.items || [] }; }
 function isExempt(owner, typeId){ return !!owner && exceptionsOf(owner).docs.indexOf(typeId) !== -1; }
+// 1.67: "only for users I turn it on for" documents (e.g. Emergency Light Permit — not everyone is issued one).
+// Off for everyone until an admin turns it on on the user's page (settings.optIn[uid] = [typeIds]); then it's required.
+function isOptIn(t){ return !!t && t.scope === "member" && (t.optIn != null ? !!t.optIn : t.id === "elp"); }
+function optInOf(uid){ return (((S.settings || {}).optIn || {})[uid]) || []; }
+function optedOut(owner, t){ return !!owner && isOptIn(t) && optInOf(owner).indexOf(t.id) < 0; }
 function recStatus(rec, type, owner){
   if (owner && type && isExempt(owner, type.id)) return { k: "na", lbl: "Not required", lvl: "na" };
+  if (optedOut(owner, type)) return { k: "na", lbl: "Not required", lvl: "na" };
   if (!rec) return type && type.required === false ? { k: "na", lbl: "Optional — not uploaded", lvl: "na" } : { k: "missing", lbl: "Missing", lvl: "bad" };
   if (rec.status === "na") return { k: "na", lbl: "Not required", lvl: "na" };
   if (rec.status === "rejected") return { k: "rejected", lbl: "Needs a new copy", lvl: "bad" };
@@ -814,7 +840,15 @@ async function saveRigExp(vid){
 function bagExpFor(uid){ return uid === (S.me && S.me.uid) ? (S.myBagExp || {}) : (S.allBagExp[uid] || {}); }
 // 1.27: bags an admin gives a member — settings.bagAssign[uid] = { extra: [{id, name}] (more personal bags), fleet: [Fleet bag ids] (bags they look after)
 // 1.46: nobody has a personal jump bag by default — an admin gives one (primary: true) in 🎒 Assign bags. Agency vehicle bags are unchanged.
-function bagAssignOf(uid){ var a = ((S.settings || {}).bagAssign || {})[uid] || {}; return { primary: !!a.primary, extra: (a.extra || []).filter(function(x){ return x && x.id && x.name; }), fleet: (a.fleet || []).filter(Boolean), rigs: (a.rigs || []).filter(Boolean) }; }
+// 1.66: agency equipment is looked after by LOGISTICS members only. "rigs" = the agency vehicles they look after (any
+// vehicle — ambulance, ERV…; a vehicle brings its jump bags with it); "fleet" as stored = agency bags that aren't on any vehicle.
+// bagAssignOf(uid).fleet is the EFFECTIVE bag list (vehicles' bags + loose bags), empty for non-logistics; .fleetRaw is what's saved.
+function bagAssignOf(uid){
+  var a = ((S.settings || {}).bagAssign || {})[uid] || {}, rigs = (a.rigs || []).filter(Boolean), raw = (a.fleet || []).filter(Boolean);
+  var u = userByUid(uid) || (S.me && S.me.uid === uid ? S.me : null), eff = [];
+  if (u && isLogi(u)) agencyBags().forEach(function(b){ var v = bagVehicle(b); if (v ? rigs.indexOf(v.id) >= 0 : raw.indexOf(b.id) >= 0) eff.push(b.id); });
+  return { primary: !!a.primary, extra: (a.extra || []).filter(function(x){ return x && x.id && x.name; }), fleet: eff, fleetRaw: raw, rigs: rigs };
+}
 function personalBagStatus(uid, bid){ var d = uid === (S.me && S.me.uid) ? S.myBag : S.allBags[uid]; return bid ? ((d && d.bags && d.bags[bid]) || null) : d; }
 function personalBagName(uid, bid){ if (!bid) return "Primary Bag"; var x = bagAssignOf(uid).extra.filter(function(e){ return e.id === bid; })[0]; return x ? x.name : "Bag"; }
 function bagDatesOf(uid, bid){ var e = bagExpFor(uid); return bid ? ((e.bagDates || {})[bid] || null) : (e.updatedAt ? (e.dates || {}) : null); }
@@ -2732,15 +2766,14 @@ function openProfile(uid){
     '<span class="grow muted" id="apf-msg"></span><button class="btn" onclick="App.closeModal()">Cancel</button><button class="btn gold" data-uid="' + esc(uid) + '" onclick="App.saveProfile(this.dataset.uid)">💾 Save</button>');
 }
 function adminProfiles(){
-  var y = thisYear(), h = '<p class="muted">The uniform order (how many of each size) is in 📊 Reports ▸ 👕 Uniform order.</p>';   // 1.57
-  h += '<div class="tbl-wrap"><table><thead><tr><th>Unit</th><th>Name</th><th>Date of birth</th><th>Cell</th><th>Home address</th><th>Emergency contact</th><th class="c">Shirt</th><th class="c">Jacket</th><th></th></tr></thead><tbody>';
+  var y = thisYear(), h = '<p class="muted">Click a user to open their page — everything for that user (details, documents, bags, exceptions) is done there. The uniform order is in 📊 Reports ▸ 👕 Uniform order.</p>';   // 1.57
+  h += '<div class="tbl-wrap"><table><thead><tr><th>Unit</th><th>Name</th><th>Date of birth</th><th>Cell</th><th>Home address</th><th>Emergency contact</th><th class="c">Shirt</th><th class="c">Jacket</th></tr></thead><tbody>';
   S.users.forEach(function(u){
     var p = S.profiles[u.uid] || {}, a = p.home || {}, ec = p.emergency || {};
-    h += '<tr><td>' + memberLink(u) + '</td><td>' + esc(u.name || "") + '</td><td>' + (p.dob ? fmtDate(p.dob) : '<span class="muted">—</span>') + '</td><td>' + esc(fmtPhone(u.phone)) + '</td>'
+    h += '<tr class="click-row" data-uid="' + esc(u.uid) + '" onclick="App.openMember(this.dataset.uid)" title="Open ' + esc(u.unit) + '"><td>' + memberLink(u) + '</td><td>' + esc(u.name || "") + '</td><td>' + (p.dob ? fmtDate(p.dob) : '<span class="muted">—</span>') + '</td><td>' + esc(fmtPhone(u.phone)) + '</td>'
       + '<td>' + (a.line1 ? esc(a.line1 + (a.city ? ", " + a.city : "") + (a.state ? " " + a.state : "")) : '<span class="muted">—</span>') + '</td>'
       + '<td>' + (ec.first || ec.last ? esc((ec.first + " " + ec.last).trim() + (ec.relationship ? " (" + ec.relationship + ")" : "")) + '<br><span class="muted">' + esc(ec.cell || ec.home || "") + '</span>' : '<span class="muted">—</span>') + '</td>'
-      + '<td class="c">' + esc(sizeFor(p.shirt, y) || "—") + '</td><td class="c">' + esc(sizeFor(p.jacket, y) || "—") + '</td>'
-      + '<td><button class="btn sm" data-uid="' + esc(u.uid) + '" onclick="App.openProfile(this.dataset.uid)">Open</button></td></tr>';
+      + '<td class="c">' + esc(sizeFor(p.shirt, y) || "—") + '</td><td class="c">' + esc(sizeFor(p.jacket, y) || "—") + '</td></tr>';
   });
   return h + '</tbody></table></div>';
 }
@@ -2753,7 +2786,7 @@ var ADMIN_SETTINGS_TABS = ["rigcl", "bagcl", "docs", "imm", "timing", "msg"];
 // 1.41: grouped like CallDashboard's admin — main tabs, each with its own sub-tabs. The sub-tab ids (S.adminTab) didn't change.
 var DATES_IN_CHECKS = false;   // 1.42
 var ADMIN_GROUPS = [
-  ["members", "👥 Users", [["grid", "Compliance"], ["profiles", "Profiles"], ["remind", "Reminders"]]],
+  ["members", "👥 Users", [["grid", "Compliance"], ["profiles", "Users"], ["remind", "Reminders"]]],
   ["review", "📥 Review", [["review", "Review"]]],
   ["fleet", "🚑 Vehicles & Bags", [["paper", "Agency Paperwork"], ["bags", "Jump Bags"]]],
   ["reports", "📊 Reports", [["reports", "Reports"]]],
@@ -2798,7 +2831,7 @@ function bagExemptSave(uid){
 }
 // 1.47: + Add bag / Remove on the admin member page. The first bag is the member's Primary Bag; more get their own name.
 function saveBagAssign(uid, a, msg){
-  var all = Object.assign({}, S.settings.bagAssign || {}); all[uid] = { primary: !!a.primary, extra: a.extra || [], fleet: a.fleet || [], rigs: a.rigs || [] };
+  var all = Object.assign({}, S.settings.bagAssign || {}); all[uid] = { primary: !!a.primary, extra: a.extra || [], fleet: a.fleetRaw || [], rigs: a.rigs || [] };
   return db.collection("trk_settings").doc("main").set({ bagAssign: all, updatedAt: Date.now(), updatedBy: S.me.unit || "" }, { merge: true })
     .then(function(){ closeModal(); toast(msg || "✓ Saved"); }).catch(function(e){ toast("⚠ Not saved: " + e.message, 6000); });
 }
@@ -2822,7 +2855,7 @@ function addBagSave(uid){
 function removeBag(uid, bid, fid, rid){
   var a = bagAssignOf(uid), u = userByUid(uid), nm;
   if (rid){ nm = rigNameOf(rid); if (!confirm(u.unit + " stops looking after " + nm + "?")) return; a.rigs = a.rigs.filter(function(x){ return x !== rid; }); }
-  else if (fid){ var fv = fleetBagById(fid); nm = fv ? bagLabel(fv) : fid; if (!confirm(u.unit + " stops looking after " + nm + "?")) return; a.fleet = a.fleet.filter(function(x){ return x !== fid; }); }
+  else if (fid){ var fv = fleetBagById(fid); nm = fv ? bagLabel(fv) : fid; if (!confirm(u.unit + " stops looking after " + nm + "?")) return; a.fleetRaw = a.fleetRaw.filter(function(x){ return x !== fid; }); }
   else {
     nm = personalBagName(uid, bid || "");
     if (!confirm("Remove " + nm + " from " + u.unit + "? Its past checks are kept.")) return;
@@ -2835,7 +2868,7 @@ function editExceptions(uid){
   var u = userByUid(uid); if (!u) return;
   var exc = exceptionsOf(uid);
   function box(val, label, on){ return '<label class="imm-chk"><input type="checkbox" class="exc-c" value="' + esc(val) + '"' + (on ? " checked" : "") + '> ' + esc(label) + '</label>'; }
-  var docs = docTypes("member").filter(function(t){ return t.cat !== "immunization"; }), ims = immTypes();
+  var docs = docTypes("member").filter(function(t){ return t.cat !== "immunization" && !isOptIn(t); }), ims = immTypes();
   var b = '<p class="muted">Ticked items stop counting for ' + esc(u.unit) + ' — shown as "Not required", no reminders. Bag items are left out of their personal bag check.</p>'
     + '<h3>📄 Documents</h3><div class="imm-chks">' + docs.map(function(t){ return box(t.id, t.name, exc.docs.indexOf(t.id) !== -1); }).join("") + '</div>'
     + (ims.length ? '<h3 style="margin-top:12px">💉 Immunizations</h3><div class="imm-chks">' + ims.map(function(t){ return box(t.id, t.name, exc.docs.indexOf(t.id) !== -1); }).join("") + '</div>' : '')
@@ -2844,6 +2877,14 @@ function editExceptions(uid){
       }).join("");
   openModal("🚫 Not required — " + u.unit + (u.name ? " · " + u.name : ""), b,
     '<button class="btn" onclick="App.closeModal()">Cancel</button><button class="btn gold" data-uid="' + esc(uid) + '" onclick="App.saveExceptions(this.dataset.uid)">Save</button>');
+}
+function setOptIn(uid, tid, on){
+  var u = userByUid(uid), t = docTypes("member").filter(function(x){ return x.id === tid; })[0]; if (!u || !t) return;
+  if (!on && !confirm("Turn off " + t.name + " for " + u.unit + "? It will stop being required.")) return;
+  var all = Object.assign({}, S.settings.optIn || {}), cur = (all[uid] || []).filter(function(x){ return x !== tid; });
+  if (on) cur.push(tid); all[uid] = cur;
+  db.collection("trk_settings").doc("main").set({ optIn: all, updatedAt: Date.now(), updatedBy: S.me.unit || "" }, { merge: true })
+    .then(function(){ toast("✓ " + t.name + (on ? " turned on — now required for " : " turned off for ") + u.unit); }).catch(function(e){ toast("⚠ Not saved: " + e.message, 6000); });
 }
 function saveExceptions(uid){
   var docs = [], items = [];
@@ -2862,7 +2903,7 @@ function adminMember(uid){
   var vehs = S.allVehicles.filter(function(v){ return v.uid === uid; }), iss = memberIssues(u, S.allRecords, vehs, S.allBags[uid]);
   var ctx = { owner: uid, unit: u.unit, name: u.name || "" };
   var h = '<div class="row" style="margin-bottom:10px"><button class="btn" onclick="App.openMember(\'\')">← All users</button><span class="grow"></span>'
-    + '<button class="btn" data-uid="' + esc(uid) + '" onclick="App.openProfile(this.dataset.uid)">👤 Edit profile</button>'
+    + '<button class="btn" data-uid="' + esc(uid) + '" onclick="App.openProfile(this.dataset.uid)">👤 Edit user details</button>'
     + '<button class="btn" data-uid="' + esc(uid) + '" onclick="App.assignBags(this.dataset.uid)">🎒 Bags</button></div>';
   h += '<div class="card"><h3 style="margin-bottom:6px">' + esc(u.unit) + (u.name ? ' · ' + esc(u.name) : '') + '</h3>'
     + '<div class="muted" style="margin-bottom:6px">' + esc(rolesOf(u).join(", ")) + '</div><div class="kv">'
@@ -2875,6 +2916,11 @@ function adminMember(uid){
   h += '<div class="card"><h3>What needs fixing</h3>' + (iss.length ? iss.map(function(i){ return '<span class="pill p-' + i.lvl + '" style="margin:2px">' + esc(i.text) + '</span>'; }).join(" ") : '<span class="pill p-ok">✅ All good</span>');
   var rl = S.reminderLog[uid]; h += '<div class="muted" style="margin-top:8px">Last reminder: ' + (rl ? fmtTs(rl.lastAt) + (rl.via ? " (" + esc(rl.via) + ")" : "") : "never") + '</div></div>';
   var exc = exceptionsOf(uid), excNames = exc.docs.map(function(id){ var t = typeById(id); return t ? t.name : id; }).concat(exc.items.map(function(k){ return k.split("::")[1] + " (bag)"; }));
+  var oi = docTypes("member").filter(isOptIn);
+  if (oi.length) h += '<div class="card"><h3 style="margin:0">✅ Turned on for this user</h3><div class="muted" style="margin:4px 0 8px">These are off for everyone until you turn them on. Once on, the user has to upload it.</div>'
+    + oi.map(function(t){ var on = optInOf(uid).indexOf(t.id) >= 0;
+        return '<div class="row" style="margin-top:4px"><span class="grow"><b>' + esc(t.name) + '</b> — ' + (on ? '<span class="pill p-ok">On · required</span>' : '<span class="pill p-na">Off · not required</span>') + '</span>'
+          + '<button class="btn sm' + (on ? '' : ' gold') + '" data-uid="' + esc(uid) + '" data-t="' + esc(t.id) + '" onclick="App.setOptIn(this.dataset.uid, this.dataset.t, ' + (on ? 'false' : 'true') + ')">' + (on ? 'Turn off' : 'Turn on') + '</button></div>'; }).join("") + '</div>';
   h += '<div class="card"><div class="row"><h3 class="grow" style="margin:0">🚫 Not required for this user</h3><button class="btn sm" data-uid="' + esc(uid) + '" onclick="App.editExceptions(this.dataset.uid)">Edit</button></div>'
     + '<div class="muted" style="margin-top:6px">' + (excNames.length ? esc(excNames.join(" · ")) : 'Nothing — every document, immunization and bag item applies.') + '</div></div>';
   h += '<h2>📄 Documents & Certifications</h2>' + docTable(uid, docTypes("member").filter(function(t){ return t.cat !== "immunization"; }), S.allRecords, ctx);
@@ -2903,9 +2949,14 @@ function adminMember(uid){
   asg.fleet.map(fleetBagById).filter(Boolean).forEach(function(v){
     var bs = S.allBags["org_" + v.id], orows = obExpRows(v.id);
     h += '<div class="card"><div class="row"><h3 class="grow" style="margin:0">🧰 ' + esc(bagLabel(v)) + ' <span class="muted" style="font-weight:400">(looks after)</span></h3>' + pillFor(bagState(bs))
-      + '<button class="btn sm" data-uid="' + esc(uid) + '" data-f="' + esc(v.id) + '" onclick="App.removeBag(this.dataset.uid, null, this.dataset.f)">Remove</button></div>'
+      + (bagVehicle(v) ? '<span class="muted">with ' + esc(vName(bagVehicle(v))) + '</span>' : '<button class="btn sm" data-uid="' + esc(uid) + '" data-f="' + esc(v.id) + '" onclick="App.removeBag(this.dataset.uid, null, this.dataset.f)">Remove</button>') + '</div>'
       + '<div class="muted" style="margin-top:6px">Last checked: <b>' + (bs && bs.lastAt ? fmtTs(bs.lastAt) + (bs.by ? " by " + esc(bs.by) : "") : "Never") + '</b></div>'
       + (orows.length ? expDetails(orows, obExpTable(v.id), 'data-id="' + esc(v.id) + '" onclick="App.editObExp(this.dataset.id)"') : '') + '</div>';
+  });
+  // 1.66: agency vehicles without a vehicle check (ERV…) — just a name + Remove; their bags are listed above
+  if (u && isLogi(u)) orgVehicles().filter(function(v){ return asg.rigs.indexOf(v.id) >= 0 && !lookRigs(u).some(function(r){ return r.id === v.id; }); }).forEach(function(v){
+    h += '<div class="card"><div class="row"><h3 class="grow" style="margin:0">🚑 ' + esc(vName(v)) + ' <span class="muted" style="font-weight:400">(looks after)</span></h3>'
+      + '<button class="btn sm" data-uid="' + esc(uid) + '" data-r="' + esc(v.id) + '" onclick="App.removeBag(this.dataset.uid, null, null, this.dataset.r)">Remove</button></div></div>';
   });
   // 1.65: vehicles this (logistics) member looks after
   lookRigs(u).forEach(function(v){
@@ -3055,7 +3106,7 @@ function viewBagExp(uid){
 function assignBags(uid){
   var u = userByUid(uid); if (!u) return;
   S._asgFleetOnly = false;
-  var a = bagAssignOf(uid); S._asg = { uid: uid, primary: a.primary, extra: a.extra.map(function(x){ return { id: x.id, name: x.name }; }), fleet: a.fleet.slice(), rigs: a.rigs.slice() };
+  var a = bagAssignOf(uid); S._asg = { uid: uid, primary: a.primary, extra: a.extra.map(function(x){ return { id: x.id, name: x.name }; }), fleet: a.fleetRaw.slice(), rigs: a.rigs.slice() };
   drawAssign();
 }
 function drawAssign(){
@@ -3067,24 +3118,20 @@ function drawAssign(){
     + A.extra.map(function(x, i){ return '<div class="row" style="margin-top:6px;flex-wrap:nowrap"><input class="asg-name" data-i="' + i + '" value="' + esc(x.name) + '" placeholder="Bag name, e.g. Peds Bag" oninput="App.asgName(' + i + ',this.value)"><button class="btn red sm" onclick="App.asgDel(' + i + ')">Remove</button></div>'; }).join("")
     + '<button class="btn gold sm" style="margin-top:8px" onclick="App.asgAdd()">+ Add bag</button>';
   if (fleetOnly) b = '';
-  var all = agencyBags();
-  b += '<h2>🧰 Fleet bags to look after</h2><p class="muted" style="margin:0 0 6px">These show on the member\'s Jump Bag page and in their reminders. Anyone can still check them.</p>'
-    + (all.length ? '<div class="row">' + all.map(function(v){ var on = A.fleet.indexOf(v.id) >= 0;
-        return '<label style="margin:0;display:flex;gap:6px;align-items:center;font-weight:400;color:var(--text);border:1px solid var(--line);border-radius:8px;padding:6px 10px"><input type="checkbox" style="width:auto" ' + (on ? "checked " : "") + 'onchange="App.asgFleet(\'' + esc(v.id) + '\',this.checked)"> ' + esc(bagLabel(v)) + '</label>'; }).join("") + '</div>'
-      : '<div class="muted">No jump bags in CallDashboard ▸ Fleet.</div>');
-  var rl = rigList();
-  if (isLogi(u)) b += '<h2>🚑 Vehicles to look after</h2><p class="muted" style="margin:0 0 6px">Their vehicle checks and expiration dates go into this member\'s reminders. Other logistics members can still check them.</p>'
-    + (rl.length ? '<div class="row">' + rl.map(function(v){ var on = A.rigs.indexOf(v.id) >= 0;
-        return '<label style="margin:0;display:flex;gap:6px;align-items:center;font-weight:400;color:var(--text);border:1px solid var(--line);border-radius:8px;padding:6px 10px"><input type="checkbox" class="asg-rig" style="width:auto" ' + (on ? "checked " : "") + 'onchange="App.asgRig(\'' + esc(v.id) + '\',this.checked)"> ' + esc(vName(v)) + '</label>'; }).join("") + '</div>'
-      : '<div class="muted">No ambulances in CallDashboard ▸ Fleet.</div>');
-  else b += '<p class="muted" style="margin-top:12px">🚑 Vehicles can only be given to members with the Logistics role.</p>';
+  var ov = orgVehicles(), loose = agencyBags().filter(function(x){ return !bagVehicle(x); });
+  function chk(cls, fn, id, on, label){ return '<label style="margin:0;display:flex;gap:6px;align-items:center;font-weight:400;color:var(--text);border:1px solid var(--line);border-radius:8px;padding:6px 10px"><input type="checkbox" class="' + cls + '" style="width:auto" ' + (on ? "checked " : "") + 'onchange="App.' + fn + '(\'' + esc(id) + '\',this.checked)"> ' + esc(label) + '</label>'; }
+  if (isLogi(u)){
+    b += '<h2>🚑 Vehicles to look after</h2><p class="muted" style="margin:0 0 6px">Each vehicle comes with its jump bag(s). Their checks and expiration dates go into this member\'s reminders. Other logistics members can still check them.</p>'
+      + (ov.length ? '<div class="row">' + ov.map(function(v){ return chk("asg-rig", "asgRig", v.id, A.rigs.indexOf(v.id) >= 0, vName(v)); }).join("") + '</div>' : '<div class="muted">No vehicles in CallDashboard ▸ Fleet.</div>');
+    if (loose.length) b += '<h2>🧰 Agency bags not on a vehicle</h2><div class="row">' + loose.map(function(v){ return chk("asg-bag", "asgFleet", v.id, A.fleet.indexOf(v.id) >= 0, bagLabel(v)); }).join("") + '</div>';
+  } else b += '<p class="muted" style="margin-top:12px">🚑 Agency vehicles and their bags can only be given to members with the Logistics role.</p>';
   openModal((fleetOnly ? "🧰 Vehicles & bags to look after — " : "🎒 Bags — ") + u.unit + (u.name ? " · " + u.name : ""), b, '<button class="btn" onclick="App.closeModal()">Cancel</button><button class="btn gold" id="asg-save" onclick="App.asgSave()">Save</button>');
 }
 function asgSave(){
   var A = S._asg, extra = A.extra.map(function(x){ return { id: x.id, name: String(x.name || "").trim() }; }).filter(function(x){ return x.name; });
   var names = {}, dup = extra.some(function(x){ var k = x.name.toLowerCase(); if (k === "primary bag" || names[k]) return true; names[k] = 1; return false; });
   if (dup){ toast("Each bag needs its own name (and not \"Primary Bag\")."); return; }
-  var u0 = userByUid(A.uid), all = Object.assign({}, S.settings.bagAssign || {}); all[A.uid] = { primary: !!A.primary, extra: extra, fleet: A.fleet, rigs: isLogi(u0) ? A.rigs : [] };
+  var u0 = userByUid(A.uid), all = Object.assign({}, S.settings.bagAssign || {}); all[A.uid] = { primary: !!A.primary, extra: extra, fleet: isLogi(u0) ? A.fleet.filter(function(id){ var x = fleetBagById(id); return x && !bagVehicle(x); }) : [], rigs: isLogi(u0) ? A.rigs : [] };
   $("asg-save").disabled = true;
   db.collection("trk_settings").doc("main").set({ bagAssign: all, updatedAt: Date.now(), updatedBy: S.me.unit || "" }, { merge: true })
     .then(function(){ closeModal(); toast("✓ Bags saved"); })
@@ -3314,7 +3361,7 @@ function saveDocs(){
     var name = r.querySelector(".t-name").value.trim(); if (!name) return;
     var id = r.querySelector(".t-id").value || name.toLowerCase().replace(/[^a-z0-9]+/g, "").slice(0, 16) || ("t" + Date.now());
     while (used[id]) id += "x"; used[id] = 1;
-    types.push({ id: id, name: name, cat: r.querySelector(".t-cat").value, scope: r.querySelector(".t-scope").value, expires: r.querySelector(".t-exp").checked, number: r.querySelector(".t-num").checked, required: r.querySelector(".t-req").checked });
+    types.push({ id: id, name: name, cat: r.querySelector(".t-cat").value, scope: r.querySelector(".t-scope").value, expires: r.querySelector(".t-exp").checked, number: r.querySelector(".t-num").checked, required: r.querySelector(".t-req").checked, optIn: !!(r.querySelector(".t-opt") || {}).checked });
   });
   if (!types.length){ toast("Keep at least one document type."); return; }
   savePart({ docTypes: types }, "st-msg");
@@ -3427,6 +3474,7 @@ function typeRow(t, i){
     + '<label><input type="checkbox" class="t-exp"' + (t.expires ? " checked" : "") + '> Expires</label>'
     + '<label><input type="checkbox" class="t-num"' + (t.number ? " checked" : "") + '> Number</label>'
     + '<label><input type="checkbox" class="t-req"' + (t.required !== false ? " checked" : "") + '> Required</label>'
+    + '<label title="Off for everyone until you turn it on on a user\'s page (⚙ Admin ▸ 👥 Users ▸ click the user)"><input type="checkbox" class="t-opt"' + (isOptIn(Object.assign({ scope: "member" }, t)) ? " checked" : "") + '> Only users I turn it on for</label>'
     + '<button class="x" title="Remove" onclick="this.parentNode.remove()">✕</button><input type="hidden" class="t-id" value="' + esc(t.id) + '"></div>';
 }
 function bagQText(){
@@ -3447,7 +3495,7 @@ async function saveSettings(){
     var name = r.querySelector(".t-name").value.trim(); if (!name) return;
     var id = r.querySelector(".t-id").value || name.toLowerCase().replace(/[^a-z0-9]+/g, "").slice(0, 16) || ("t" + Date.now());
     while (used[id]) id += "x"; used[id] = 1;
-    types.push({ id: id, name: name, cat: r.querySelector(".t-cat").value, scope: r.querySelector(".t-scope").value, expires: r.querySelector(".t-exp").checked, number: r.querySelector(".t-num").checked, required: r.querySelector(".t-req").checked });
+    types.push({ id: id, name: name, cat: r.querySelector(".t-cat").value, scope: r.querySelector(".t-scope").value, expires: r.querySelector(".t-exp").checked, number: r.querySelector(".t-num").checked, required: r.querySelector(".t-req").checked, optIn: !!(r.querySelector(".t-opt") || {}).checked });
   });
   if (!types.length){ toast("Keep at least one document type."); return; }
   var num = function(id, def){ var n = parseInt($(id).value, 10); return isNaN(n) ? def : n; };
@@ -3549,9 +3597,9 @@ var REPORTS = {
   members: { icon: "👥", title: "User compliance", desc: "Every user: each document (status and expiry), immunizations, vehicles, jump bags and an overall result — problems first.",
     build: async function(){
       var ts = docTypes("member").filter(function(t){ return t.cat !== "immunization"; }), its = immTypes();
-      var cols = [{ h: "Unit", w: 9 }, { h: "Name", w: 22 }, { h: "Overall", w: 15 }, { h: "To fix", w: 8 }]
-        .concat(ts.map(function(t){ return { h: t.name, w: 22 }; }))
-        .concat([{ h: "Immunizations", w: 34, t: "w" }, { h: "Vehicles", w: 22 }, { h: "Jump bags", w: 26 }, { h: "Everything to fix", w: 60, t: "w" }]);
+      var cols = [{ h: "Unit", w: 9, pin: 1 }, { h: "Name", w: 22, pin: 2 }, { h: "Overall", w: 15 }, { h: "To fix", w: 8, foldFrom: 4 + ts.length + 3 }]
+        .concat(ts.map(function(t){ return { h: t.name, w: 22, v: "stack" }; }))
+        .concat([{ h: "Immunizations", w: 34, t: "w", v: "imm" }, { h: "Vehicles", w: 22, v: "stack" }, { h: "Jump bags", w: 26, v: "lines" }, { h: "Everything to fix", w: 60, t: "w", hide: true }]);
       var order = { "Not compliant": 0, "Expiring soon": 1, "Compliant": 2 };
       var rows = S.users.map(function(u){
         var o = overallFor(u), r = [u.unit, u.name || "", o.label, o.iss.length || ""];
@@ -3662,6 +3710,36 @@ function repArgs(k){
 }
 function repDates(){ S.repFrom = $("rep-from").value; S.repTo = $("rep-to").value; S.repDays = $("rep-days").value; }
 async function repBuild(k){ repDates(); var r = REPORTS[k]; return r.build.apply(null, repArgs(k)); }
+// 1.67: how one report cell looks on screen (the Excel file is unchanged) — colours, status over date, long lists folded
+function repCls(v){ v = String(v); return /^(Not compliant|Expired|Missing|Problems|Never checked|Needs a new copy|Overdue|Rejected)/.test(v) ? "rep-bad" : /^(Expiring|Expires in|Due|Waiting)/.test(v) ? "rep-warn" : /^(Valid|Compliant|All on file|All OK|papers OK)/.test(v) ? "rep-ok" : /^(Not required|None|No bag)$/.test(v) ? "rep-na" : ""; }
+function repTd(v, c, row){
+  if (c.hide) return "";
+  var cls = [repCls(v)], pin = c.pin ? "pin" + c.pin : "", h;
+  if (c.foldFrom != null && v){
+    var list = String(row[c.foldFrom] || "").split("\n").filter(Boolean);
+    S.repFix = S.repFix || {}; S.repFix[row[0]] = { name: row[1], list: list };
+    h = '<button class="lnk" data-u="' + esc(row[0]) + '" onclick="App.repFixShow(this.dataset.u)">' + esc(v) + ' item' + (+v === 1 ? '' : 's') + ' ›</button>';
+  } else if (c.v === "stack" && / · /.test(String(v))){
+    var k = String(v).indexOf(" · ");
+    h = '<b>' + esc(String(v).slice(0, k)) + '</b><div class="rep-sub">' + esc(String(v).slice(k + 3)) + '</div>';
+  } else if (c.v === "imm" && /:/.test(String(v))){
+    var parts = String(v).split("\n").map(function(l){ var m = l.indexOf(": "); return { lbl: l.slice(0, m), names: l.slice(m + 2).split(", ") }; });
+    cls = [repCls(parts[0].lbl)];
+    h = '<details class="rep-fold"><summary>' + parts.map(function(x){ return x.names.length + " " + x.lbl.toLowerCase(); }).join(" · ") + '</summary>' + parts.map(function(x){ return '<div class="rep-sub"><b>' + esc(x.lbl) + ':</b> ' + esc(x.names.join(", ")) + '</div>'; }).join("") + '</details>';
+  } else if (c.v === "lines"){
+    h = String(v).split("\n").map(function(l){ var m = l.indexOf(": "); return m < 0 ? '<span class="' + repCls(l) + '">' + esc(l) + '</span>' : '<div>' + esc(l.slice(0, m)) + ': <span class="' + repCls(l.slice(m + 2)) + '">' + esc(l.slice(m + 2)) + '</span></div>'; }).join("");
+    cls = ["rep-lines"];
+  } else h = repCell(v, c);
+  if (c.t === "w" && !c.v) cls.push("rep-wide");
+  if (pin) cls.push(pin);
+  cls = cls.filter(Boolean);
+  return '<td' + (cls.length ? ' class="' + cls.join(" ") + '"' : '') + '>' + h + '</td>';
+}
+function repFixShow(unit){
+  var f = (S.repFix || {})[unit]; if (!f) return; var u = S.users.filter(function(x){ return x.unit === unit; })[0];
+  openModal("To fix — " + unit + (f.name ? " · " + f.name : ""), '<ul style="margin:0;padding-left:20px;line-height:1.6">' + f.list.map(function(x){ return '<li>' + esc(x) + '</li>'; }).join("") + '</ul>',
+    '<button class="btn" onclick="App.closeModal()">Close</button>' + (u ? '<button class="btn gold" data-uid="' + esc(u.uid) + '" onclick="App.closeModal();App.setTab(\'admin\');App.adminTab(\'grid\');App.openMember(this.dataset.uid)">Open ' + esc(unit) + '</button>' : ''));
+}
 function repCell(v, c){
   if (v instanceof Date) return c.t === "d" ? pad(v.getMonth() + 1) + "/" + pad(v.getDate()) + "/" + v.getFullYear() : fmtTs(v.getTime());
   return esc(v == null ? "" : v).replace(/\n/g, "<br>");
@@ -3673,8 +3751,8 @@ async function repView(k){
     var stamp = smsStamp();
     S.repHtml = '<div class="card report" id="rep-print"><div class="row"><div class="grow"><h3 style="margin:0">' + r.icon + ' ' + esc(sh.name) + '</h3><div class="muted">' + esc(orgName()) + ' · ' + esc(stamp) + ' · ' + sh.rows.length + ' row' + (sh.rows.length === 1 ? "" : "s") + '</div></div>'
       + '<button class="btn sm" onclick="App.repPrint()">🖨 Print</button><button class="btn gold sm" onclick="App.repXlsx(\'' + k + '\')">⬇ Excel</button></div>'
-      + '<div class="tbl-wrap" style="margin-top:10px"><table><thead><tr>' + sh.cols.map(function(c){ return '<th>' + esc(c.h) + '</th>'; }).join("") + '</tr></thead><tbody>'
-      + (sh.rows.length ? sh.rows.map(function(row){ return '<tr>' + row.map(function(v, i){ var c = sh.cols[i] || {}; var cls = /^(Not compliant|Expired|Missing|Problems|Never checked|Needs a new copy)/.test(String(v)) ? ' class="rep-bad"' : /^(Expiring|Expires in|Due)/.test(String(v)) ? ' class="rep-warn"' : ""; return '<td' + cls + (c.t === "w" ? ' style="white-space:normal;min-width:220px"' : '') + '>' + repCell(v, c) + '</td>'; }).join("") + '</tr>'; }).join("")
+      + '<div class="tbl-wrap rep-wrap" style="margin-top:10px"><table class="rep-tbl"><thead><tr>' + sh.cols.map(function(c){ return c.hide ? '' : '<th' + (c.pin ? ' class="pin' + c.pin + '"' : '') + '>' + esc(c.h) + '</th>'; }).join("") + '</tr></thead><tbody>'
+      + (sh.rows.length ? sh.rows.map(function(row){ return '<tr>' + row.map(function(v, i){ return repTd(v, sh.cols[i] || {}, row); }).join("") + '</tr>'; }).join("")
         : '<tr><td colspan="' + sh.cols.length + '" class="muted">Nothing to report.</td></tr>')
       + '</tbody></table></div></div>';
     $("rep-out").innerHTML = S.repHtml;
@@ -3695,7 +3773,7 @@ async function repAll(){
     toast("✓ Downloaded the full compliance report");
   } catch (e){ toast("⚠ Couldn't make the file: " + e.message, 6000); }
 }
-function repPrint(){ document.body.classList.add("printing-report"); window.print(); setTimeout(function(){ document.body.classList.remove("printing-report"); }, 500); }
+function repPrint(){ document.querySelectorAll("#rep-print details").forEach(function(d){ d.open = true; }); document.body.classList.add("printing-report"); window.print(); setTimeout(function(){ document.body.classList.remove("printing-report"); }, 500); }
 
 /* ════════════════════════════════════════════════════════════════════════
    MODAL
@@ -3758,7 +3836,7 @@ window.App = {
   ck: ck, ckSection: ckSection, ckNote: ckNote, ckQ: ckQ, ckSecNote: ckSecNote, saveCheck: saveCheck,
   adminTab: function(t){ S.adminTab = t; S.admMember = null; render(); window.scrollTo(0, 0); }, adminGroup: adminGroup, openMember: openMember, openImm: openImm, immKind: immKind, bagExempt: bagExempt, bagExemptSave: bagExemptSave, immRow: immRow, saveImmList: saveImmList, goHome: goHome, gridFilter: function(v){ S.gridOnlyProblems = v; render(); },
   gridCell: gridCell, markNA: markNA, openRecord: openRecord, review: review, deleteRecord: deleteRecord,
-  remindTest: remindTest, sendReminders: sendReminders,
+  remindTest: remindTest, repFixShow: repFixShow, setOptIn: setOptIn, sendReminders: sendReminders,
   repView: repView, repXlsx: repXlsx, repAll: repAll, repDates: repDates, repPrint: repPrint,
   saveProfile: saveProfile, vfRepl: vfRepl, editBagExp: editBagExp, saveBagExp: saveBagExp, viewBagExp: viewBagExp, phoneTyping: phoneTyping, openProfile: openProfile,
   addType: addType, resetTemplates: resetTemplates, saveSettings: saveSettings,
