@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<meta name="trk-version" content="1.22">
+<meta name="trk-version" content="1.24">
 <meta name="trk-mode" content="mobile">
 <meta name="theme-color" content="#ffffff">
 <title>Compliance</title>
@@ -191,6 +191,8 @@ input.scanned{background:#eaf2fb;border-color:#a9c7ea}
 .up-bar{height:10px;border-radius:999px;background:var(--soft2);border:1px solid var(--line);overflow:hidden}
 #up-bar-fill{height:100%;width:0;background:var(--accent);transition:width .2s}
 .exp-tbl td.num{font-variant-numeric:tabular-nums}
+.rigs-grid{grid-template-columns:repeat(auto-fill,minmax(min(100%,480px),1fr))}
+.exp-tbl td,.exp-tbl th{white-space:normal}
 .ck-q{background:var(--soft)}
 .item-note{padding:0 12px 10px;border-top:none}
 .item-note input{padding:8px}
@@ -271,7 +273,7 @@ td.rep-warn{color:var(--warn);font-weight:700}
     <div class="m-err" id="login-err"></div>
 
     <div style="text-align:center;margin-top:16px"><button class="m-forgot" onclick="App.forgotPw()">Forgot password?</button></div>
-    <div class="m-build">BUILD <span id="li-build">v1.22</span></div>
+    <div class="m-build">BUILD <span id="li-build">v1.24</span></div>
   </div>
 </div>
 <div id="boot" class="empty" style="margin-top:20vh">Signing in…</div>
@@ -349,7 +351,7 @@ function trkSmsPayload(phone, message, unit){
 function trkEmailPayload(email, name, subject, html){ return { to: [{ email: email, name: name || email }], subject: subject, body: html }; }
 
 /* ════════════════════════════════════════════════════════════════════════ */
-var TRK_VERSION = "1.22";
+var TRK_VERSION = "1.24";
 // 1.16: owner asked to block the tracker's notifications for now. While this is true the tracker sends NO texts and
 // NO emails (reminders and test reminders). Sign-in "Forgot password?" still works. Set to false to allow sending again.
 var TRK_SENDING_OFF = true;
@@ -374,6 +376,31 @@ function docFields(t){ return DOC_FIELDS[t.id] || []; }
 var SCAN_HINTS = { regName: "Registered owner's name(s) only — no address", insured: "Name(s) of the insured only — no address",
   fullName: "Full name as printed — no address", vin: "exactly 17 characters", plate: "letters and digits only" };
 function scanLabel(key, label){ return SCAN_HINTS[key] ? label + " (" + SCAN_HINTS[key] + ")" : label; }
+// 1.23: is the member on the insurance? Owner's rule: their name must be printed on the insurance ID CARD itself
+// (named insured or a listed driver). If not, the member is warned and can still save; the admin sees ⚠ on the document.
+var POLICY_NAMES_FIELD = ["names", "Names of all people on the ID card itself (insureds + drivers), separated by ;"];
+function nameTokens(s){ return String(s || "").toUpperCase().replace(/[^A-Z\s'-]/g, " ").split(/[\s'-]+/).filter(function(x){ return x.length > 1; }); }
+function memberOnPolicy(uid, names){
+  var u = uid === (S.me && S.me.uid) ? S.me : userByUid(uid);
+  if (!u || !names || !names.length) return null;
+  var first = nameTokens(u.firstName || (u.name || "").split(" ")[0]), last = nameTokens(u.lastName || (u.name || "").split(" ").slice(1).join(" "));
+  var lic = (visibleRecords()[recKey(uid, "dl")] || {}).fields || {}, licT = nameTokens(lic.fullName);
+  return names.some(function(n){
+    var t = nameTokens(n);
+    var hasLast = last.length && last.every(function(x){ return t.indexOf(x) >= 0; });
+    if (!hasLast) return false;
+    if (first.some(function(x){ return t.indexOf(x) >= 0; })) return true;
+    // first name as on their driver's license (e.g. "Shmuel" when the CAD has "Sam")
+    return licT.filter(function(x){ return last.indexOf(x) < 0 && t.indexOf(x) >= 0; }).length > 0;
+  });
+}
+function splitNames(v){ return String(v || "").split(/;|\n|\s+&\s+|\s+and\s+/i).map(function(x){ return x.trim(); }).filter(function(x){ return x.length > 2; }).slice(0, 8); }
+function policyNote(rec, forAdmin){
+  if (!rec || rec.typeId !== "ins" || rec.onPolicy == null || String(rec.uid) === "org") return "";
+  var who = forAdmin ? "Member" : "You";
+  return rec.onPolicy ? '<div class="muted" style="margin:4px 0">✓ ' + who + (forAdmin ? " is" : " are") + ' on the insurance card</div>'
+    : '<div class="note" style="background:#fff4d6;border-color:#e2c27a;color:#5c3c00">⚠ ' + who + (forAdmin ? " is" : " are") + ' not listed on the insurance card' + (rec.policyNames && rec.policyNames.length ? ' (it lists: ' + esc(rec.policyNames.join(", ")) + ')' : '') + '</div>';
+}
 // VIN check digit (US / Canada), so a misread VIN is never filled in
 function vinOk(v){
   v = String(v || "").toUpperCase();
@@ -406,8 +433,14 @@ var DEFAULT_SETTINGS = {
   ],
   reminderCooldownDays: 7,
   bagQuestions: null,           // null = DEFAULT_BAG_QUESTIONS
-  // Jump bag items that expire — each member keeps the date on their own bag (admins add / remove items in ⚙ Settings)
+  // Jump bag items that expire — each member keeps the date on their own bag (admins add / remove items in ⚙ Admin Panel)
   expItems: ["AED Pads", "Albuterol-1", "Albuterol-2", "Aspirin", "Burn-Gel", "Epi-Pen - Adult", "Epi-Pen - PED", "Glucometer Test Strips",
+    "Narcan", "Nebulizer Saline-1", "Nebulizer Saline-2", "Oral Glucose-1", "Oral Glucose-2", "Quick-Clot", "Saline Flush-1", "Saline Flush-2"],
+  // 1.24: things in the AGENCY jump bags (rig bags, ERV bag…) that expire — each bag keeps its own dates
+  orgBagExpItems: ["AED Pads", "Albuterol-1", "Albuterol-2", "Aspirin", "Burn-Gel", "Epi-Pen - Adult", "Epi-Pen - PED", "Glucometer Test Strips",
+    "Narcan", "Nebulizer Saline-1", "Nebulizer Saline-2", "Oral Glucose-1", "Oral Glucose-2", "Saline Flush-1", "Saline Flush-2"],
+  // 1.24: things on the RIG itself that expire (each rig keeps its own dates). Admin Panel ▸ Rig Checklist.
+  rigExpItems: ["AED Pads", "Albuterol-1", "Albuterol-2", "Aspirin", "Burn-Gel", "Epi-Pen - Adult", "Epi-Pen - PED", "Glucometer Test Strips",
     "Narcan", "Nebulizer Saline-1", "Nebulizer Saline-2", "Oral Glucose-1", "Oral Glucose-2", "Quick-Clot", "Saline Flush-1", "Saline Flush-2"],
   templates: {
     sms: "{org} Compliance reminder for {unit}:\n{items}\nPlease update them in the Compliance Tracker:\n{link}\n{time}",
@@ -423,13 +456,25 @@ var DEFAULT_JUMPBAG = [
   { name: "Jump Bag Meds", items: [ {n:"Oral Glucose",par:"2"}, {n:"Aspirin",par:"12 Tablets"}, {n:"Epi Auto-Injector - Adult",par:"1"}, {n:"Epi Auto-Injector - PED",par:"1"}, {n:"Albuterol",par:"2"}, {n:"Narcan",par:"1"}, {n:"Nebulizer Saline",par:"2"} ] },
   { name: "Glucometer", items: [ {n:"Glucometer",par:"1"}, {n:"Lancets",par:"4"}, {n:"Alcohol Prep Pads",par:"6"}, {n:"Test Strips",par:"6"} ] }
 ];
-// Yes / No checks at the end of each section (from the same form). Editable in ⚙ Settings.
+// Yes / No checks at the end of each section (from the same form). Editable in ⚙ Admin Panel.
 var DEFAULT_BAG_QUESTIONS = {
   "AED": ["AED Tested", "Pads In-Date"],
   "Jump Bag": ["BVMs Opened and Tested (NOT the Military adult in a can) and Ability to Expand and Contract Properly Has Been Confirmed", "Pulse Oximeter Tested and Battery Level at 50% or Better"],
   "Jump Bag Meds": ["All Meds In-Date"],
   "Glucometer": ["Glucometer Calibrated", "Alcohol Prep Pads in Date", "Test Strips in Date", "Battery Level at 50% or Better"]
 };
+// 1.24: the MC Rig Equipment Checklist (owner's form). Admins edit it in ⚙ Admin Panel ▸ Rig Checklist.
+var DEFAULT_RIG_CHECKLIST = [{name:"O2 & O2 Delivery",items:[{n:"CPAP",par:"2"},{n:"BVM - Adult",par:"1"},{n:"BVM - Child",par:"1"},{n:"BVM - Infant",par:"1"},{n:"NRB - Adult",par:"4"},{n:"NRB - PED",par:"3"},{n:"NC - Adult",par:"4"},{n:"NC - PED",par:"3"},{n:"Nebulizer",par:"2"},{n:"O2 Tank - Stretcher",par:"min 800 psi"},{n:"O2 Tank - Spare",par:"2 Sealed"},{n:"O2 Tank - Main",par:"min 800 psi"}],questions:[]},{name:"Airway Management",items:[{n:"OPA Kit - Complete",par:"1"},{n:"NPA Kit - Complete",par:"1"},{n:"NPA Lube",par:"3"},{n:"Suction Unit w/Catheter & Tubing",par:"2"},{n:"Suction Canister - Spare",par:"1"},{n:"Suction Tubing - Spare",par:"1"},{n:"Suction Catheter - Rigid - Spare",par:"2"},{n:"Suction Catheter - Size 8 Fr",par:"4"},{n:"Suction Catheter - Size 18 Fr",par:"4"},{n:"Infant Build Syringe",par:"1"}],questions:["Suction Unit #1 Tested","Suction Unit #2 Tested"]},{name:"Trauma",items:[{n:"Roller Gauze - 3-inch",par:"12"},{n:"Tape - 1-inch",par:"3"},{n:"4 x 4",par:"25"},{n:"5 x 9",par:"10"},{n:"Multi-Trauma",par:"4"},{n:"Triangular Bandage",par:"12"},{n:"Burn Sheet",par:"4"},{n:"OB Kit",par:"2"},{n:"Ring Cutter",par:"1"},{n:"Trauma Shears",par:"2"},{n:"Chest Seal/Occlusive Dressing",par:"4"},{n:"Sam Splint",par:"2"},{n:"Padded Arm Splint",par:"4"},{n:"Padded Leg Splint",par:"4"},{n:"Traction Splint - Complete - Adult",par:"1"},{n:"Traction Splint - Complete - PED",par:"1"},{n:"Adjustable C-Collar - Adult",par:"3"},{n:"Adjustable C-Collar - PED",par:"2"},{n:"Band-Aids",par:"25"},{n:"Quick-Clot",par:"2"},{n:"Tourniquet",par:"2"},{n:"Ice Pack",par:"6"},{n:"Burn-Gel",par:"2"},{n:"Sterile Saline - 1 Liter",par:"2"}],questions:[]},{name:"Rig Meds",items:[{n:"Oral Glucose",par:"2"},{n:"Aspirin",par:"12 Tablets"},{n:"Epi Auto-Injector - Adult",par:"1"},{n:"Epi Auto-Injector - PED",par:"1"},{n:"Albuterol",par:"2"},{n:"Narcan",par:"1"},{n:"Nebulizer Saline",par:"2"}],questions:["All Meds In-Date"]},{name:"Assessment",items:[{n:"Pulse Oximeter w/Battery Indicator",par:"1"},{n:"Spare Batteries for Pulse Oximeter",par:"1"},{n:"Glucometer Kit - Complete",par:"1"},{n:"Penlight - Working",par:"2"},{n:"Thermometer",par:"1"},{n:"Thermometer Probe Covers",par:"6"},{n:"BP Cuff - Large Adult",par:"1"},{n:"BP Cuff - Adult",par:"1"},{n:"BP Cuff - PED",par:"1"},{n:"Stethoscope",par:"1"}],questions:["Pulse Oximeter Tested, and Battery Level at 50% or Better"]},{name:"Transport & Extrication",items:[{n:"Stretcher",par:"1"},{n:"Stair Chair",par:"1"},{n:"Longboard",par:"1"},{n:"Scoop",par:"1"},{n:"Reeves",par:"1"},{n:"KED",par:"1"},{n:"Head Immobilizer",par:"2"},{n:"Binder Lift",par:"1"},{n:"Sheets",par:"4"},{n:"Blankets",par:"4"},{n:"Pillows",par:"4"}],questions:["The STRETCHER - has 1 chest strap, 1 waist strap, 1 leg strap, and 2 shoulder-to-waist crossed straps","The STAIR CHAIR - has 1 waist strap, 2 shoulder-to-waist crossed straps, and 1 foot strap.","The SCOOP - has 1 chest strap, 1 waist strap, and 1 leg strap.","The LONGBOARD - has 1 chest strap, 1 waist strap, and 1 leg strap"]},{name:"Safety",items:[{n:"Helmets",par:"2"},{n:"Safety Coats",par:"2"},{n:"Safety Goggles",par:"2"},{n:"Vests",par:"3"},{n:"Road Flares - Traditional",par:"3"},{n:"Road Flares - LED",par:"3"},{n:"Fire Extinguisher",par:"1"}],questions:["Fire Extinguisher In-Date","Road Flares - LED - Tested"]},{name:"BSI & BPP",items:[{n:"Gloves - M",par:"1"},{n:"Gloves - L",par:"1"},{n:"Gloves - XL",par:"1"},{n:"Emesis Bags",par:"4"},{n:"N-95 Masks",par:"10"},{n:"Surgical Masks",par:"10"},{n:"High Risk Kits",par:"3"},{n:"Gowns",par:"3"},{n:"Germicidal Wipes",par:"1"},{n:"Red Bags",par:"4"}],questions:[]},{name:"AED",items:[{n:"AED Unit w/Valid In-Service Indicator",par:"1"},{n:"Pads - Connected",par:"1"},{n:"Pads - Spare",par:"1"},{n:"Manual Shaving Razor",par:"1"},{n:"PED Key",par:"1"}],questions:["AED Tested","Pads In-Date"]},{name:"LUCAS (Thumper)",items:[{n:"Piston Compression Unit",par:"1"},{n:"Back Plate",par:"1"},{n:"Neck Strap w/Two intact Male Buckles",par:"1"},{n:"Neck Strap w/Intact Female Buckles",par:"2, one on each side of compression unit"},{n:"Wrist Straps",par:"2, one on each side of compression unit"},{n:"Suction Cup",par:"2, one on piston, one spare"},{n:"Battery",par:"3, one on compression unit, one spare in case, one in wall charger"}],questions:["LUCAS Unit Battery Tested (Less Than 3 Bars Should be Swapped)","LUCAS Spare Battery (Mounted on Wall Charger w/Green Indicator)"]},{name:"Jump Bag",items:[],questions:["Jump Bag present","Jump Bag in good condition"]},{name:"IPADs",items:[],questions:["Have you Successfully Logged into iPad-1 and Downloaded the Configuration","Have you Successfully Logged into iPad-2 and Downloaded the Configuration","Is Each iPad Charging When on the Base"]},{name:"Glucometer",items:[{n:"Glucometer",par:"1"},{n:"Lancets",par:"4"},{n:"Alcohol Prep Pads",par:"6"},{n:"Test Strips",par:"6"}],questions:["Glucometer Calibrated","Alcohol Prep Pads in Date","Test Strips in Date","Battery Level at 50% or Better"]},{name:"Stryker Power-Load",items:[],questions:[]}];
+// The jump bag checklist = the MC jump-bag form (DEFAULT_JUMPBAG + DEFAULT_BAG_QUESTIONS). Admin Panel ▸ Jump Bag Checklist.
+function defaultBagChecklist(){
+  var q = S.settings.bagQuestions || DEFAULT_BAG_QUESTIONS;
+  return DEFAULT_JUMPBAG.map(function(sec){
+    var key = Object.keys(q).filter(function(k){ return k.toLowerCase() === sec.name.toLowerCase(); })[0];
+    return { name: sec.name, items: sec.items.map(function(i){ return { n: i.n, par: i.par || "" }; }), questions: key ? q[key].slice() : [] };
+  });
+}
+function rigChecklist(){ var c = S.settings.rigChecklist; return c && c.length ? c : DEFAULT_RIG_CHECKLIST; }
+function bagChecklist(){ var c = S.settings.bagChecklist; return c && c.length ? c : defaultBagChecklist(); }
 var DEFAULT_RIG_SUPPLIES = [
   { name: "Airway", items: [ {n:"NRB - Adult", par:"4"}, {n:"Nasal cannula - Adult", par:"4"}, {n:"BVM - Adult", par:"2"} ] },
   { name: "Trauma", items: [ {n:"Trauma dressing", par:"4"}, {n:"Tourniquet", par:"2"}, {n:"Cervical collars", par:"1 set"} ] }
@@ -530,9 +575,88 @@ function fmtDash(ymd){ if (!ymd) return ""; var p = ymd.split("-"); return p[1] 
 function expState(ymd){
   if (!ymd) return { k: "missing", lbl: "No date", lvl: "bad" };
   var d = daysUntil(ymd);
-  if (d < 0) return { k: "expired", lbl: "Expired", lvl: "bad" };
-  if (d <= (S.settings.warnDays || 30)) return { k: "expiring", lbl: "Expires in " + d + " day" + (d === 1 ? "" : "s"), lvl: "warn" };
+  if (d < 0) return { k: "expired", lbl: "Expired " + (-d) + " day" + (d === -1 ? "" : "s") + " ago", lvl: "bad" };
+  if (d <= (S.settings.warnDays || 30)) return { k: "expiring", lbl: d === 0 ? "Expires today" : "Expires in " + d + " day" + (d === 1 ? "" : "s"), lvl: "warn" };
   return { k: "ok", lbl: "In Date", lvl: "ok" };
+}
+// ── rig expiration dates (kept on trk_rigStatus/<rig>: expDates) ──
+function rigExpRows(vid){
+  var dates = ((S.rigStatus[vid] || {}).expDates) || {};
+  return (S.settings.rigExpItems || []).map(function(n){ return { item: n, date: dates[n] || "", st: expState(dates[n]) }; });
+}
+function rigExpTable(vid){
+  var rs = S.rigStatus[vid] || {}, rows = rigExpRows(vid);
+  if (!rows.length) return '<div class="muted">No expiring items on the list. An admin can add them in ⚙ Admin Panel ▸ Rig Checklist.</div>';
+  return '<div class="tbl-wrap"><table class="exp-tbl"><thead><tr><th>Item</th><th>Expiration</th><th>Validity</th></tr></thead><tbody>'
+    + rows.map(function(r){ return '<tr><td>' + esc(r.item) + '</td><td class="num">' + (r.date ? fmtDash(r.date) : '<span class="muted">—</span>') + '</td><td>' + pillFor(r.st) + '</td></tr>'; }).join("")
+    + '</tbody></table></div><div class="muted" style="margin-top:6px">' + (rs.expUpdatedAt ? "Updated " + fmtTs(rs.expUpdatedAt) + (rs.expUpdatedBy ? " by " + esc(rs.expUpdatedBy) : "") : "Dates not entered yet.") + '</div>';
+}
+function rigExpInputs(vid){
+  var dates = ((S.rigStatus[vid] || {}).expDates) || {};
+  return '<div class="sec"><div class="sec-h"><b>⏳ Expiration Dates (on the rig)</b></div>' + (S.settings.rigExpItems || []).map(function(n, i){
+    return '<div class="item"><label class="nm" for="rexp-' + i + '" style="margin:0;font-weight:400;font-size:.92rem">' + esc(n) + '</label><input id="rexp-' + i + '" type="date" style="width:170px" value="' + esc(dates[n] || "") + '"></div>';
+  }).join("") + '</div>';
+}
+function readRigExp(){
+  var out = {}, missing = 0;
+  (S.settings.rigExpItems || []).forEach(function(n, i){ var el = $("rexp-" + i), v = el ? el.value : ""; if (v) out[n] = v; else missing++; });
+  return { dates: out, missing: missing };
+}
+// ── agency bag expiration dates (trk_bagStatus/org_<id>: expDates) ──
+function obExpRows(bid){
+  var dates = ((S.allBags["org_" + bid] || {}).expDates) || {};
+  return (S.settings.orgBagExpItems || []).map(function(n){ return { item: n, date: dates[n] || "", st: expState(dates[n]) }; });
+}
+function obExpInputs(bid){
+  var dates = ((S.allBags["org_" + bid] || {}).expDates) || {};
+  return '<div class="sec"><div class="sec-h"><b>⏳ Expiration Dates (in this bag)</b></div>' + (S.settings.orgBagExpItems || []).map(function(n, i){
+    return '<div class="item"><label class="nm" for="oexp-' + i + '" style="margin:0;font-weight:400;font-size:.92rem">' + esc(n) + '</label><input id="oexp-' + i + '" type="date" style="width:170px" value="' + esc(dates[n] || "") + '"></div>';
+  }).join("") + '</div>';
+}
+function readObExp(){
+  var out = {}, missing = 0;
+  (S.settings.orgBagExpItems || []).forEach(function(n, i){ var el = $("oexp-" + i), v = el ? el.value : ""; if (v) out[n] = v; else missing++; });
+  return { dates: out, missing: missing };
+}
+function obExpSummary(bid){
+  var r = obExpRows(bid);
+  return { expired: r.filter(function(x){ return x.st.k === "expired"; }).length, expiring: r.filter(function(x){ return x.st.k === "expiring"; }).length, missing: r.filter(function(x){ return x.st.k === "missing"; }).length, total: r.length };
+}
+function viewObExp(bid){
+  var v = S.fleet.filter(function(x){ return x.id === bid; })[0], st = S.allBags["org_" + bid] || {}, rows = obExpRows(bid);
+  openModal("⏳ " + (v ? bagLabel(v) : bid) + " — Expiration Dates",
+    '<div class="tbl-wrap" style="margin-top:10px"><table class="exp-tbl"><thead><tr><th>Item</th><th>Expiration</th><th>Validity</th></tr></thead><tbody>'
+    + rows.map(function(r){ return '<tr><td>' + esc(r.item) + '</td><td class="num">' + (r.date ? fmtDash(r.date) : '<span class="muted">—</span>') + '</td><td>' + pillFor(r.st) + '</td></tr>'; }).join("")
+    + '</tbody></table></div><div class="muted" style="margin-top:6px">' + (st.expUpdatedAt ? "Updated " + fmtTs(st.expUpdatedAt) + (st.expUpdatedBy ? " by " + esc(st.expUpdatedBy) : "") : "Dates not entered yet.") + '</div>',
+    '<button class="btn" onclick="App.closeModal()">Close</button><button class="btn gold" data-id="' + esc(bid) + '" onclick="App.editObExp(this.dataset.id)">✎ Edit dates</button>');
+}
+function editObExp(bid){
+  var v = S.fleet.filter(function(x){ return x.id === bid; })[0];
+  openModal("⏳ " + (v ? bagLabel(v) : bid) + " — Expiration Dates", '<p class="muted">Enter the expiration date printed on each item in the bag.</p>' + obExpInputs(bid),
+    '<button class="btn" onclick="App.closeModal()">Cancel</button><button class="btn gold" data-id="' + esc(bid) + '" onclick="App.saveObExp(this.dataset.id)">Save</button>');
+}
+async function saveObExp(bid){
+  var r = readObExp();
+  if (r.missing){ toast(r.missing + " item" + (r.missing === 1 ? " has" : "s have") + " no date yet. Fill in every date."); return; }
+  var v = S.fleet.filter(function(x){ return x.id === bid; })[0], bl = v ? bagLabel(v) : bid;
+  try { await db.collection("trk_bagStatus").doc("org_" + bid).set({ org: true, bagId: bid, bag: bl, unit: bl, byUid: S.me.uid, expDates: r.dates, expUpdatedAt: Date.now(), expUpdatedBy: S.me.unit || "" }, { merge: true }); closeModal(); toast("✓ Dates saved"); }
+  catch (e){ toast("⚠ Not saved: " + e.message, 6000); }
+}
+function rigExpSummary(vid){
+  var r = rigExpRows(vid), ex = r.filter(function(x){ return x.st.k === "expired"; }).length, so = r.filter(function(x){ return x.st.k === "expiring"; }).length, none = r.filter(function(x){ return x.st.k === "missing"; }).length;
+  return { expired: ex, expiring: so, missing: none, total: r.length };
+}
+function editRigExp(vid){
+  var v = S.fleet.filter(function(x){ return x.id === vid; })[0];
+  openModal("⏳ " + (v ? vName(v) : vid) + " — Expiration Dates", '<p class="muted">Enter the expiration date printed on each item on the rig.</p>' + rigExpInputs(vid),
+    '<button class="btn" onclick="App.closeModal()">Cancel</button><button class="btn gold" data-id="' + esc(vid) + '" onclick="App.saveRigExp(this.dataset.id)">Save</button>');
+}
+async function saveRigExp(vid){
+  var r = readRigExp();
+  if (r.missing){ toast(r.missing + " item" + (r.missing === 1 ? " has" : "s have") + " no date yet. Fill in every date."); return; }
+  var v = S.fleet.filter(function(x){ return x.id === vid; })[0];
+  try { await db.collection("trk_rigStatus").doc(vid).set({ vehicleId: vid, rig: v ? vName(v) : vid, expDates: r.dates, expUpdatedAt: Date.now(), expUpdatedBy: S.me.unit || "" }, { merge: true }); closeModal(); toast("✓ Dates saved"); }
+  catch (e){ toast("⚠ Not saved: " + e.message, 6000); }
 }
 function bagExpFor(uid){ return uid === (S.me && S.me.uid) ? (S.myBagExp || {}) : (S.allBagExp[uid] || {}); }
 // [{item, date, st}] for every item on the admin's list
@@ -721,10 +845,11 @@ function startListeners(){
   listen(db.collection("trk_bagExp").doc(uid), function(d){ S.myBagExp = d.exists ? d.data() : {}; renderSoon(); });
   listen(db.collection("trk_profiles").doc(uid), function(d){ S.myProfile = d.exists ? d.data() : {}; renderSoon(); });
 
+  // everyone reads the fleet (CAD vehicles, read only): rigs, and the agency jump bags / cabinets that members check
+  listen(db.collection("vehicles"), function(q){
+    S.fleet = []; q.forEach(function(d){ S.fleet.push(Object.assign({ id: d.id }, d.data())); }); renderSoon();
+  });
   if (S.isAdmin || S.isLogistics){
-    listen(db.collection("vehicles"), function(q){
-      S.fleet = []; q.forEach(function(d){ S.fleet.push(Object.assign({ id: d.id }, d.data())); }); renderSoon();
-    });
     listen(db.collection("trk_rigStatus"), function(q){ S.rigStatus = {}; q.forEach(function(d){ S.rigStatus[d.id] = d.data(); }); renderSoon(); });
     listen(db.collection("trk_bagStatus"), function(q){ S.allBags = {}; q.forEach(function(d){ S.allBags[d.id] = d.data(); }); renderSoon(); });
     listen(db.collection("trk_bagExp"), function(q){ S.allBagExp = {}; q.forEach(function(d){ S.allBagExp[d.id] = d.data(); }); renderSoon(); });
@@ -785,6 +910,13 @@ function bagQuestions(section){
   var q = S.settings.bagQuestions || DEFAULT_BAG_QUESTIONS, key = Object.keys(q).filter(function(k){ return k.toLowerCase() === String(section).toLowerCase(); })[0];
   return key ? q[key] : [];
 }
+// Agency bags and cabinets members can check (CAD Fleet equipment). Admin Panel ▸ Timing & Equipment picks which.
+function agencyBags(){
+  var ids = S.settings.bagIds;
+  return S.fleet.filter(function(v){ return ids ? ids.indexOf(v.id) >= 0 : isEquipment(v); })
+    .sort(function(a, b){ return String(a.id).localeCompare(String(b.id), undefined, { numeric: true }); });
+}
+function bagLabel(v){ var n = vName(v); return n && n !== v.id ? v.id + " - " + n : String(v.id); }
 function rigSupplyList(){ var r = S.restock; return (r && r.sections && r.sections.length) ? r.sections : DEFAULT_RIG_SUPPLIES; }
 
 /* ════════════════════════════════════════════════════════════════════════
@@ -810,12 +942,20 @@ function notifications(){
     rigList().forEach(function(v){
       var st = rigState(S.rigStatus[v.id]);
       if (st.lvl !== "ok") list.push({ lvl: st.lvl, title: vName(v) + ": " + st.lbl, sub: "Rig Checks", tab: "rigs" });
+      var es = rigExpSummary(v.id);
+      if (es.expired) list.push({ lvl: "bad", title: vName(v) + ": " + es.expired + " item" + (es.expired === 1 ? "" : "s") + " on the rig expired", sub: "Rig Checks ▸ Expiration dates", tab: "rigs" });
+      if (es.expiring) list.push({ lvl: "warn", title: vName(v) + ": " + es.expiring + " item" + (es.expiring === 1 ? "" : "s") + " on the rig expiring soon", sub: "Rig Checks ▸ Expiration dates", tab: "rigs" });
     });
     if (!S.isLogistics) orgVehicles().forEach(function(v){
       docTypes("vehicle").forEach(function(t){
         var st = recStatus(S.allRecords[recKey("org_" + v.id, t.id)], t);
         if (st.lvl === "bad" || st.lvl === "warn") list.push({ lvl: st.lvl, title: vName(v) + " — " + t.name + ": " + st.lbl.toLowerCase(), sub: "Rig Checks ▸ Paperwork", tab: "rigs" });
       });
+    });
+    agencyBags().forEach(function(v){
+      var es = obExpSummary(v.id);
+      if (es.expired) list.push({ lvl: "bad", title: bagLabel(v) + ": " + es.expired + " item" + (es.expired === 1 ? "" : "s") + " expired", sub: "Jump Bags ▸ Agency bags", tab: S.isAdmin ? "admin" : "bag", admin: "bags" });
+      if (es.expiring) list.push({ lvl: "warn", title: bagLabel(v) + ": " + es.expiring + " item" + (es.expiring === 1 ? "" : "s") + " expiring soon", sub: "Jump Bags ▸ Agency bags", tab: S.isAdmin ? "admin" : "bag", admin: "bags" });
     });
     var bagMiss = Object.values(S.allBags).filter(function(b){ return b.missing && b.missing.length; });
     if (bagMiss.length) list.push({ lvl: "warn", title: bagMiss.length + " jump bag" + (bagMiss.length === 1 ? " is" : "s are") + " missing items", sub: bagMiss.map(function(b){ return b.unit; }).join(", "), tab: S.isAdmin ? "admin" : "rigs", admin: "bags" });
@@ -855,16 +995,17 @@ var PAGES = {
   vehicles: { icon: "🚗", label: "My Vehicles",  sub: "Vehicle 1 & 2 · insurance, registration" },
   bag:      { icon: "🎒", label: "Jump Bag",     sub: "Bag check & expiration dates" },
   rigs:     { icon: "🚑", label: "Rig Checks",   sub: "Ambulance checks & agency paperwork" },
-  admin:    { icon: "🪪", label: "User Compliance", sub: "Admin · review, reminders, settings" }
+  admin:    { icon: "🪪", label: "User Compliance", sub: "Admin · review, reminders, reports" },
+  panel:    { icon: "⚙", label: "Admin Panel",  sub: "Checklists, documents, timing, messages" }
 };
 function tabsList(){
   var t = ["profile", "docs", "vehicles", "bag"];
   if (S.isAdmin || S.isLogistics) t.push("rigs");
-  if (S.isAdmin && TRK_MODE === "desktop") t.push("admin");   // like the CAD, admin is on the computer
+  if (S.isAdmin && TRK_MODE === "desktop") t.push("admin", "panel");   // like the CAD, admin is on the computer
   return t;
 }
 function setTab(t, fromHistory){
-  if (t === "admin" && TRK_MODE !== "desktop") t = "home";
+  if ((t === "admin" || t === "panel") && TRK_MODE !== "desktop") t = "home";
   if (t !== "home" && tabsList().indexOf(t) < 0) t = "home";
   var changed = S.tab !== t;
   S.tab = t;
@@ -893,11 +1034,11 @@ function render(){
   var pg = PAGES[S.tab];
   $("pagehead").hidden = !pg;
   if (pg) $("page-title").textContent = pg.icon + " " + pg.label;
-  $("banner").hidden = S.tab === "admin";
+  $("banner").hidden = S.tab === "admin" || S.tab === "panel";
   var v = $("view");
-  var f = { home: viewHome, profile: viewProfile, docs: viewDocs, vehicles: viewVehicles, bag: viewBag, rigs: viewRigs, admin: viewAdmin }[S.tab] || viewHome;
+  var f = { home: viewHome, profile: viewProfile, docs: viewDocs, vehicles: viewVehicles, bag: viewBag, rigs: viewRigs, admin: viewAdmin, panel: viewPanel }[S.tab] || viewHome;
   // keep focus/typing safe: don't redraw a settings form someone is typing in
-  if ((S.tab === "profile" || (S.tab === "admin" && S.adminTab === "settings")) && v.contains(document.activeElement) && /INPUT|TEXTAREA|SELECT/.test(document.activeElement.tagName)){ renderBell(); return; }
+  if ((S.tab === "profile" || S.tab === "panel") && v.contains(document.activeElement) && /INPUT|TEXTAREA|SELECT/.test(document.activeElement.tagName)){ renderBell(); return; }
   v.innerHTML = f();
   renderBell();
 }
@@ -929,6 +1070,7 @@ function docCard(ownerKey, t, rec, ctx){
     if (t.expires) h += '<span>Expires</span><span>' + (rec.expires ? fmtDate(rec.expires) : "—") + '</span>';
     h += '<span>Updated</span><span>' + fmtTs(rec.updatedAt) + (rec.updatedBy ? " by " + esc(rec.updatedBy) : "") + '</span></div>';
     h += thumbs(rec.files);
+    h += policyNote(rec, S.isAdmin && rec.uid !== S.me.uid);
     if (rec.status === "rejected" && rec.reviewNote) h += '<div class="note">Admin: ' + esc(rec.reviewNote) + '</div>';
   } else if (!rec){
     h += '<div class="muted" style="margin:6px 0 10px">Nothing uploaded yet.</div>';
@@ -1088,6 +1230,7 @@ async function vfDocScan(tid){
     var want = [["number", "Document / policy / registration number"], ["issued", "Issue date"]].concat(t.expires ? [["expires", "Expiration date"]] : []).concat(docFields(t));
     var keys = {}; want.forEach(function(w){ keys[w[0]] = 1; });
     VF_VEHICLE_FIELDS.forEach(function(w){ if (!keys[w[0]]) want.push(w); });
+    if (tid === "ins") want.push(POLICY_NAMES_FIELD);
     var r = await callFn("docScan", { docType: t.name, fields: want.map(function(w){ return { key: w[0], label: scanLabel(w[0], w[1]), date: w[0] === "issued" || w[0] === "expires" || w[2] === "date" }; }), mime: pdf ? "application/pdf" : "image/jpeg", data: data });
     if (!S.vf.docs[tid] || D.scanN !== my) return;
     var got = (r && r.fields) || {}, filled = 0, vfilled = 0;
@@ -1112,7 +1255,9 @@ async function vfDocScan(tid){
     }
     D.scanned = true;
     vfCombineSoon();
+    if (tid === "ins"){ D.policyNames = splitNames(got.names); D.onPolicy = memberOnPolicy(S.me.uid, D.policyNames); }
     msg.innerHTML = (r && r.matches === false ? "⚠ This doesn't look like a " + esc(t.name) + ". " : "")
+      + (tid === "ins" && D.onPolicy === false ? "⚠ Your name isn't on this insurance card" + (D.policyNames.length ? " (it lists " + esc(D.policyNames.join(", ")) + ")" : "") + ". You can still save — an admin will check it. " : "")
       + (filled || vfilled ? "✨ Filled in " + (filled + vfilled) + " box" + (filled + vfilled === 1 ? "" : "es") + " — please check them." : "✨ Couldn't read any details — please type them in.");
   } catch (e){
     if (!S.vf.docs[tid] || D.scanN !== my) return;
@@ -1174,6 +1319,7 @@ async function vfStoreDoc(vehId, vehName, tid){
     files: [Object.assign({ url: await snap.ref.getDownloadURL(), path: path, name: f.name, type: f.type, size: f.size, side: "front" }, await pdfThumbFor(f, path))],
     fields: (function(){ var o = {}; docFields(t).forEach(function(d){ if (F[d[0]]) o[d[0]] = F[d[0]]; }); return o; })(),
     scanned: !!D.scanned, status: S.isAdmin ? "approved" : "pending", reviewNote: "",
+    onPolicy: t.id === "ins" && D.onPolicy != null ? D.onPolicy : null, policyNames: t.id === "ins" ? (D.policyNames || []) : [],
     updatedAt: Date.now(), updatedBy: S.me.unit || "", updatedByUid: S.me.uid
   };
   if (S.isAdmin){ data.reviewedBy = S.me.unit || ""; data.reviewedAt = Date.now(); }
@@ -1398,6 +1544,7 @@ async function upScan(){
     var blob = isPdf ? U.file : await shrinkForScan(U.file, sentRot);
     var data = await new Promise(function(res, rej){ var r = new FileReader(); r.onload = function(){ res(String(r.result).split(",")[1]); }; r.onerror = rej; r.readAsDataURL(blob); });
     var want = [["number", "Document / license / certificate / policy number"], ["issued", "Issue date"]].concat(t.expires ? [["expires", "Expiration date"]] : []).concat(docFields(t));
+    if (t.id === "ins") want.push(POLICY_NAMES_FIELD);
     var r = await callFn("docScan", { docType: t.name, fields: want.map(function(w){ return { key: w[0], label: scanLabel(w[0], w[1]), date: w[0] === "issued" || w[0] === "expires" || w[2] === "date" }; }), mime: isPdf ? "application/pdf" : "image/jpeg", data: data });
     if (my !== U.scanN) return;   // a newer scan started
     var got = (r && r.fields) || {}, filled = 0;
@@ -1411,8 +1558,13 @@ async function upScan(){
     if (!isPdf){ U.crop = cropped ? { box: bx, rot: sentRot } : null; U.cropOff = false; }
     if (turn && !isPdf) U.rot = (sentRot + turn) % 360;
     if (!isPdf) upPreview();
-    var notType = r && r.matches === false;
-    msg.innerHTML = (notType ? "⚠ This doesn't look like a " + esc(t.name) + ". " : "") + (filled ? "✨ Filled in " + filled + " box" + (filled === 1 ? "" : "es") + " from the " + (isPdf ? "PDF" : "photo") + " — please check them." : "✨ Couldn't read any details — please type them in.")
+    var notType = r && r.matches === false, polOwner = U.pre ? U.pre.ctx.owner : S.me.uid, polWarn = "";
+    U.policyNames = null; U.onPolicy = null;
+    if (t.id === "ins" && polOwner !== "org"){
+      U.policyNames = splitNames(got.names); U.onPolicy = memberOnPolicy(polOwner, U.policyNames);
+      if (U.onPolicy === false) polWarn = "⚠ " + (polOwner === S.me.uid ? "Your name isn't" : "This member's name isn't") + " on this insurance card" + (U.policyNames.length ? " (it lists " + esc(U.policyNames.join(", ")) + ")" : "") + ". You can still save — an admin will check it. ";
+    }
+    msg.innerHTML = (notType ? "⚠ This doesn't look like a " + esc(t.name) + ". " : "") + polWarn + (filled ? "✨ Filled in " + filled + " box" + (filled === 1 ? "" : "es") + " from the " + (isPdf ? "PDF" : "photo") + " — please check them." : "✨ Couldn't read any details — please type them in.")
       + (turn ? " Turned the photo upright." : "") + (cropped ? " Cropped to the document." : "");
   } catch (e){
     if (my !== U.scanN) return;
@@ -1519,6 +1671,8 @@ async function saveUpload(){
       number: F.number || "", issued: F.issued || "", expires: expires, files: stored,
       fields: (function(){ var o = {}; docFields(t).forEach(function(d){ if (F[d[0]]) o[d[0]] = F[d[0]]; }); return o; })(),
       scanned: !!(S.upload.scanN),
+      onPolicy: t.id === "ins" && U.file && U.onPolicy != null ? U.onPolicy : (rec && !U.file ? (rec.onPolicy == null ? null : rec.onPolicy) : null),
+      policyNames: t.id === "ins" ? (U.file ? (U.policyNames || []) : ((rec && rec.policyNames) || [])) : [],
       status: byAdmin ? "approved" : "pending", reviewNote: "",
       updatedAt: Date.now(), updatedBy: S.me.unit || "", updatedByUid: S.me.uid
     };
@@ -1543,13 +1697,16 @@ function viewBag(){
   if (S.myBag && S.myBag.missing && S.myBag.missing.length){
     h += '<div class="note" style="background:#fff4d6;border-color:#e2c27a;color:#5c3c00"><b>Missing from your last check:</b><br>' + S.myBag.missing.map(function(m){ return esc(m.n) + (m.note ? " — " + esc(m.note) : ""); }).join("<br>") + '</div>';
   }
-  h += '<div class="row" style="margin-top:12px"><button class="btn gold" onclick="App.startBagCheck()">✓ Start bag check</button><button class="btn" onclick="App.bagHistory()">🕘 History</button></div></div>';
+  h += '<div class="row" style="margin-top:12px"><button class="btn gold" onclick="App.startBagCheck(\'mine\')">✓ Start bag check</button><button class="btn" onclick="App.bagHistory()">🕘 History</button></div></div>';
+  var ab = agencyBags();
+  if (ab.length) h += '<h2>🧰 Agency Bags & Cabinets</h2><div class="card"><div class="muted" style="margin-bottom:8px">Checking one of the agency\'s bags or cabinets? Pick it here, or in the Bag box at the top of the check.</div><div class="row">'
+    + ab.map(function(v){ var st = S.allBags["org_" + v.id]; return '<button class="btn" data-b="org_' + esc(v.id) + '" onclick="App.startBagCheck(this.dataset.b)">🎒 ' + esc(bagLabel(v)) + (st && st.lastAt ? ' <span class="muted">· ' + fmtTs(st.lastAt).split(" ")[0] + '</span>' : '') + '</button>'; }).join("") + '</div></div>';
   h += '<div class="row" style="margin-top:6px"><h2 class="grow" style="margin:8px 0">⏳ Expiration Dates</h2><button class="btn" onclick="App.editBagExp()">✎ Update dates</button></div>' + expTable(S.me.uid);
   return h;
 }
 function expTable(uid){
   var rows = bagExpRows(uid), exp = bagExpFor(uid);
-  if (!rows.length) return '<div class="card empty">No items on the list. An admin can add them in ⚙ Settings.</div>';
+  if (!rows.length) return '<div class="card empty">No items on the list. An admin can add them in ⚙ Admin Panel.</div>';
   return '<div class="tbl-wrap"><table class="exp-tbl"><thead><tr><th>Item</th><th>Expires</th><th>Status</th></tr></thead><tbody>'
     + rows.map(function(r){ return '<tr><td>' + esc(r.item) + '</td><td class="num">' + (r.date ? fmtDash(r.date) : '<span class="muted">—</span>') + '</td><td>' + pillFor(r.st) + '</td></tr>'; }).join("")
     + '</tbody></table></div><div class="muted" style="margin-top:6px">' + (exp.updatedAt ? "Updated " + fmtTs(exp.updatedAt) + (exp.updatedBy ? " by " + esc(exp.updatedBy) : "") : "Dates not entered yet.") + '</div>';
@@ -1580,10 +1737,30 @@ function writeBagExp(uid, dates){
   var u = uid === S.me.uid ? S.me : userByUid(uid);
   return db.collection("trk_bagExp").doc(uid).set({ uid: uid, unit: (u && u.unit) || "", dates: dates, updatedAt: Date.now(), updatedBy: S.me.unit || "" });
 }
-function startBagCheck(){
-  var secs = jumpbagList().map(function(x){ return Object.assign({}, x, { questions: bagQuestions(x.name) }); });
-  S.check = { kind: "bag", sections: secs, ans: {}, notes: {}, qa: {}, secNotes: {} };
-  openChecklist("🎒 Jump bag check", "Tap ✓ for each item that's there, or ✗ if it's missing or low. Answer every Yes / No question.", "");
+function startBagCheck(pick){
+  S.check = { kind: "bag", pick: pick || "mine", sections: clone(bagChecklist()), ans: {}, notes: {}, qa: {}, secNotes: {} };
+  openChecklist("🎒 Jump Bag Checklist", "Tap ✓ for each item that's there, or ✗ if it's missing or low. Answer every Yes / No question.", ckHeader("bag"));
+}
+// Top of a check (owner's forms): who, when, and which rig / bag
+function ckHeader(kind){
+  var C = S.check;
+  function ro(l, v){ return '<div class="pf-f"><label>' + l + '</label><div class="pf-ro">' + esc(v || "—") + '</div></div>'; }
+  var opts = kind === "rig" ? rigList().map(function(v){ return [v.id, vName(v)]; })
+    : [["mine", (S.me.unit || "") + " Primary Bag"]].concat(agencyBags().map(function(v){ return ["org_" + v.id, bagLabel(v)]; }));
+  return '<div class="pf-grid" style="margin-bottom:6px">'
+    + (kind === "rig" ? ro("Inspector Unit", S.me.unit) : '')
+    + '<div class="pf-f"><label for="ck-date">Inspection Date</label><input id="ck-date" type="date" value="' + todayStr() + '"></div>'
+    + ro(kind === "rig" ? "Inspector E-Mail" : "E-Mail", S.me.email) + ro(kind === "rig" ? "Inspector Name" : "Name", S.me.name)
+    + '<div class="pf-f"><label for="ck-what">' + (kind === "rig" ? "Rig" : "Bag") + '</label><select id="ck-what" onchange="App.ckPick(this.value)"><option value="">Select</option>'
+    + opts.map(function(o){ return '<option value="' + esc(o[0]) + '"' + (o[0] === C.pick ? " selected" : "") + '>' + esc(o[1]) + '</option>'; }).join("") + '</select></div></div>';
+}
+function ckPick(v){
+  var C = S.check; if (!C) return;
+  C.pick = v;
+  if (C.kind === "rig"){ var r = S.fleet.filter(function(x){ return x.id === v; })[0]; C.vid = v; C.vname = r ? vName(r) : v;
+    var re = $("ck-rexp"); if (re) re.innerHTML = v ? rigExpInputs(v) : '<div class="muted">Pick the rig at the top to see its expiration dates.</div>'; }
+  var ex = $("ck-exp"); if (ex) ex.hidden = C.pick !== "mine";
+  var oe = $("ck-oexp"); if (oe && C.kind === "bag") oe.innerHTML = /^org_/.test(v || "") ? obExpInputs(v.replace(/^org_/, "")) : "";
 }
 
 /* ── Rig checks ── */
@@ -1600,8 +1777,8 @@ function viewRigs(){
     });
     return h;
   }
-  if (!rigs.length) return h + '<div class="card empty">No ambulances found. An admin can pick them in Admin ▸ Settings.</div>';
-  h += '<div class="muted" style="margin-bottom:10px">Each rig is checked every ' + (S.settings.rigIntervalDays || 7) + ' days.</div><div class="docs">';
+  if (!rigs.length) return h + '<div class="card empty">No ambulances found. An admin can pick them in ⚙ Admin Panel ▸ Timing & Equipment.</div>';
+  h += '<div class="muted" style="margin-bottom:10px">Each rig is checked every ' + (S.settings.rigIntervalDays || 7) + ' days.</div><div class="docs rigs-grid">';
   rigs.forEach(function(v){
     var rs = S.rigStatus[v.id], st = rigState(rs);
     h += '<div class="card"><div class="row"><h3 class="grow">🚑 ' + esc(vName(v)) + '</h3>' + pillFor(st) + '</div>'
@@ -1611,16 +1788,19 @@ function viewRigs(){
       h += '<div class="note"><b>Problems:</b><br>' + rs.problems.map(function(p){ return esc(p.n) + (p.note ? " — " + esc(p.note) : ""); }).join("<br>") + '</div>'
         + '<button class="btn green sm" data-id="' + esc(v.id) + '" onclick="App.rigFixed(this.dataset.id)">✓ Problems fixed</button> ';
     }
+    var es = rigExpSummary(v.id);
+    if (es.total) h += '<details style="margin-top:8px"' + (es.expired ? " open" : "") + '><summary style="cursor:pointer;font-weight:700">⏳ Expiration dates '
+      + (es.expired ? '<span class="pill p-bad">' + es.expired + ' expired</span> ' : '') + (es.expiring ? '<span class="pill p-warn">' + es.expiring + ' expiring</span> ' : '')
+      + (es.missing === es.total ? '<span class="pill p-warn">Not entered</span>' : (!es.expired && !es.expiring && !es.missing ? '<span class="pill p-ok">All in date</span>' : '')) + '</summary>'
+      + '<div style="margin-top:8px">' + rigExpTable(v.id) + '<button class="btn sm" style="margin-top:6px" data-id="' + esc(v.id) + '" onclick="App.editRigExp(this.dataset.id)">✎ Update dates</button></div></details>';
     h += '<div class="row" style="margin-top:8px"><button class="btn gold" data-id="' + esc(v.id) + '" onclick="App.startRigCheck(this.dataset.id)">Start check</button><button class="btn" data-id="' + esc(v.id) + '" onclick="App.rigHistory(this.dataset.id)">🕘 History</button></div></div>';
   });
   return h + '</div>';
 }
 function startRigCheck(id){
-  var v = S.fleet.filter(function(x){ return x.id === id; })[0];
-  var insp = [{ name: "Vehicle inspection", items: (S.settings.rigInspection || []).map(function(n){ return { n: n }; }) }];
-  S.check = { kind: "rig", vid: id, vname: vName(v), sections: insp.concat(rigSupplyList()), ans: {}, notes: {}, qa: {}, secNotes: {} };
-  openChecklist("🚑 " + vName(v) + " check", "Tap ✓ when the item is OK / stocked, ✗ when there's a problem or it's missing.",
-    '<div class="row"><div class="grow"><label>Mileage</label><input id="ck-miles" inputmode="numeric"></div><div class="grow"><label>Fuel</label><select id="ck-fuel"><option value="">—</option><option>Full</option><option>3/4</option><option>1/2</option><option>1/4</option><option>Below 1/4</option></select></div></div>');
+  var v = id ? S.fleet.filter(function(x){ return x.id === id; })[0] : null;
+  S.check = { kind: "rig", pick: id || "", vid: id || "", vname: v ? vName(v) : "", sections: clone(rigChecklist()), ans: {}, notes: {}, qa: {}, secNotes: {} };
+  openChecklist("🚑 Rig Equipment Checklist", "Tap ✓ when the item is there / stocked, ✗ when there's a problem or it's missing. Answer every Yes / No question.", ckHeader("rig"));
 }
 
 /* ── Checklist sheet (bag + rig) ── */
@@ -1628,7 +1808,7 @@ function openChecklist(title, help, extraTop){
   var C = S.check;
   var b = '<p class="muted">' + esc(help) + '</p>' + extraTop;
   C.sections.forEach(function(sec, si){
-    b += '<div class="sec"><div class="sec-h"><b>' + esc(sec.name) + '</b><button class="btn sm" onclick="App.ckSection(' + si + ')">All OK</button></div>';
+    b += '<div class="sec"><div class="sec-h"><b>' + esc(sec.name) + '</b>' + ((sec.items || []).length ? '<button class="btn sm" onclick="App.ckSection(' + si + ')">All OK</button>' : '') + '</div>';
     (sec.items || []).forEach(function(it, ii){
       var k = si + ":" + ii;
       b += '<div class="item" id="ck-' + k.replace(":", "-") + '"><div class="nm">' + esc(it.n) + (it.par ? ' <span class="par">· should have ' + esc(it.par) + '</span>' : '') + '</div>'
@@ -1640,11 +1820,12 @@ function openChecklist(title, help, extraTop){
       b += '<div class="item ck-q" id="ckq-' + si + '-' + qi + '"><div class="nm"><b>' + esc(q) + '</b></div>'
         + '<div class="tog yn"><button class="ok" onclick="App.ckQ(\'' + k + '\',\'yes\')">Yes</button><button class="bad" onclick="App.ckQ(\'' + k + '\',\'no\')">No</button></div></div>';
     });
-    if (C.kind === "bag") b += '<div class="item-note" style="padding-top:10px;border-top:1px solid var(--line)"><label for="cksn-' + si + '" style="margin-top:0">Notes on ' + esc(sec.name) + ' Section</label><textarea id="cksn-' + si + '" rows="2" oninput="App.ckSecNote(' + si + ',this.value)"></textarea></div>';
+    b += '<div class="item-note" style="padding-top:10px;border-top:1px solid var(--line)"><label for="cksn-' + si + '" style="margin-top:0">Notes on ' + esc(sec.name) + ' Section</label><textarea id="cksn-' + si + '" rows="2" oninput="App.ckSecNote(' + si + ',this.value)"></textarea></div>';
     b += '</div>';
   });
-  if (C.kind === "bag" && (S.settings.expItems || []).length) b += expInputs(S.me.uid);
-  if (C.kind !== "bag") b += '<label>Notes (optional)</label><textarea id="ck-notes"></textarea>';
+  if (C.kind === "rig" && (S.settings.rigExpItems || []).length) b += '<div id="ck-rexp">' + (C.vid ? rigExpInputs(C.vid) : '<div class="muted">Pick the rig at the top to see its expiration dates.</div>') + '</div>';
+  if (C.kind === "bag" && (S.settings.orgBagExpItems || []).length) b += '<div id="ck-oexp">' + (/^org_/.test(C.pick || "") ? obExpInputs(C.pick.replace(/^org_/, "")) : "") + '</div>';
+  if (C.kind === "bag" && (S.settings.expItems || []).length) b += '<div id="ck-exp"' + (C.pick === "mine" ? "" : " hidden") + '>' + expInputs(S.me.uid) + '</div>';
   openModal(title, b, '<span id="ck-count" class="muted grow"></span><button class="btn" onclick="App.closeModal()">Cancel</button><button class="btn gold" id="ck-save" onclick="App.saveCheck()">Submit check</button>');
   ckCount();
 }
@@ -1701,20 +1882,37 @@ async function saveCheck(){
     if (first) first.closest(".item").scrollIntoView({ block: "center", behavior: "smooth" });
     return;
   }
-  var expR = C.kind === "bag" && (S.settings.expItems || []).length ? readExpInputs() : null;
+  var what = $("ck-what") ? $("ck-what").value : C.pick;
+  if (!what){ toast(C.kind === "rig" ? "Pick the rig at the top." : "Pick the bag at the top."); $("ck-what") && $("ck-what").scrollIntoView({ block: "center", behavior: "smooth" }); return; }
+  var inspDate = ($("ck-date") && $("ck-date").value) || todayStr();
+  var expR = C.kind === "bag" && what === "mine" && (S.settings.expItems || []).length ? readExpInputs() : null;
+  var rexpR = C.kind === "rig" && (S.settings.rigExpItems || []).length ? readRigExp() : null;
+  var oexpR = C.kind === "bag" && /^org_/.test(what) && (S.settings.orgBagExpItems || []).length ? readObExp() : null;
+  if (oexpR && oexpR.missing){ toast(oexpR.missing + " expiration date" + (oexpR.missing === 1 ? " is" : "s are") + " empty. Fill in every date at the bottom.", 6000); return; }
+  if (rexpR && rexpR.missing){ toast(rexpR.missing + " expiration date" + (rexpR.missing === 1 ? " is" : "s are") + " empty. Fill in every date at the bottom.", 6000); return; }
   if (expR && expR.missing){ toast(expR.missing + " expiration date" + (expR.missing === 1 ? " is" : "s are") + " empty. Fill in every date at the bottom.", 6000); return; }
   $("ck-save").disabled = true;
-  var now = Date.now(), notes = $("ck-notes") ? $("ck-notes").value.trim() : secNotes.map(function(x){ return x.s + ": " + x.note; }).join(" · ");
+  var now = Date.now(), notes = secNotes.map(function(x){ return x.s + ": " + x.note; }).join(" · ");
+  var who = { uid: S.me.uid, unit: S.me.unit || "", name: S.me.name || "", email: S.me.email || "", inspDate: inspDate };
   try {
     var batch = db.batch();
-    if (C.kind === "bag"){
-      batch.set(db.collection("trk_bagChecks").doc(), { uid: S.me.uid, unit: S.me.unit || "", at: now, results: results, answers: answers, sectionNotes: secNotes, missing: problems, notes: notes });
+    if (C.kind === "bag" && what === "mine"){
+      var mine = (S.me.unit || "") + " Primary Bag";
+      batch.set(db.collection("trk_bagChecks").doc(), Object.assign({}, who, { at: now, bagId: "mine", bag: mine, results: results, answers: answers, sectionNotes: secNotes, missing: problems, notes: notes }));
       if (expR) batch.set(db.collection("trk_bagExp").doc(S.me.uid), { uid: S.me.uid, unit: S.me.unit || "", dates: expR.dates, updatedAt: now, updatedBy: S.me.unit || "" });
-      batch.set(db.collection("trk_bagStatus").doc(S.me.uid), { uid: S.me.uid, unit: S.me.unit || "", name: S.me.name || "", lastAt: now, missing: problems, notes: notes });
+      batch.set(db.collection("trk_bagStatus").doc(S.me.uid), { uid: S.me.uid, unit: S.me.unit || "", name: S.me.name || "", lastAt: now, inspDate: inspDate, missing: problems, notes: notes });
+    } else if (C.kind === "bag"){
+      // an agency bag / cabinet: its own status, kept as "org_<id>" (needs the 1.24 rules)
+      var bid = what.replace(/^org_/, ""), bv = S.fleet.filter(function(x){ return x.id === bid; })[0], bl = bv ? bagLabel(bv) : bid;
+      batch.set(db.collection("trk_bagChecks").doc(), Object.assign({}, who, { at: now, bagId: bid, bag: bl, org: true, results: results, answers: answers, sectionNotes: secNotes, missing: problems, notes: notes }));
+      var ost = { org: true, bagId: bid, bag: bl, unit: bl, lastAt: now, inspDate: inspDate, by: S.me.unit || "", byUid: S.me.uid, missing: problems, notes: notes };
+      if (oexpR){ ost.expDates = oexpR.dates; ost.expUpdatedAt = now; ost.expUpdatedBy = S.me.unit || ""; }
+      batch.set(db.collection("trk_bagStatus").doc("org_" + bid), ost, { merge: true });
     } else {
-      var miles = $("ck-miles").value.trim(), fuel = $("ck-fuel").value;
-      batch.set(db.collection("trk_rigChecks").doc(), { vehicleId: C.vid, rig: C.vname, uid: S.me.uid, unit: S.me.unit || "", at: now, results: results, problems: problems, mileage: miles, fuel: fuel, notes: notes });
-      batch.set(db.collection("trk_rigStatus").doc(C.vid), { vehicleId: C.vid, rig: C.vname, lastAt: now, by: S.me.unit || "", byUid: S.me.uid, problems: problems, mileage: miles, fuel: fuel, notes: notes });
+      batch.set(db.collection("trk_rigChecks").doc(), Object.assign({}, who, { vehicleId: C.vid, rig: C.vname, at: now, results: results, answers: answers, sectionNotes: secNotes, problems: problems, notes: notes }));
+      var rst = { vehicleId: C.vid, rig: C.vname, lastAt: now, inspDate: inspDate, by: S.me.unit || "", byUid: S.me.uid, problems: problems, notes: notes };
+      if (rexpR){ rst.expDates = rexpR.dates; rst.expUpdatedAt = now; rst.expUpdatedBy = S.me.unit || ""; }
+      batch.set(db.collection("trk_rigStatus").doc(C.vid), rst, { merge: true });
     }
     await batch.commit();
     closeModal(); S.check = null;
@@ -1747,7 +1945,7 @@ async function rigHistory(id){
 }
 function histRow(r){
   var probs = r.problems || r.missing || [];
-  return '<div class="card"><div class="row"><b class="grow">' + fmtTs(r.at) + '</b><span class="muted">' + esc(r.unit || "") + '</span>'
+  return '<div class="card"><div class="row"><b class="grow">' + fmtTs(r.at) + (r.bag ? ' · ' + esc(r.bag) : '') + '</b><span class="muted">' + esc(r.unit || "") + '</span>'
     + (probs.length ? '<span class="pill p-bad">' + probs.length + ' problem' + (probs.length === 1 ? "" : "s") + '</span>' : '<span class="pill p-ok">All OK</span>') + '</div>'
     + (r.mileage || r.fuel ? '<div class="muted">' + (r.mileage ? "Mileage " + esc(r.mileage) + " " : "") + (r.fuel ? "· Fuel " + esc(r.fuel) : "") + '</div>' : '')
     + (probs.length ? '<div class="note">' + probs.map(function(p){ return esc(p.n) + (p.note ? " — " + esc(p.note) : ""); }).join("<br>") + '</div>' : '')
@@ -1893,10 +2091,10 @@ function adminProfiles(){
    ADMIN
    ════════════════════════════════════════════════════════════════════════ */
 function viewAdmin(){
-  var tabs = [["grid", "👥 Compliance"], ["review", "📥 Review"], ["vehicles", "🚗 Vehicles"], ["bags", "🎒 Jump Bags"], ["profiles", "👤 Profiles"], ["reports", "📊 Reports"], ["remind", "📣 Reminders"], ["settings", "⚙ Settings"]];
+  var tabs = [["grid", "👥 Compliance"], ["review", "📥 Review"], ["vehicles", "🚗 Vehicles"], ["bags", "🎒 Jump Bags"], ["profiles", "👤 Profiles"], ["reports", "📊 Reports"], ["remind", "📣 Reminders"]];
   var pend = Object.values(S.allRecords).filter(function(r){ return r.status === "pending"; }).length;
   var h = '<div class="admin-tabbar">' + tabs.map(function(t){ return '<button class="admin-tab' + (S.adminTab === t[0] ? " on" : "") + '" onclick="App.adminTab(\'' + t[0] + '\')">' + t[1] + (t[0] === "review" && pend ? " (" + pend + ")" : "") + '</button>'; }).join("") + '</div>';
-  return h + ({ grid: adminGrid, review: adminReview, vehicles: adminVehicles, bags: adminBags, profiles: adminProfiles, reports: adminReports, remind: adminRemind, settings: adminSettings }[S.adminTab] || adminGrid)();
+  return h + ({ grid: adminGrid, review: adminReview, vehicles: adminVehicles, bags: adminBags, profiles: adminProfiles, reports: adminReports, remind: adminRemind }[S.adminTab] || adminGrid)();
 }
 function legend(){
   return '<div class="legend"><span><i class="dot d-ok"></i>Valid</span><span><i class="dot d-info"></i>Waiting for review</span><span><i class="dot d-warn"></i>Expiring soon</span><span><i class="dot d-bad"></i>Expired / rejected / overdue</span><span><i class="dot d-missing"></i>Missing</span><span><i class="dot d-na"></i>Not required</span></div>';
@@ -1951,6 +2149,7 @@ function openRecord(id){
     + docFields(t).map(function(d){ var v = rec.fields && rec.fields[d[0]]; return v ? '<span>' + esc(d[1]) + '</span><span>' + esc(d[2] === "date" ? fmtDate(v) : v) + '</span>' : ""; }).join("")
     + '<span>Uploaded</span><span>' + fmtTs(rec.updatedAt) + ' by ' + esc(rec.updatedBy || "") + (rec.scanned ? " · ✨ scanned" : "") + '</span>'
     + (rec.reviewedBy ? '<span>Reviewed</span><span>' + fmtTs(rec.reviewedAt) + ' by ' + esc(rec.reviewedBy) + '</span>' : '') + '</div>' + thumbs(rec.files)
+    + policyNote(rec, true)
     + (rec.history && rec.history.length ? '<div class="muted">' + rec.history.length + ' earlier cop' + (rec.history.length === 1 ? "y" : "ies") + ' kept.</div>' : '')
     + '<label>Note to the member (shown if you reject)</label><input id="rv-note" value="' + esc(rec.reviewNote || "") + '" placeholder="e.g. Photo is blurry — please retake">';
   openModal(t.name, b,
@@ -1984,7 +2183,7 @@ function adminReview(){
     return '<div class="card"><div class="row"><h3 class="grow">' + esc(t.name) + '</h3><span class="muted">' + esc(r.unit) + '</span></div>'
       + '<div class="muted">' + esc(r.memberName || "") + (r.vehName ? " · " + esc(r.vehName) : "") + '</div>'
       + '<div class="kv">' + (r.number ? '<span>Number</span><span>' + esc(r.number) + '</span>' : '') + (r.expires ? '<span>Expires</span><span>' + fmtDate(r.expires) + '</span>' : '') + '<span>Uploaded</span><span>' + fmtTs(r.updatedAt) + '</span></div>'
-      + thumbs(r.files) + '<button class="btn gold sm" data-id="' + esc(r.id) + '" onclick="App.openRecord(this.dataset.id)">Review…</button></div>';
+      + policyNote(r, true) + thumbs(r.files) + '<button class="btn gold sm" data-id="' + esc(r.id) + '" onclick="App.openRecord(this.dataset.id)">Review…</button></div>';
   }).join("") + '</div>';
 }
 function adminVehicles(){
@@ -2015,7 +2214,7 @@ function viewBagExp(uid){
 }
 function adminBags(){
   var users = S.users.filter(function(u){ return bagRequired(u) || S.allBags[u.uid]; });
-  var h = '<p class="muted">Every ' + (S.settings.bagIntervalDays || 30) + ' days. Change it in ⚙ Settings.</p>';
+  var h = '<p class="muted">Every ' + (S.settings.bagIntervalDays || 30) + ' days. Change it in ⚙ Admin Panel ▸ Timing & Equipment.</p>';
   h += '<div class="tbl-wrap"><table><thead><tr><th>Unit</th><th>Name</th><th>Last check</th><th>Status</th><th>Missing items</th><th>Expiration dates</th><th></th></tr></thead><tbody>';
   users.forEach(function(u){
     var b = S.allBags[u.uid], st = bagState(b);
@@ -2029,7 +2228,18 @@ function adminBags(){
       + '<td style="white-space:normal">' + expCell + '</td>'
       + '<td><div class="row" style="flex-wrap:nowrap"><button class="btn sm" data-uid="' + esc(u.uid) + '" onclick="App.viewBagExp(this.dataset.uid)">Dates</button><button class="btn sm" data-uid="' + esc(u.uid) + '" onclick="App.bagHistory(this.dataset.uid)">History</button></div></td></tr>';
   });
-  return h + '</tbody></table></div>';
+  h += '</tbody></table></div>';
+  var ab = agencyBags();
+  if (ab.length){
+    h += '<h2>🧰 Agency Bags & Cabinets</h2><div class="tbl-wrap"><table><thead><tr><th>Bag</th><th>Last check</th><th>By</th><th>Status</th><th>Missing items</th><th>Expiration dates</th><th></th></tr></thead><tbody>'
+      + ab.map(function(v){ var b = S.allBags["org_" + v.id], st = bagState(b), es = obExpSummary(v.id);
+        var expCell = !es.total ? '<span class="muted">—</span>' : es.missing === es.total ? '<span class="pill p-warn">Not entered</span>'
+          : (es.expired ? '<span class="pill p-bad">' + es.expired + ' expired</span> ' : '') + (es.expiring ? '<span class="pill p-warn">' + es.expiring + ' expiring</span>' : '') + (!es.expired && !es.expiring ? '<span class="pill p-ok">All in date</span>' : '');
+        return '<tr><td><b>' + esc(bagLabel(v)) + '</b></td><td>' + (b ? fmtTs(b.lastAt) : "Never") + '</td><td>' + esc((b && b.by) || "") + '</td><td>' + pillFor(st) + '</td><td style="white-space:normal">'
+          + (b && b.missing && b.missing.length ? b.missing.map(function(m){ return esc(m.n); }).join(", ") : '<span class="muted">—</span>') + '</td><td>' + expCell + '</td>'
+          + '<td><button class="btn sm" data-id="' + esc(v.id) + '" onclick="App.viewObExp(this.dataset.id)">Dates</button></td></tr>'; }).join("") + '</tbody></table></div>';
+  }
+  return h;
 }
 
 /* ── Reminders ── */
@@ -2105,7 +2315,167 @@ async function sendReminders(){
   render();
 }
 
-/* ── Settings ── */
+/* ════════════════════════════════════════════════════════════════════════
+   ⚙ ADMIN PANEL (1.24) — checklists, documents, timing, messages. Each tab saves only its own part.
+   ════════════════════════════════════════════════════════════════════════ */
+var PANEL_TABS = [["rig", "🚑 Rig Checklist"], ["bag", "🎒 Jump Bag Checklist"], ["docs", "📄 Documents"], ["timing", "⏱ Timing & Equipment"], ["msg", "✉️ Messages"]];
+function viewPanel(){
+  var t = S.panelTab || "rig";
+  var h = '<div class="admin-tabbar">' + PANEL_TABS.map(function(x){ return '<button class="admin-tab' + (t === x[0] ? " on" : "") + '" onclick="App.panelTab(\'' + x[0] + '\')">' + x[1] + (S.ced && S.ced[x[0] === "rig" ? "rigChecklist" : "bagChecklist"] && S.ced[x[0] === "rig" ? "rigChecklist" : "bagChecklist"].dirty && (x[0] === "rig" || x[0] === "bag") ? " •" : "") + '</button>'; }).join("") + '</div>';
+  return h + ({ rig: function(){ return panelChecklist("rigChecklist"); }, bag: function(){ return panelChecklist("bagChecklist"); }, docs: panelDocs, timing: panelTiming, msg: panelMsg }[t] || panelDocs)();
+}
+async function savePart(data, msgId, after){
+  var m = $(msgId); if (m) m.textContent = "⏳ Saving…";
+  data.updatedAt = Date.now(); data.updatedBy = S.me.unit || "";
+  try { await db.collection("trk_settings").doc("main").set(data, { merge: true }); if (m) m.textContent = "✓ Saved"; toast("✓ Saved"); if (after) after(); document.activeElement && document.activeElement.blur(); setTimeout(render, 300); }
+  catch (e){ if (m) m.textContent = "⚠ Not saved: " + e.message; toast("⚠ Not saved: " + e.message, 6000); }
+}
+function saveRow(fn, msgId){ return '<div class="row" style="position:sticky;bottom:0;background:var(--bg);padding:10px 0;border-top:1px solid var(--line);margin-top:10px"><span class="grow"></span><span id="' + msgId + '" class="muted"></span><button class="btn gold" onclick="App.' + fn + '()">💾 Save</button></div>'; }
+
+// ── checklist editor (rig and jump bag): sections → items (name + how many) → Yes / No checks; every section has a Notes box
+function cedState(key){
+  S.ced = S.ced || {};
+  if (!S.ced[key]) S.ced[key] = { data: clone(key === "rigChecklist" ? rigChecklist() : bagChecklist()), dirty: false };
+  return S.ced[key];
+}
+function panelChecklist(key){
+  var E = cedState(key), rig = key === "rigChecklist", K = "\'" + key + "\'";
+  var h = '<div class="card"><h3>' + (rig ? "🚑 Rig Equipment Checklist" : "🎒 Jump Bag Checklist") + '</h3><p class="muted" style="margin:0">'
+    + (rig ? "What's checked on every rig check, section by section." : "What's checked on every jump bag check (members' own bags and the agency bags / cabinets).")
+    + ' Each item has a name and how many should be there. Yes / No checks come at the end of their section. Every section gets a Notes box automatically.</p>'
+    + (E.dirty ? '<div class="note" style="background:#fff4d6;border-color:#e2c27a;color:#5c3c00;margin-top:8px">Unsaved changes — press 💾 Save at the bottom.</div>' : '') + '</div>';
+  E.data.forEach(function(sec, si){
+    h += '<div class="card"><div class="row"><input value="' + esc(sec.name) + '" placeholder="Section name" style="flex:1;font-weight:700" aria-label="Section name" oninput="App.cedSet(' + K + ',\'name\',' + si + ',-1,this.value)">'
+      + '<button class="btn sm" title="Move section up" onclick="App.cedOp(' + K + ',\'secUp\',' + si + ')"' + (si ? '' : ' disabled') + '>↑</button>'
+      + '<button class="btn sm" title="Move section down" onclick="App.cedOp(' + K + ',\'secDown\',' + si + ')"' + (si < E.data.length - 1 ? '' : ' disabled') + '>↓</button>'
+      + '<button class="btn red sm" onclick="App.cedOp(' + K + ',\'secDel\',' + si + ')">Delete section</button></div>';
+    h += '<div style="margin-top:8px">' + (sec.items || []).map(function(it, ii){
+      return '<div class="row" style="margin-bottom:4px;flex-wrap:nowrap"><input value="' + esc(it.n) + '" placeholder="Item" aria-label="Item" style="flex:3" oninput="App.cedSet(' + K + ',\'n\',' + si + ',' + ii + ',this.value)">'
+        + '<input value="' + esc(it.par || "") + '" placeholder="How many" aria-label="How many" style="flex:1;min-width:90px" oninput="App.cedSet(' + K + ',\'par\',' + si + ',' + ii + ',this.value)">'
+        + '<button class="btn sm" title="Up" onclick="App.cedOp(' + K + ',\'itUp\',' + si + ',' + ii + ')"' + (ii ? '' : ' disabled') + '>↑</button>'
+        + '<button class="btn sm" title="Down" onclick="App.cedOp(' + K + ',\'itDown\',' + si + ',' + ii + ')"' + (ii < sec.items.length - 1 ? '' : ' disabled') + '>↓</button>'
+        + '<button class="x" title="Remove item" onclick="App.cedOp(' + K + ',\'itDel\',' + si + ',' + ii + ')">✕</button></div>';
+    }).join("") + '<button class="btn sm" onclick="App.cedOp(' + K + ',\'itAdd\',' + si + ')">+ Add item</button></div>';
+    h += '<div style="margin-top:10px"><div class="muted" style="font-weight:700;margin-bottom:4px">Yes / No checks</div>' + (sec.questions || []).map(function(q, qi){
+      return '<div class="row" style="margin-bottom:4px;flex-wrap:nowrap"><input value="' + esc(q) + '" placeholder="Question (answered Yes or No)" aria-label="Yes / No check" style="flex:1" oninput="App.cedSet(' + K + ',\'q\',' + si + ',' + qi + ',this.value)">'
+        + '<button class="x" title="Remove check" onclick="App.cedOp(' + K + ',\'qDel\',' + si + ',' + qi + ')">✕</button></div>';
+    }).join("") + '<button class="btn sm" onclick="App.cedOp(' + K + ',\'qAdd\',' + si + ')">+ Add Yes / No check</button></div></div>';
+  });
+  h += '<div class="row"><button class="btn" onclick="App.cedOp(' + K + ',\'secAdd\')">+ Add section</button><span class="grow"></span>'
+    + '<button class="btn sm" onclick="App.cedOp(' + K + ',\'reset\')">Restore the Hatzolah MC form</button></div>';
+  if (rig) h += '<div class="card" style="margin-top:12px"><h3>⏳ Items on the rig that expire</h3><p class="muted" style="margin:0 0 6px">Each rig keeps its own date for each of these (Rig Checks ▸ Expiration dates, and at the end of every rig check). One per line.</p><textarea id="st-rigexp" rows="10">' + esc((S.settings.rigExpItems || []).join("\n")) + '</textarea></div>';
+  if (!rig) h += '<div class="card" style="margin-top:12px"><h3>⏳ Items that expire — members\' own bags</h3><p class="muted" style="margin:0 0 6px">Members enter the expiration date of each of these when they check their own bag. One per line.</p><textarea id="st-exp" rows="10">' + esc((S.settings.expItems || []).join("\n")) + '</textarea>'
+    + '<h3 style="margin-top:14px">⏳ Items that expire — agency bags (rig bags, ERV bag…)</h3><p class="muted" style="margin:0 0 6px">Each agency bag keeps its own date for each of these (entered at the end of its check). One per line.</p><textarea id="st-obexp" rows="10">' + esc((S.settings.orgBagExpItems || []).join("\n")) + '</textarea></div>';
+  return h + saveRow(rig ? "saveRigList" : "saveBagList", "ced-msg");
+}
+function cedSet(key, field, si, ii, val){
+  var E = cedState(key), sec = E.data[si]; if (!sec) return;
+  if (field === "name") sec.name = val; else if (field === "q") sec.questions[ii] = val; else if (sec.items[ii]) sec.items[ii][field] = val;
+  if (!E.dirty){ E.dirty = true; var m = $("ced-msg"); if (m) m.textContent = "Unsaved changes"; }
+}
+function cedOp(key, op, si, ii){
+  var E = cedState(key), d = E.data, sec = d[si];
+  function swap(a, i, j){ var t = a[i]; a[i] = a[j]; a[j] = t; }
+  if (op === "secUp" && si > 0) swap(d, si, si - 1);
+  else if (op === "secDown" && si < d.length - 1) swap(d, si, si + 1);
+  else if (op === "secDel"){ if (!confirm("Delete the section \"" + (sec.name || "untitled") + "\" and everything in it?")) return; d.splice(si, 1); }
+  else if (op === "secAdd") d.push({ name: "", items: [], questions: [] });
+  else if (op === "itAdd"){ sec.items = sec.items || []; sec.items.push({ n: "", par: "" }); }
+  else if (op === "itDel") sec.items.splice(ii, 1);
+  else if (op === "itUp" && ii > 0) swap(sec.items, ii, ii - 1);
+  else if (op === "itDown" && ii < sec.items.length - 1) swap(sec.items, ii, ii + 1);
+  else if (op === "qAdd"){ sec.questions = sec.questions || []; sec.questions.push(""); }
+  else if (op === "qDel") sec.questions.splice(ii, 1);
+  else if (op === "reset"){ if (!confirm("Replace this checklist with the original Hatzolah MC form? (Nothing changes until you press Save.)")) return;
+    E.data = clone(key === "rigChecklist" ? DEFAULT_RIG_CHECKLIST : (function(){ var q = S.settings.bagQuestions; S.settings.bagQuestions = null; var x = defaultBagChecklist(); S.settings.bagQuestions = q; return x; })()); }
+  E.dirty = true; render();
+  if (op === "secAdd" || op === "itAdd" || op === "qAdd"){ var ins = document.querySelectorAll("#view input"); var last = op === "secAdd" ? document.querySelectorAll("#view .card input[aria-label=\"Section name\"]") : null;
+    var el = op === "secAdd" ? last[last.length - 1] : null;
+    if (!el){ var secs = document.querySelectorAll("#view > .card"); var c = secs[si + 1]; if (c){ var list = c.querySelectorAll(op === "itAdd" ? 'input[aria-label="Item"]' : 'input[aria-label="Yes / No check"]'); el = list[list.length - 1]; } }
+    if (el){ el.focus(); el.scrollIntoView({ block: "center" }); } }
+}
+function cedClean(key){
+  var out = [], bad = [];
+  cedState(key).data.forEach(function(sec, i){
+    var name = String(sec.name || "").trim();
+    var items = (sec.items || []).map(function(it){ return { n: String(it.n || "").trim(), par: String(it.par || "").trim() }; }).filter(function(it){ return it.n; });
+    var qs = (sec.questions || []).map(function(q){ return String(q || "").trim(); }).filter(Boolean);
+    if (!name && !items.length && !qs.length) return;
+    if (!name) bad.push("Section " + (i + 1) + " needs a name");
+    out.push({ name: name, items: items, questions: qs });
+  });
+  var seen = {}; out.forEach(function(s){ var k = s.name.toLowerCase(); if (seen[k]) bad.push("Two sections are called \"" + s.name + "\""); seen[k] = 1; });
+  if (!out.length) bad.push("Keep at least one section");
+  return { list: out, bad: bad };
+}
+function saveRigList(){
+  var c = cedClean("rigChecklist"); if (c.bad.length){ toast(c.bad.join(". ") + ".", 6000); return; }
+  var rexp = $("st-rigexp") ? $("st-rigexp").value.split("\n").map(function(x){ return x.trim(); }).filter(Boolean).filter(function(x, i, a){ return a.indexOf(x) === i; }) : S.settings.rigExpItems;
+  savePart({ rigChecklist: c.list, rigExpItems: rexp }, "ced-msg", function(){ delete S.ced.rigChecklist; });
+}
+function saveBagList(){
+  var c = cedClean("bagChecklist"); if (c.bad.length){ toast(c.bad.join(". ") + ".", 6000); return; }
+  var exp = $("st-exp") ? $("st-exp").value.split("\n").map(function(x){ return x.trim(); }).filter(Boolean).filter(function(x, i, a){ return a.indexOf(x) === i; }) : S.settings.expItems;
+  var obexp = $("st-obexp") ? $("st-obexp").value.split("\n").map(function(x){ return x.trim(); }).filter(Boolean).filter(function(x, i, a){ return a.indexOf(x) === i; }) : S.settings.orgBagExpItems;
+  savePart({ bagChecklist: c.list, expItems: exp, orgBagExpItems: obexp }, "ced-msg", function(){ delete S.ced.bagChecklist; });
+}
+// ── documents
+function panelDocs(){
+  var h = '<div class="card"><h3>📄 Documents & certifications</h3><p class="muted">"Member" = each person uploads their own. "Vehicle" = uploaded for each vehicle.</p><div id="st-types">';
+  (S.settings.docTypes || []).forEach(function(t, i){ h += typeRow(t, i); });
+  return h + '</div><button class="btn sm" onclick="App.addType()">+ Add a document type</button></div>' + saveRow("saveDocs", "st-msg");
+}
+function saveDocs(){
+  var types = [], used = {};
+  document.querySelectorAll("#st-types .dtype").forEach(function(r){
+    var name = r.querySelector(".t-name").value.trim(); if (!name) return;
+    var id = r.querySelector(".t-id").value || name.toLowerCase().replace(/[^a-z0-9]+/g, "").slice(0, 16) || ("t" + Date.now());
+    while (used[id]) id += "x"; used[id] = 1;
+    types.push({ id: id, name: name, cat: r.querySelector(".t-cat").value, scope: r.querySelector(".t-scope").value, expires: r.querySelector(".t-exp").checked, number: r.querySelector(".t-num").checked, required: r.querySelector(".t-req").checked });
+  });
+  if (!types.length){ toast("Keep at least one document type."); return; }
+  savePart({ docTypes: types }, "st-msg");
+}
+// ── timing & equipment
+function panelTiming(){
+  var s = S.settings;
+  function ticks(cls, list, sel, label){ return list.length ? list.map(function(v){
+    return '<label style="margin:0;display:flex;gap:6px;align-items:center;font-weight:400;color:var(--text);border:1px solid var(--line);border-radius:8px;padding:6px 10px"><input type="checkbox" class="' + cls + '" style="width:auto" value="' + esc(v.id) + '" ' + (sel.indexOf(v.id) >= 0 ? "checked" : "") + '> ' + esc(label(v)) + '</label>'; }).join("") : '<span class="muted">Nothing in CallDashboard ▸ Fleet.</span>'; }
+  var h = '<div class="card"><h3>⏱ Timing</h3><div class="row">'
+    + '<div class="grow"><label for="st-warn">Warn this many days before expiry</label><input id="st-warn" type="number" min="1" max="180" value="' + esc(s.warnDays) + '"></div>'
+    + '<div class="grow"><label for="st-bag">Jump bag check every (days)</label><input id="st-bag" type="number" min="1" max="365" value="' + esc(s.bagIntervalDays) + '"></div>'
+    + '<div class="grow"><label for="st-rig">Rig check every (days)</label><input id="st-rig" type="number" min="1" max="90" value="' + esc(s.rigIntervalDays) + '"></div>'
+    + '<div class="grow"><label for="st-cool">Don\'t re-remind within (days)</label><input id="st-cool" type="number" min="0" max="60" value="' + esc(s.reminderCooldownDays) + '"></div></div>'
+    + '<label for="st-bagroles">Who must check their own jump bag (roles, comma separated)</label><input id="st-bagroles" value="' + esc((s.bagRoles || []).join(", ")) + '"></div>';
+  var all = S.fleet.filter(function(v){ return !isEquipment(v); }).sort(function(a, b){ return String(vName(a)).localeCompare(String(vName(b)), undefined, { numeric: true }); });
+  h += '<div class="card"><h3>🚑 Rigs that get checked</h3><div class="row">' + ticks("st-rig", all, s.rigIds || rigList().map(function(v){ return v.id; }), vName) + '</div></div>';
+  var eq = S.fleet.filter(function(v){ return isEquipment(v); }).sort(function(a, b){ return String(a.id).localeCompare(String(b.id), undefined, { numeric: true }); });
+  h += '<div class="card"><h3>🧰 Agency bags & cabinets that get checked</h3><p class="muted" style="margin:0 0 6px">These show in the Bag box of the jump bag check, under the member\'s own Primary Bag. They come from CallDashboard ▸ Fleet (equipment).</p><div class="row">'
+    + ticks("st-bagx", eq, s.bagIds || agencyBags().map(function(v){ return v.id; }), bagLabel) + '</div></div>';
+  return h + saveRow("saveTiming", "st-msg");
+}
+function saveTiming(){
+  var num = function(id, def){ var n = parseInt($(id).value, 10); return isNaN(n) ? def : n; };
+  savePart({
+    warnDays: num("st-warn", 30), bagIntervalDays: Math.max(1, num("st-bag", 30)), rigIntervalDays: Math.max(1, num("st-rig", 7)), reminderCooldownDays: num("st-cool", 7),
+    bagRoles: $("st-bagroles").value.split(",").map(function(x){ return x.trim().toLowerCase(); }).filter(Boolean),
+    rigIds: Array.from(document.querySelectorAll(".st-rig:checked")).map(function(c){ return c.value; }),
+    bagIds: Array.from(document.querySelectorAll(".st-bagx:checked")).map(function(c){ return c.value; })
+  }, "st-msg");
+}
+// ── messages
+function panelMsg(){
+  var T = S.settings.templates;
+  return '<div class="card"><h3>✉️ Reminder wording</h3>' + (TRK_SENDING_OFF ? '<div class="note" style="background:#fff4d6;border-color:#e2c27a;color:#5c3c00">🔕 Texts and emails are switched off right now — this is only the wording for when they\'re back on.</div>' : '')
+    + '<p class="muted">Words in {braces} are filled in: {name} {unit} {org} {items} {link} {time}. {time} gives "Date: MM/DD/YYYY  Time: HH:MM".</p>'
+    + '<label for="st-sms">Text message</label><textarea id="st-sms" rows="6">' + esc(T.sms) + '</textarea>'
+    + '<label for="st-esub">Email subject</label><input id="st-esub" value="' + esc(T.emailSubject) + '">'
+    + '<label for="st-ebody">Email body</label><textarea id="st-ebody" rows="8">' + esc(T.emailBody) + '</textarea>'
+    + '<button class="btn sm" style="margin-top:8px" onclick="App.resetTemplates()">Restore default wording</button></div>' + saveRow("saveMsg", "st-msg");
+}
+function saveMsg(){ savePart({ templates: { sms: $("st-sms").value, emailSubject: $("st-esub").value, emailBody: $("st-ebody").value } }, "st-msg"); }
+
+/* ── Settings (kept for reference; replaced by the Admin Panel in 1.24) ── */
 function adminSettings(){
   var s = S.settings, T = s.templates;
   var h = '<div class="card"><h3>📄 Documents & certifications</h3><p class="muted">"Member" = each person uploads their own. "Vehicle" = uploaded for each vehicle.</p><div id="st-types">';
@@ -2284,6 +2654,8 @@ var REPORTS = {
         (S.settings.expItems || []).forEach(function(n){ add(u.unit, u.name || "", "Jump bag item", n, dates[n]); });
       });
       orgVehicles().forEach(function(v){ docTypes("vehicle").forEach(function(t){ var rec = S.allRecords[recKey("org_" + v.id, t.id)]; if (rec) add("Agency", "", "Agency vehicle", vName(v) + " — " + t.name, rec.expires); }); });
+      rigList().forEach(function(v){ rigExpRows(v.id).forEach(function(r){ add("Agency", "", "Rig item", vName(v) + " — " + r.item, r.date); }); });
+      agencyBags().forEach(function(v){ obExpRows(v.id).forEach(function(r){ add("Agency", "", "Agency bag item", bagLabel(v) + " — " + r.item, r.date); }); });
       rows.sort(function(a, b){ return a[5] - b[5]; });
       return { name: "Expired & expiring", cols: [{ h: "Unit", w: 9 }, { h: "Name", w: 22 }, { h: "Type", w: 16 }, { h: "Item", w: 36 }, { h: "Expires", w: 12, t: "d" }, { h: "Days left", w: 10 }, { h: "Status", w: 11 }], rows: rows };
     } },
@@ -2291,17 +2663,17 @@ var REPORTS = {
     build: async function(from, to){
       var q = await db.collection("trk_bagChecks").where("at", ">=", from).get(), rows = [];
       q.forEach(function(d){ var x = d.data(); if (x.at > to) return; var u = userByUid(x.uid) || {};
-        rows.push([msDate(x.at), x.unit || u.unit || "", u.name || "", (x.missing || []).length ? "Problems" : "All OK", (x.missing || []).map(function(m){ return m.n + (m.note ? " (" + m.note + ")" : ""); }).join("\n"), (x.sectionNotes || []).map(function(n){ return n.s + ": " + n.note; }).join("\n") || x.notes || ""]); });
+        rows.push([msDate(x.at), x.inspDate ? ymdDate(x.inspDate) : "", x.bag || "", x.unit || u.unit || "", u.name || x.name || "", (x.missing || []).length ? "Problems" : "All OK", (x.missing || []).map(function(m){ return m.n + (m.note ? " (" + m.note + ")" : ""); }).join("\n"), (x.sectionNotes || []).map(function(n){ return n.s + ": " + n.note; }).join("\n") || x.notes || ""]); });
       rows.sort(function(a, b){ return b[0] - a[0]; });
-      return { name: "Jump bag checks", cols: [{ h: "Date", w: 16, t: "dt" }, { h: "Unit", w: 9 }, { h: "Name", w: 22 }, { h: "Result", w: 10 }, { h: "Missing / failed", w: 50, t: "w" }, { h: "Notes", w: 40, t: "w" }], rows: rows };
+      return { name: "Jump bag checks", cols: [{ h: "Saved", w: 16, t: "dt" }, { h: "Inspection date", w: 13, t: "d" }, { h: "Bag", w: 24 }, { h: "Unit", w: 9 }, { h: "Name", w: 22 }, { h: "Result", w: 10 }, { h: "Missing / failed", w: 50, t: "w" }, { h: "Notes", w: 40, t: "w" }], rows: rows };
     } },
-  rigchecks: { icon: "🚑", title: "Rig checks", desc: "Every rig check in a date range: who, mileage, fuel, problems and notes.", range: true,
+  rigchecks: { icon: "🚑", title: "Rig checks", desc: "Every rig check in a date range: who, when, problems and notes.", range: true,
     build: async function(from, to){
       var q = await db.collection("trk_rigChecks").where("at", ">=", from).get(), rows = [];
       q.forEach(function(d){ var x = d.data(); if (x.at > to) return;
-        rows.push([msDate(x.at), x.rig || x.vehicleId, x.unit || "", x.mileage || "", x.fuel || "", (x.problems || []).length ? "Problems" : "All OK", (x.problems || []).map(function(m){ return m.n + (m.note ? " (" + m.note + ")" : ""); }).join("\n"), x.notes || ""]); });
+        rows.push([msDate(x.at), x.inspDate ? ymdDate(x.inspDate) : "", x.rig || x.vehicleId, x.unit || "", x.name || "", (x.problems || []).length ? "Problems" : "All OK", (x.problems || []).map(function(m){ return m.n + (m.note ? " (" + m.note + ")" : ""); }).join("\n"), (x.sectionNotes || []).map(function(n){ return n.s + ": " + n.note; }).join("\n") || x.notes || ""]); });
       rows.sort(function(a, b){ return b[0] - a[0]; });
-      return { name: "Rig checks", cols: [{ h: "Date", w: 16, t: "dt" }, { h: "Rig", w: 10 }, { h: "Checked by", w: 11 }, { h: "Mileage", w: 10 }, { h: "Fuel", w: 9 }, { h: "Result", w: 10 }, { h: "Problems", w: 50, t: "w" }, { h: "Notes", w: 40, t: "w" }], rows: rows };
+      return { name: "Rig checks", cols: [{ h: "Saved", w: 16, t: "dt" }, { h: "Inspection date", w: 13, t: "d" }, { h: "Rig", w: 10 }, { h: "Inspector", w: 10 }, { h: "Name", w: 20 }, { h: "Result", w: 10 }, { h: "Problems", w: 50, t: "w" }, { h: "Notes", w: 40, t: "w" }], rows: rows };
     } },
   vehicles: { icon: "🚗", title: "Vehicles", desc: "Members' vehicles and agency vehicles with plate, VIN and insurance / registration expiry.",
     build: async function(){
@@ -2413,7 +2785,9 @@ window.App = {
   remindTest: remindTest, sendReminders: sendReminders,
   repView: repView, repXlsx: repXlsx, repAll: repAll, repDates: repDates, repPrint: repPrint,
   saveProfile: saveProfile, vfRepl: vfRepl, editBagExp: editBagExp, saveBagExp: saveBagExp, viewBagExp: viewBagExp, phoneTyping: phoneTyping, openProfile: openProfile,
-  addType: addType, resetTemplates: resetTemplates, saveSettings: saveSettings
+  addType: addType, resetTemplates: resetTemplates, saveSettings: saveSettings,
+  panelTab: function(t){ S.panelTab = t; render(); window.scrollTo(0, 0); }, cedSet: cedSet, cedOp: cedOp, saveRigList: saveRigList, saveBagList: saveBagList,
+  saveDocs: saveDocs, editRigExp: editRigExp, viewObExp: viewObExp, editObExp: editObExp, saveObExp: saveObExp, saveRigExp: saveRigExp, saveTiming: saveTiming, saveMsg: saveMsg, ckPick: ckPick
 };
 window.TRK = { S: S, render: render, memberIssues: memberIssues, recStatus: recStatus, bagState: bagState, rigState: rigState, normUnit: normUnit, smsStamp: smsStamp };
 </script>
