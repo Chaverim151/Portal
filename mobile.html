@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<meta name="trk-version" content="1.74">
+<meta name="trk-version" content="1.79">
 <meta name="trk-mode" content="mobile">
 <script>
 // 1.58: a phone that opens the computer version (Portal/ = index.html) is sent to the phone version, like CallDashboard
@@ -348,6 +348,28 @@ td.rep-warn{color:var(--warn);font-weight:700}
 .rep-bad{color:var(--bad);font-weight:700} .rep-warn{color:var(--warn);font-weight:700} .rep-ok{color:var(--ok,#1a7f37)} .rep-na{color:var(--gray)}
 /* 1.67: report table — short rows, top-aligned, Unit + Name stay in view when scrolling sideways */
 .rep-wrap{max-height:70vh;overflow:auto}
+/* 1.77: admin tables take less room — tighter cells, smaller text, headings may wrap */
+#view.wide th,#view.wide td{padding:5px 8px;font-size:.84rem;line-height:1.3}
+#view.wide th{white-space:normal;font-size:.72rem;letter-spacing:.02em;vertical-align:bottom}
+#view.wide td .btn.sm{padding:4px 8px;font-size:.78rem}
+#view.wide td .pill{font-size:.72rem;padding:1px 7px}
+#view.wide .card{padding:12px 14px}
+.tpl-grid{display:grid;grid-template-columns:1fr 300px;gap:16px}
+@media (max-width:900px){.tpl-grid{grid-template-columns:1fr}}
+.tpl-var{border:1px solid var(--line);border-radius:8px;padding:7px 10px;margin-bottom:6px;cursor:pointer;background:#fff;font-size:.82rem;color:var(--gray)}
+.tpl-var:hover{border-color:var(--pick);background:#f3f7fc}
+.tpl-var code{display:inline-block;font-weight:700;color:#0b3d75;background:#eaf2fb;border:1px solid #a9c7ea;border-radius:6px;padding:1px 7px;margin-bottom:2px}
+.cmp-f.on{background:var(--pick);border-color:var(--pick);color:#fff}
+.cmp-f .dot{vertical-align:middle}
+.timing-grid{display:grid;grid-template-columns:minmax(320px,440px) 1fr;gap:14px;align-items:start;margin-bottom:12px}
+@media (max-width:900px){.timing-grid{grid-template-columns:1fr}}
+.tm-tbl td{white-space:normal;vertical-align:middle;padding:6px 10px}
+.tm-tbl th.c,.tm-tbl td.c{text-align:center}
+.unit-tog{display:inline-flex;border:1px solid var(--field);border-radius:7px;overflow:hidden}
+.unit-tog button{border:0;background:#fff;color:var(--text);padding:6px 9px;font-size:.78rem;font-weight:600;cursor:pointer}
+.unit-tog button + button{border-left:1px solid var(--field)}
+.unit-tog button.on{background:var(--pick);color:#fff}
+.timing-grid{grid-template-columns:minmax(440px,560px) 1fr}
 .rep-tbl td,.rep-tbl th{vertical-align:top}
 .rep-tbl th{white-space:normal;min-width:90px;max-width:150px;line-height:1.25}
 .rep-tbl td{max-width:220px;white-space:normal}
@@ -421,7 +443,7 @@ td.rep-warn{color:var(--warn);font-weight:700}
     <div class="m-err" id="login-err"></div>
 
     <div style="text-align:center;margin-top:16px"><button class="m-forgot" onclick="App.forgotPw()">Forgot password?</button></div>
-    <div class="m-build">BUILD <span id="li-build">v1.74</span></div>
+    <div class="m-build">BUILD <span id="li-build">v1.79</span></div>
   </div>
 </div>
 <div id="boot" class="empty" style="margin-top:20vh">Signing in…</div>
@@ -501,10 +523,10 @@ function trkSmsPayload(phone, message, unit){
 function trkEmailPayload(email, name, subject, html){ return { to: [{ email: email, name: name || email }], subject: subject, body: html }; }
 
 /* ════════════════════════════════════════════════════════════════════════ */
-var TRK_VERSION = "1.74";
+var TRK_VERSION = "1.79";
 // 1.16: owner asked to block the tracker's notifications for now. While this is true the tracker sends NO texts and
 // NO emails (reminders and test reminders). Sign-in "Forgot password?" still works. Set to false to allow sending again.
-var TRK_SENDING_OFF = true;
+var TRK_SENDING_OFF = false;   // 1.77: not used any more — ⚙ Settings ▸ Messages ▸ How it's sent decides (all off by default)
 // tracker.html = computer version (with the admin part); tracker-mobile.html = phone version. Both are made from this one file.
 // Later this becomes the "Compliance" tile on the CAD menu, and the admin part becomes the CAD's Admin ▸ User Compliance tab.
 var TRK_MODE = (document.querySelector('meta[name="trk-mode"]') || {}).content === "mobile" ? "mobile" : "desktop";
@@ -598,6 +620,8 @@ var DEFAULT_SETTINGS = {
   // 1.24: things on the RIG itself that expire (each rig keeps its own dates). ⚙ Admin ▸ Rig Checklist.
   rigExpItems: ["AED Pads", "Albuterol-1", "Albuterol-2", "Aspirin", "Burn-Gel", "Epi-Pen - Adult", "Epi-Pen - PED", "Glucometer Test Strips",
     "Narcan", "Nebulizer Saline-1", "Nebulizer Saline-2", "Oral Glucose-1", "Oral Glucose-2", "Quick-Clot", "Saline Flush-1", "Saline Flush-2"],
+  // 1.77: ⚙ Settings ▸ Messages ▸ How it's sent — every channel OFF until an admin ticks it
+  send: { reminder: { sms: false, email: false }, test: { sms: false, email: false } },
   templates: {
     sms: "{org} Compliance reminder for {unit}:\n{items}\nPlease update them in the Compliance Tracker:\n{link}\n{time}",
     emailSubject: "{org} Compliance reminder for {unit}",
@@ -729,6 +753,10 @@ function isExempt(owner, typeId){ return !!owner && exceptionsOf(owner).docs.ind
 // 1.67: "only for users I turn it on for" documents (e.g. Emergency Light Permit — not everyone is issued one).
 // Off for everyone until an admin turns it on on the user's page (settings.optIn[uid] = [typeIds]); then it's required.
 function isOptIn(t){ return !!t && t.scope === "member" && (t.optIn != null ? !!t.optIn : t.id === "elp"); }
+// 1.78: an opt-in document can have a kind the admin picks when issuing it (Emergency Light Permit: Blue or Red)
+var OPTIN_KINDS = { elp: [["Blue", "🔵"], ["Red", "🔴"]] };
+function optInKind(uid, tid){ return ((((S.settings || {}).optInKind || {})[uid]) || {})[tid] || ""; }
+function optInName(t, uid){ var k = uid && optInOf(uid).indexOf(t.id) >= 0 ? optInKind(uid, t.id) : ""; return t.name + (k ? " (" + k + ")" : ""); }
 function optInOf(uid){ return (((S.settings || {}).optIn || {})[uid]) || []; }
 function optedOut(owner, t){ return !!owner && isOptIn(t) && optInOf(owner).indexOf(t.id) < 0; }
 function recStatus(rec, type, owner){
@@ -1435,11 +1463,11 @@ async function pdfThumbFor(file, path){
 // 1.52: documents as a table — one row each; View opens the full card (details, picture, Update)
 function docTable(ownerKey, types, recs, ctx){
   if (!types.length) return '';
-  return '<div class="tbl-wrap"><table><thead><tr><th>Document</th><th>Status</th><th>Number</th><th>Expires</th><th>Updated</th><th></th></tr></thead><tbody>'
+  return '<div class="tbl-wrap"><table><thead><tr><th>Document</th><th>Status</th><th>Expires</th><th>Updated</th><th></th></tr></thead><tbody>'
     + types.map(function(t){
       var rec = recs[recKey(ownerKey, t.id)], st = recStatus(rec, t, ownerKey), has = rec && rec.status !== "na";
       var btn = '<button class="btn ' + (rec ? "" : "gold ") + 'sm" data-k="' + esc(ownerKey) + '" data-t="' + esc(t.id) + '" data-c="' + esc(JSON.stringify(ctx)) + '" onclick="App.' + (rec ? 'docView' : 'openUpload') + '(this)">' + (rec ? "View" : "Upload") + '</button>';
-      return '<tr><td><b>' + esc(t.name) + '</b></td><td>' + pillFor(st) + '</td><td>' + (has && rec.number ? esc(rec.number) : '<span class="muted">—</span>') + '</td>'
+      return '<tr><td><b>' + esc(isOptIn(t) ? optInName(t, ownerKey) : t.name) + '</b></td><td>' + pillFor(st) + '</td>'   // 1.79: the number only shows when the document is opened (View)
         + '<td class="num">' + (t.expires ? (has && rec.expires ? fmtDate(rec.expires) : '<span class="muted">—</span>') : '<span class="muted">Never</span>') + '</td>'
         + '<td class="num">' + (rec && rec.updatedAt ? fmtTs(rec.updatedAt).split(" ")[0] : '<span class="muted">—</span>') + '</td><td>' + btn + '</td></tr>';
     }).join("") + '</tbody></table></div>';
@@ -2707,6 +2735,18 @@ function splitAddress(raw){
   out.line1 = tc(street.replace(/,\s*$/, "")); out.city = tc(city);
   return out;
 }
+function fillFromId(uid, px){
+  var f = ((visibleRecords()[recKey(uid, "dl")] || {}).fields) || {}, got = [], skipped = [];
+  if (String(f.address || "").trim()){ var a = splitAddress(f.address);
+    function put(id, v){ var el = $(px + "home-" + id); if (el && v){ el.value = v; el.style.background = "#fff8db"; } }
+    put("1", a.line1); put("2", a.line2); put("city", a.city); put("zip", a.zip);
+    var st = $(px + "home-state"); if (st && a.state){ st.value = a.state; st.style.background = "#fff8db"; }
+    got.push("home address"); }
+  var dob = (function(v){ v = String(v || "").trim(); var m = v.match(/^(\d{4})-(\d{2})-(\d{2})$/) || null, x;
+    if (m) return v; if ((x = v.match(/^(\d{1,2})[\/.\-](\d{1,2})[\/.\-](\d{4})$/))) return x[3] + "-" + pad(+x[1]) + "-" + pad(+x[2]); return ""; })(f.dob), del = $(px + "dob");
+  if (dob && dob < todayStr()){ if (del){ del.value = dob; del.style.background = "#fff8db"; got.push("date of birth"); } else skipped.push("date of birth (an admin adds it)"); }
+  toast(got.length ? "✓ Filled in " + got.join(" and ") + " from the license — check, then tap Save." + (skipped.length ? " Not filled: " + skipped.join(", ") + "." : "") : "Nothing could be read from the license — type it in.", 7000);
+}
 function importLicAddr(uid, px){
   var raw = licAddress(uid); if (!raw) return;
   var a = splitAddress(raw);
@@ -2735,7 +2775,11 @@ function profileForm(u, p, px){
       + '</div></div>';
   }
   var ec = p.emergency || {}, ph = p.phones || {};
-  var h = '<div class="card"><h3>My Profile</h3><div class="pf-grid">';
+  // 1.79: one button fills everything the license gives us — home address and (admins) date of birth
+  var lf = ((visibleRecords()[recKey(u.uid, "dl")] || {}).fields) || {}, canId = !!(String(lf.address || "").trim() || lf.dob);
+  var h = '<div class="card"><div class="row"><h3 class="grow" style="margin:0">My Profile</h3>'
+    + (canId ? '<button class="btn gold sm" type="button" data-uid="' + esc(u.uid) + '" data-px="' + esc(px) + '" onclick="App.fillFromId(this.dataset.uid, this.dataset.px)">🪪 Fill from driver\'s license</button>' : '')
+    + '</div>' + (canId ? '' : '<div class="muted" style="font-size:.8rem;margin-top:4px">Upload a driver\'s license to fill in your address' + (S.isAdmin ? ' and date of birth' : '') + ' from it.</div>') + '<div class="pf-grid" style="margin-top:8px">';
   // 1.14: unit, e-mail and name belong to CallDashboard (they are what members sign in with), so they are
   // shown here but changed only in CallDashboard ▸ Admin ▸ Users. Date of birth is the tracker's own (admins edit it).
   h += ro("Unit", u.unit) + ro("E-Mail", u.email) + ro("Name", u.name)
@@ -2925,13 +2969,16 @@ function editExceptions(uid){
   openModal("🚫 Not required — " + u.unit + (u.name ? " · " + u.name : ""), b,
     '<button class="btn" onclick="App.closeModal()">Cancel</button><button class="btn gold" data-uid="' + esc(uid) + '" onclick="App.saveExceptions(this.dataset.uid)">Save</button>');
 }
-function setOptIn(uid, tid, on){
+function setOptIn(uid, tid, on, kind){
   var u = userByUid(uid), t = docTypes("member").filter(function(x){ return x.id === tid; })[0]; if (!u || !t) return;
-  if (!on && !confirm("Turn off " + t.name + " for " + u.unit + "? It will stop being required.")) return;
+  var was = optInOf(uid).indexOf(tid) >= 0;
+  if (!on && was && !confirm(t.name + " not issued to " + u.unit + "? It will stop being required.")) return;
   var all = Object.assign({}, S.settings.optIn || {}), cur = (all[uid] || []).filter(function(x){ return x !== tid; });
   if (on) cur.push(tid); all[uid] = cur;
-  db.collection("trk_settings").doc("main").set({ optIn: all, updatedAt: Date.now(), updatedBy: S.me.unit || "" }, { merge: true })
-    .then(function(){ toast("✓ " + t.name + (on ? " turned on — now required for " : " turned off for ") + u.unit); }).catch(function(e){ toast("⚠ Not saved: " + e.message, 6000); });
+  var kinds = JSON.parse(JSON.stringify(S.settings.optInKind || {})); kinds[uid] = kinds[uid] || {};
+  if (on && OPTIN_KINDS[tid]) kinds[uid][tid] = kind; else delete kinds[uid][tid];
+  db.collection("trk_settings").doc("main").set({ optIn: all, optInKind: kinds, updatedAt: Date.now(), updatedBy: S.me.unit || "" }, { merge: true })
+    .then(function(){ toast("✓ " + t.name + (on ? " issued" + (OPTIN_KINDS[tid] ? " (" + kind + ")" : "") + " — now required for " : " not issued to ") + u.unit); }).catch(function(e){ toast("⚠ Not saved: " + e.message, 6000); });
 }
 function saveExceptions(uid){
   var docs = [], items = [];
@@ -2964,10 +3011,15 @@ function adminMember(uid){
   var rl = S.reminderLog[uid]; h += '<div class="muted" style="margin-top:8px">Last reminder: ' + (rl ? fmtTs(rl.lastAt) + (rl.via ? " (" + esc(rl.via) + ")" : "") : "never") + '</div></div>';
   var exc = exceptionsOf(uid), excNames = exc.docs.map(function(id){ var t = typeById(id); return t ? t.name : id; }).concat(exc.items.map(function(k){ return k.split("::")[1] + " (bag)"; }));
   var oi = docTypes("member").filter(isOptIn);
-  if (oi.length) h += '<div class="card"><h3 style="margin:0">✅ Turned on for this user</h3><div class="muted" style="margin:4px 0 8px">These are off for everyone until you turn them on. Once on, the user has to upload it.</div>'
-    + oi.map(function(t){ var on = optInOf(uid).indexOf(t.id) >= 0;
-        return '<div class="row" style="margin-top:4px"><span class="grow"><b>' + esc(t.name) + '</b> — ' + (on ? '<span class="pill p-ok">On · required</span>' : '<span class="pill p-na">Off · not required</span>') + '</span>'
-          + '<button class="btn sm' + (on ? '' : ' gold') + '" data-uid="' + esc(uid) + '" data-t="' + esc(t.id) + '" onclick="App.setOptIn(this.dataset.uid, this.dataset.t, ' + (on ? 'false' : 'true') + ')">' + (on ? 'Turn off' : 'Turn on') + '</button></div>'; }).join("") + '</div>';
+  // 1.78: "<document> issued" — No, or Yes (for the Light Permit: Blue or Red); once issued the user must upload it
+  if (oi.length) h += '<div class="card"><h3 style="margin:0">✅ Issued to this user</h3><div class="muted" style="margin:4px 0 8px">Off for everyone until you mark it issued. Once issued, the user has to upload it.</div>'
+    + oi.map(function(t){
+        var on = optInOf(uid).indexOf(t.id) >= 0, kind = optInKind(uid, t.id), kinds = OPTIN_KINDS[t.id];
+        var opts = [["", "Not issued"]].concat(kinds ? kinds.map(function(k){ return [k[0], k[1] + " " + k[0]]; }) : [["yes", "Issued"]]);
+        var cur = !on ? "" : kinds ? (kind || "?") : "yes";
+        return '<div class="row" style="margin-top:6px;align-items:center"><span class="grow"><b>' + esc(t.name) + ' issued</b>' + (on ? ' <span class="pill p-ok">Required</span>' : '') + (on && kinds && !kind ? ' <span class="pill p-warn">Pick ' + kinds.map(function(k){ return k[0]; }).join(" or ") + '</span>' : '') + '</span>'
+          + '<div class="unit-tog">' + opts.map(function(o){ return '<button type="button" class="' + (o[0] === cur ? 'on' : '') + '" data-uid="' + esc(uid) + '" data-t="' + esc(t.id) + '" data-k="' + esc(o[0]) + '" onclick="App.setOptIn(this.dataset.uid, this.dataset.t, !!this.dataset.k, this.dataset.k)">' + esc(o[1]) + '</button>'; }).join("") + '</div></div>';
+      }).join("") + '</div>';
   h += '<div class="card"><div class="row"><h3 class="grow" style="margin:0">🚫 Not required for this user</h3><button class="btn sm" data-uid="' + esc(uid) + '" onclick="App.editExceptions(this.dataset.uid)">Edit</button></div>'
     + '<div class="muted" style="margin-top:6px">' + (excNames.length ? esc(excNames.join(" · ")) : 'Nothing — every document, immunization and bag item applies.') + '</div></div>';
   h += '<h2>📄 Documents & Certifications</h2>' + docTable(uid, docTypes("member").filter(function(t){ return t.cat !== "immunization"; }), S.allRecords, ctx);
@@ -3018,33 +3070,19 @@ function adminMember(uid){
 function legend(){
   return '<div class="legend"><span><i class="dot d-ok"></i>Valid</span><span><i class="dot d-info"></i>Waiting for review</span><span><i class="dot d-warn"></i>Expiring soon</span><span><i class="dot d-bad"></i>Expired / rejected / overdue</span><span><i class="dot d-missing"></i>Missing</span><span><i class="dot d-na"></i>Not required</span></div>';
 }
+// 1.77: ⚙ Admin ▸ 👥 Users ▸ Compliance = the full "User compliance" table (was a grid of dots + a separate report)
 function adminGrid(){
-  var ts = docTypes("member").filter(function(t){ return t.cat !== "immunization"; }), its = immTypes();
-  var users = S.users.filter(function(u){
-    if (!S.gridOnlyProblems) return true;
-    return memberIssues(u, S.allRecords, S.allVehicles.filter(function(v){ return v.uid === u.uid; }), S.allBags[u.uid]).length > 0;
-  });
-  var h = '<div class="muted" style="margin-bottom:6px">Tap a unit number to see everything for that user — documents, vehicles, jump bags.</div><div class="row"><label style="margin:0;display:flex;gap:6px;align-items:center;font-weight:400;color:var(--text)"><input type="checkbox" style="width:auto" ' + (S.gridOnlyProblems ? "checked" : "") + ' onchange="App.gridFilter(this.checked)"> Only members with problems</label></div>' + legend();
-  h += '<div class="tbl-wrap"><table class="grid-tbl"><thead><tr><th>Unit</th><th>Name</th>' + ts.map(function(t){ return '<th class="c">' + esc(t.name) + '</th>'; }).join("") + '<th class="c">Immunizations</th><th class="c">Vehicles</th><th class="c">Jump bag</th></tr></thead><tbody>';
-  users.forEach(function(u){
-    h += '<tr><td>' + memberLink(u) + '</td><td>' + esc(u.name || "") + '</td>';
-    ts.forEach(function(t){
-      var key = recKey(u.uid, t.id), rec = S.allRecords[key], st = recStatus(rec, t, u.uid);
-      h += '<td class="c"><button class="dot ' + (st.k === "missing" ? "d-missing" : "d-" + st.lvl) + '" style="cursor:pointer" title="' + esc(t.name + ": " + st.lbl + (rec && rec.expires ? " (" + fmtDate(rec.expires) + ")" : "")) + '" data-id="' + esc(key) + '" data-uid="' + esc(u.uid) + '" data-t="' + esc(t.id) + '" onclick="App.gridCell(this)"></button></td>';
-    });
-    var iw = "ok", ord = { bad: 3, warn: 2, info: 1, ok: 0, na: 0 }, ibad = 0;
-    its.forEach(function(t){ var l = recStatus(S.allRecords[recKey(u.uid, t.id)], t, u.uid).lvl; if (l === "bad" || l === "warn") ibad++; if (ord[l] > ord[iw]) iw = l; });
-    h += '<td class="c">' + (its.length ? '<button class="dot d-' + iw + '" style="cursor:pointer" title="' + (ibad ? ibad + " to fix" : "All good") + ' — tap to open the member" data-uid="' + esc(u.uid) + '" onclick="App.openMember(this.dataset.uid)"></button>' : '<span class="muted">—</span>') + '</td>';
-    var vs = S.allVehicles.filter(function(v){ return v.uid === u.uid; }), worst = "ok";
-    vs.forEach(function(v){ docTypes("vehicle").forEach(function(t){ var l = recStatus(S.allRecords[recKey("v_" + v.id, t.id)], t).lvl; if (l === "bad") worst = "bad"; else if (l === "warn" && worst !== "bad") worst = "warn"; else if (l === "info" && worst === "ok") worst = "info"; }); });
-    h += '<td class="c">' + (vs.length ? '<span class="dot d-' + worst + '"></span> ' + vs.length : '<span class="muted">—</span>') + '</td>';
-    var bs = bagRequired(u) ? bagState(S.allBags[u.uid]) : null;
-    h += '<td class="c">' + (bs ? '<span class="dot d-' + bs.lvl + '" title="' + esc(bs.lbl) + '"></span>' : '<span class="muted">—</span>') + '</td></tr>';
-  });
-  h += '</tbody></table></div>';
-  if (!users.length) h += '<div class="empty">' + (S.gridOnlyProblems ? "✅ No one has problems." : "No members found.") + '</div>';
+  var sh = membersSheet(), f = S.cmpFilter || "all", n = { all: sh.rows.length, "Not compliant": 0, "Expiring soon": 0, "Compliant": 0 };
+  sh.rows.forEach(function(r){ n[r[2]] = (n[r[2]] || 0) + 1; });
+  var chip = function(k, label, cls){ return '<button class="btn sm cmp-f' + (f === k ? ' on' : '') + '" data-f="' + esc(k) + '" onclick="App.cmpFilter(this.dataset.f)">' + (cls ? '<span class="dot ' + cls + '"></span> ' : '') + label + ' <b>' + (n[k] || 0) + '</b></button>'; };
+  var h = '<div id="rep-out"><div class="card report" id="rep-print" style="margin-top:0"><div class="row" style="align-items:center">'
+    + '<div class="row grow" style="gap:6px">' + chip("all", "Everyone") + chip("Not compliant", "Not compliant", "d-bad") + chip("Expiring soon", "Expiring soon", "d-warn") + chip("Compliant", "Compliant", "d-ok") + '</div>'
+    + '<button class="btn sm" onclick="App.repPrint()">🖨 Print</button><button class="btn gold sm" onclick="App.repXlsx(\'members\')">⬇ Excel</button><button class="btn sm" onclick="App.repXlsx(\'noncomp\')" title="Only the people who are not compliant, and what for">🚩 Not compliant list</button></div>'
+    + '<div class="muted" style="margin-top:6px;font-size:.82rem">Click a unit to open that user. ' + esc(orgName()) + ' · ' + esc(smsStamp()) + '</div>'
+    + repTableHtml(sh, f === "all" ? null : function(r){ return r[2] === f; }) + '</div></div>';
   return h;
 }
+function cmpFilter(k){ S.cmpFilter = k; render(); }
 function gridCell(btn){
   var rec = S.allRecords[btn.dataset.id];
   if (rec) return openRecord(btn.dataset.id);
@@ -3223,10 +3261,11 @@ function adminBags(){
 function adminRemind(){
   var cool = S.settings.reminderCooldownDays || 7;
   var rows = S.users.map(function(u){ return { u: u, iss: memberIssues(u, S.allRecords, S.allVehicles.filter(function(v){ return v.uid === u.uid; }), S.allBags[u.uid]) }; }).filter(function(r){ return r.iss.length; });
-  if (TRK_SENDING_OFF) return '<div class="banner warn" style="margin:0 0 12px"><b>🔕 Notifications are switched off</b>The tracker is not sending any texts or emails right now. Members still see their own to-do list inside the tracker.</div>';
+  var okS = sendAllowed("reminder", "sms"), okE = sendAllowed("reminder", "email");
+  if (!okS && !okE) return '<div class="banner warn" style="margin:0 0 12px"><b>🔕 Reminders are switched off</b>The tracker is not sending reminder texts or emails. Turn them on in ⚙ Settings ▸ Messages ▸ How it\'s sent. Members still see their own to-do list inside the tracker.</div>';
   var h = '<p class="muted">Sends each member ONE text and/or email listing everything they need to fix. A member who got a reminder in the last ' + cool + ' days is left unticked. Test Mode (CallDashboard ▸ My Settings) sends only to you.</p>';
-  h += '<div class="row" style="margin-bottom:10px"><label style="margin:0;display:flex;gap:6px;align-items:center;font-weight:400;color:var(--text)"><input type="checkbox" id="rm-sms" style="width:auto" checked> 💬 Text</label>'
-    + '<label style="margin:0;display:flex;gap:6px;align-items:center;font-weight:400;color:var(--text)"><input type="checkbox" id="rm-email" style="width:auto" checked> ✉️ Email</label><span class="grow"></span>'
+  h += '<div class="row" style="margin-bottom:10px"><label style="margin:0;display:flex;gap:6px;align-items:center;font-weight:400;color:var(--text)"><input type="checkbox" id="rm-sms" style="width:auto"' + (okS ? ' checked' : ' disabled') + '> 💬 Text' + (okS ? '' : ' (off)') + '</label>'
+    + '<label style="margin:0;display:flex;gap:6px;align-items:center;font-weight:400;color:var(--text)"><input type="checkbox" id="rm-email" style="width:auto"' + (okE ? ' checked' : ' disabled') + '> ✉️ Email' + (okE ? '' : ' (off)') + '</label><span class="grow"></span>'
     + '<button class="btn sm" onclick="App.remindTest()">Send a test to me</button><button class="btn gold" onclick="App.sendReminders()">Send to ticked members</button></div>';
   if (!rows.length) return h + '<div class="card empty">✅ No one needs a reminder.</div>' + (S.rmMsg ? '<div class="muted">' + esc(S.rmMsg) + '</div>' : '');
   h += '<div class="tbl-wrap"><table><thead><tr><th><input type="checkbox" style="width:auto" onchange="document.querySelectorAll(\'.rm-pick\').forEach(function(c){c.checked=this.checked}.bind(this))"></th><th>Unit</th><th>Items</th><th>Last reminder</th></tr></thead><tbody>';
@@ -3256,18 +3295,21 @@ async function callFn(name, data){
   if (!r.ok || j.error) throw new Error((j.error && j.error.message) || ("HTTP " + r.status));
   return j.result;
 }
-async function sendOne(u, iss, viaSms, viaEmail){
-  if (TRK_SENDING_OFF) throw new Error("texts and emails from the tracker are switched off");
-  var v = reminderVars(u, iss), T = S.settings.templates, sent = [];
+// 1.77: what may be sent is set in ⚙ Settings ▸ Messages ▸ How it's sent (all off by default)
+function sendAllowed(kind, ch){ return !!((((S.settings || {}).send || {})[kind] || {})[ch]); }
+async function sendOne(u, iss, viaSms, viaEmail, kind, tpl){
+  kind = kind || "reminder"; viaSms = viaSms && sendAllowed(kind, "sms"); viaEmail = viaEmail && sendAllowed(kind, "email");
+  if (!viaSms && !viaEmail) throw new Error("switched off — ⚙ Settings ▸ Messages ▸ How it's sent");
+  var v = reminderVars(u, iss), T = tpl || S.settings.templates, sent = [];
   var ph = trkPhone(u.phone);
   if (viaSms && ph){ var r = await callFn("sendSms", trkSmsPayload(ph, fillTpl(T.sms, v), u.unit)); if (r && r.error) throw new Error(r.error); if (!(r && r.failedCount)) sent.push("text"); }
   if (viaEmail && u.email){ var subj = fillTpl(T.emailSubject, v); await callFn("sendEmail", trkEmailPayload(u.email, u.name, subj, emailHtml(subj, fillTpl(T.emailBody, v)))); sent.push("email"); }
   return sent;
 }
-async function remindTest(){
-  var viaSms = $("rm-sms").checked, viaEmail = $("rm-email").checked;
+async function remindTest(tpl){
+  var viaSms = $("rm-sms") ? $("rm-sms").checked : true, viaEmail = $("rm-email") ? $("rm-email").checked : true;
   var sample = [{ lvl: "bad", text: "EMT Certification: expired 09/30/2026" }, { lvl: "warn", text: "Jump bag check: due in 2 days" }];
-  try { var s = await sendOne(S.me, sample, viaSms, viaEmail); toast(s.length ? "✓ Test " + s.join(" + ") + " sent to you" : "Nothing sent — your profile has no phone/email for the ticked channels", 6000); }
+  try { var s = await sendOne(S.me, sample, viaSms, viaEmail, "test", tpl); toast(s.length ? "✓ Test " + s.join(" + ") + " sent to you" : "Nothing sent — your profile has no phone/email for the ticked channels", 6000); }
   catch (e){ toast("⚠ Test failed: " + e.message, 8000); }
 }
 async function sendReminders(){
@@ -3415,33 +3457,58 @@ function saveDocs(){
 }
 // ── timing & equipment
 function panelTiming(){
+  // 1.75: two compact tables side by side — the numbers on the left, what gets checked on the right
   var s = S.settings;
-  function ticks(cls, list, sel, label){ return list.length ? list.map(function(v){
-    return '<label style="margin:0;display:flex;gap:6px;align-items:center;font-weight:400;color:var(--text);border:1px solid var(--line);border-radius:8px;padding:6px 10px"><input type="checkbox" class="' + cls + '" style="width:auto" value="' + esc(v.id) + '" ' + (sel.indexOf(v.id) >= 0 ? "checked" : "") + '> ' + esc(label(v)) + '</label>'; }).join("") : '<span class="muted">Nothing in CallDashboard ▸ Fleet.</span>'; }
-  var h = '<div class="card"><h3>⏱ Timing</h3><div class="row">'
-    + '<div class="grow"><label for="st-warn">Warn this many days before expiry</label><input id="st-warn" type="number" min="1" max="180" value="' + esc(s.warnDays) + '"></div>'
-    + '<div class="grow"><label for="st-cool">Don\'t re-remind within (days)</label><input id="st-cool" type="number" min="0" max="60" value="' + esc(s.reminderCooldownDays) + '"></div></div>'
-    // 1.64: how often each kind of equipment check is due
-    + '<h3 style="margin-top:14px">How often each check is due (days)</h3><div class="row">'
-    + '<div class="grow"><label for="st-rig">🚑 Ambulance</label><input id="st-rig" type="number" min="1" max="365" value="' + esc(s.rigIntervalDays) + '"></div>'
-    + '<div class="grow"><label for="st-ambbag">🎒 Ambulance jump bag</label><input id="st-ambbag" type="number" min="1" max="365" value="' + esc(bagIntervalFor(null, "amb")) + '"></div>'
-    + '<div class="grow"><label for="st-agbag">🧰 ERV / other agency bags</label><input id="st-agbag" type="number" min="1" max="365" value="' + esc(bagIntervalFor(null, "agency")) + '"></div>'
-    + '<div class="grow"><label for="st-bag">🎒 Personal jump bags</label><input id="st-bag" type="number" min="1" max="365" value="' + esc(bagIntervalFor(null, "personal")) + '"></div></div>'
-    + '<p class="muted" style="margin:8px 0 0">Personal jump bags are given to members one by one: ⚙ Admin ▸ Members ▸ (member) ▸ + Add bag.</p></div>';
+  // 1.77: each number can be in days, months or years (saved as days; a month = 30.44 days, a year = 365)
+  function numRow(id, icon, label, val, min, max, hint){
+    var u = tmUnit(id), shown = tmFromDays(val, u);
+    return '<tr><td><label for="' + id + '" style="margin:0;font-weight:600;color:var(--text)">' + icon + ' ' + label + '</label>' + (hint ? '<div class="muted" style="font-size:.78rem">' + hint + '</div>' : '') + '</td>'
+      + '<td class="c"><input id="' + id + '" type="number" min="' + min + '" step="1" data-u="' + u + '" value="' + esc(shown) + '" style="width:70px;text-align:center;padding:7px"></td>'
+      + '<td><div class="unit-tog" role="group" aria-label="Unit">' + [["d", "Days"], ["m", "Months"], ["y", "Years"]].map(function(x){
+          return '<button type="button" class="' + (x[0] === u ? "on" : "") + '" data-for="' + id + '" data-u="' + x[0] + '" onclick="App.tmSetUnit(this)">' + x[1] + '</button>'; }).join("") + '</div></td></tr>';
+  }
+  function cb(cls, id, on, label){ return '<label style="margin:0 10px 0 0;display:inline-flex;gap:6px;align-items:center;font-weight:400;color:var(--text)"><input type="checkbox" class="' + cls + '" style="width:auto" value="' + esc(id) + '"' + (on ? " checked" : "") + '> ' + esc(label) + '</label>'; }
+  var h = '<div class="timing-grid"><div class="card" style="margin:0"><h3>⏱ Timing</h3><div class="tbl-wrap"><table class="tm-tbl"><thead><tr><th>Check / reminder</th><th class="c">Every</th><th></th></tr></thead><tbody>'
+    + numRow("st-rig", "🚑", "Ambulance check every", s.rigIntervalDays, 1, 365)
+    + numRow("st-ambbag", "🎒", "Ambulance jump bag check every", bagIntervalFor(null, "amb"), 1, 365)
+    + numRow("st-agbag", "🧰", "ERV / other agency bag check every", bagIntervalFor(null, "agency"), 1, 365)
+    + numRow("st-bag", "🎒", "Personal jump bag check every", bagIntervalFor(null, "personal"), 1, 365, "Bags are given one by one: ⚙ Admin ▸ 👥 Users ▸ (user) ▸ + Add bag")
+    + numRow("st-warn", "⚠️", "Warn before a document expires", s.warnDays, 1, 180)
+    + numRow("st-cool", "🔕", "Don\'t re-remind within", s.reminderCooldownDays, 0, 60)
+    + '</tbody></table></div></div>';
+  var rigSel = s.rigIds || rigList().map(function(v){ return v.id; }), bagSel = s.bagIds || agencyBags().map(function(v){ return v.id; });
   var all = S.fleet.filter(function(v){ return !isEquipment(v); }).sort(function(a, b){ return String(vName(a)).localeCompare(String(vName(b)), undefined, { numeric: true }); });
-  h += '<div class="card"><h3>🚑 Ambulances that get checked</h3><div class="row">' + ticks("st-rig", all, s.rigIds || rigList().map(function(v){ return v.id; }), vName) + '</div></div>';
   var eq = S.fleet.filter(isBagEquip).sort(function(a, b){ return String(a.id).localeCompare(String(b.id), undefined, { numeric: true }); });
-  h += '<div class="card"><h3>🎒 Vehicle jump bags that get checked</h3><p class="muted" style="margin:0 0 6px">These show under their vehicle (Vehicle Checks, Jump Bag, and the Bag box of the check). They come from CallDashboard ▸ Fleet — items of type Jump Bag. Storage rooms aren\'t listed.</p><div class="row">'
-    + ticks("st-bagx", eq, s.bagIds || agencyBags().map(function(v){ return v.id; }), bagLabel) + '</div></div>';
+  var rowsH = all.map(function(v){
+    var bags = eq.filter(function(b){ var bv = bagVehicle(b); return bv && bv.id === v.id; });
+    return '<tr><td><b>' + esc(vName(v)) + '</b></td><td class="c"><input type="checkbox" class="st-rig" style="width:auto" value="' + esc(v.id) + '"' + (rigSel.indexOf(v.id) >= 0 ? " checked" : "") + ' aria-label="Vehicle check for ' + esc(vName(v)) + '"></td>'
+      + '<td>' + (bags.length ? bags.map(function(b){ return cb("st-bagx", b.id, bagSel.indexOf(b.id) >= 0, bagLabel(b)); }).join("") : '<span class="muted">' + (rigSel.indexOf(v.id) >= 0 ? 'Its own jump bag check (automatic)' : '—') + '</span>') + '</td></tr>';
+  }).join("");
+  var loose = eq.filter(function(b){ return !bagVehicle(b); });
+  if (loose.length) rowsH += '<tr><td><span class="muted">Not on a vehicle</span></td><td class="c"><span class="muted">—</span></td><td>' + loose.map(function(b){ return cb("st-bagx", b.id, bagSel.indexOf(b.id) >= 0, bagLabel(b)); }).join("") + '</td></tr>';
+  h += '<div class="card" style="margin:0"><h3>🚑 What gets checked</h3><div class="tbl-wrap"><table class="tm-tbl"><thead><tr><th>Vehicle</th><th class="c">Vehicle check</th><th>Jump bag check</th></tr></thead><tbody>'
+    + (rowsH || '<tr><td colspan="3" class="muted">Nothing in CallDashboard ▸ Fleet.</td></tr>') + '</tbody></table></div>'
+    + '<div class="muted" style="margin-top:6px;font-size:.8rem">From CallDashboard ▸ Fleet. An ambulance with no jump bag in Fleet still gets its own jump bag check.</div></div></div>';
   return h + saveRow("saveTiming", "st-msg");
 }
+var TM_F = { d: 1, m: 30.4375, y: 365 };
+function tmUnit(id){ var u = ((S.settings.timingUnits || {})[id]) || "d"; return TM_F[u] ? u : "d"; }
+function tmFromDays(days, u){ var n = +days || 0; return u === "d" ? n : Math.max(n ? 1 : 0, Math.round(n / TM_F[u])); }
+function tmToDays(id){ var el = $(id), n = parseFloat(el.value); if (isNaN(n)) return NaN; return Math.round(n * TM_F[el.dataset.u || "d"]); }
+function tmSetUnit(b){
+  var el = $(b.dataset.for), old = el.dataset.u || "d", u = b.dataset.u; if (old === u) return;
+  var n = parseFloat(el.value); if (!isNaN(n)) el.value = tmFromDays(Math.round(n * TM_F[old]), u);
+  el.dataset.u = u;
+  b.parentNode.querySelectorAll("button").forEach(function(x){ x.classList.toggle("on", x === b); });
+}
 function saveTiming(){
-  var num = function(id, def){ var n = parseInt($(id).value, 10); return isNaN(n) ? def : n; };
+  var num = function(id, def){ var n = tmToDays(id); return isNaN(n) ? def : n; };
   savePart({
     warnDays: num("st-warn", 30), bagIntervalDays: Math.max(1, num("st-bag", 30)), rigIntervalDays: Math.max(1, num("st-rig", 7)), reminderCooldownDays: num("st-cool", 7),
     personalBagIntervalDays: Math.max(1, num("st-bag", 30)), ambBagIntervalDays: Math.max(1, num("st-ambbag", 30)), agencyBagIntervalDays: Math.max(1, num("st-agbag", 30)),
     rigIds: Array.from(document.querySelectorAll(".st-rig:checked")).map(function(c){ return c.value; }),
-    bagIds: Array.from(document.querySelectorAll(".st-bagx:checked")).map(function(c){ return c.value; })
+    bagIds: Array.from(document.querySelectorAll(".st-bagx:checked")).map(function(c){ return c.value; }),
+    timingUnits: ["st-rig", "st-ambbag", "st-agbag", "st-bag", "st-warn", "st-cool"].reduce(function(o, id){ o[id] = $(id).dataset.u || "d"; return o; }, {})
   }, "st-msg");
 }
 // ── messages
@@ -3475,14 +3542,37 @@ function saveImmList(){
   });
   savePart({ immItems: out }, "st-msg", function(){ S._immEdit = null; });
 }
+// 1.77: like CallDashboard — How it's sent (on/off per channel, all off by default) + the wording with a Variables list
+var TRK_TPL_VARS = [["name", "Member's first name"], ["unit", "Member's unit number"], ["org", "Organization name"], ["items", "Everything they need to fix, one per line"], ["link", "Link to the Compliance Tracker"], ["time", "Date and time it was sent"]];
 function panelMsg(){
-  var T = S.settings.templates;
-  return '<div class="card"><h3>✉️ Reminder wording</h3>' + (TRK_SENDING_OFF ? '<div class="note" style="background:#fff4d6;border-color:#e2c27a;color:#5c3c00">🔕 Texts and emails are switched off right now — this is only the wording for when they\'re back on.</div>' : '')
-    + '<p class="muted">Words in {braces} are filled in: {name} {unit} {org} {items} {link} {time}. {time} gives "Date: MM/DD/YYYY  Time: HH:MM".</p>'
-    + '<label for="st-sms">Text message</label><textarea id="st-sms" rows="6">' + esc(T.sms) + '</textarea>'
-    + '<label for="st-esub">Email subject</label><input id="st-esub" value="' + esc(T.emailSubject) + '">'
-    + '<label for="st-ebody">Email body</label><textarea id="st-ebody" rows="8">' + esc(T.emailBody) + '</textarea>'
-    + '<button class="btn sm" style="margin-top:8px" onclick="App.resetTemplates()">Restore default wording</button></div>' + saveRow("saveMsg", "st-msg");
+  var T = S.settings.templates, snd = S.settings.send || {};
+  function box(kind, ch){ var on = !!((snd[kind] || {})[ch]); return '<td class="c"><label class="sw" style="margin:0;display:inline-flex;gap:6px;align-items:center;font-weight:600;color:' + (on ? 'var(--ok,#1a7f37)' : 'var(--gray)') + '"><input type="checkbox" style="width:auto" ' + (on ? 'checked ' : '') + 'onchange="App.setSend(\'' + kind + '\',\'' + ch + '\',this.checked)"> ' + (on ? 'On' : 'Off') + '</label></td>'; }
+  var h = '<div class="card"><h3>📨 How it\'s sent</h3><div class="muted" style="margin:-4px 0 8px;font-size:.85rem">Everything starts Off. Ticking a box turns it on right away.</div><div class="tbl-wrap"><table class="tm-tbl"><thead><tr><th>Message</th><th class="c">💬 Text</th><th class="c">✉️ Email</th></tr></thead><tbody>'
+    + '<tr><td><b>Compliance reminder</b><div class="muted" style="font-size:.78rem">⚙ Admin ▸ 👥 Users ▸ Reminders — to members</div></td>' + box("reminder", "sms") + box("reminder", "email") + '</tr>'
+    + '<tr><td><b>Test to me</b><div class="muted" style="font-size:.78rem">"📱 Send test to me" below — only to you</div></td>' + box("test", "sms") + box("test", "email") + '</tr>'
+    + '</tbody></table></div></div>';
+  h += '<div class="card"><h3>✉️ Reminder wording</h3><div class="tpl-grid"><div>'
+    + '<label for="st-sms">Text message</label><textarea id="st-sms" class="tpl-f" rows="6" onfocus="S._tplF=this.id">' + esc(T.sms) + '</textarea>'
+    + '<label for="st-esub">Email subject</label><input id="st-esub" class="tpl-f" onfocus="S._tplF=this.id" value="' + esc(T.emailSubject) + '">'
+    + '<label for="st-ebody">Email body</label><textarea id="st-ebody" class="tpl-f" rows="8" onfocus="S._tplF=this.id">' + esc(T.emailBody) + '</textarea>'
+    + '<div class="row" style="margin-top:8px"><button class="btn sm" onclick="App.resetTemplates()">↺ Restore default wording</button><button class="btn sm" onclick="App.tplTest()">📱 Send test to me</button></div></div>'
+    + '<div><label style="margin-top:0">Variables</label><div class="muted" style="font-size:.78rem;margin-bottom:6px">Tap to add where your cursor is, or drag into a box.</div>'
+    + TRK_TPL_VARS.map(function(v){ return '<div class="tpl-var" draggable="true" ondragstart="event.dataTransfer.setData(\'text/plain\',\'{' + v[0] + '}\')" onmousedown="event.preventDefault()" onclick="App.tplInsert(\'' + v[0] + '\')"><code>{' + v[0] + '}</code><div>' + esc(v[1]) + '</div></div>'; }).join("")
+    + '</div></div></div>';
+  return h + saveRow("saveMsg", "st-msg");
+}
+function tplInsert(name){
+  var el = $(S._tplF || "st-sms") || $("st-sms"); if (!el) return;
+  var t = "{" + name + "}", a = el.selectionStart != null ? el.selectionStart : el.value.length, b = el.selectionEnd != null ? el.selectionEnd : a;
+  el.value = el.value.slice(0, a) + t + el.value.slice(b); el.focus(); el.setSelectionRange(a + t.length, a + t.length);
+}
+function setSend(kind, ch, on){
+  var snd = JSON.parse(JSON.stringify(S.settings.send || {})); snd[kind] = snd[kind] || {}; snd[kind][ch] = !!on;
+  savePart({ send: snd }, "st-msg");
+}
+function tplTest(){
+  if (!sendAllowed("test", "sms") && !sendAllowed("test", "email")){ toast("Test to me is Off — tick Text and/or Email on the \"Test to me\" row first.", 6000); return; }
+  remindTest({ sms: $("st-sms").value, emailSubject: $("st-esub").value, emailBody: $("st-ebody").value });
 }
 function saveMsg(){ savePart({ templates: { sms: $("st-sms").value, emailSubject: $("st-esub").value, emailBody: $("st-ebody").value } }, "st-msg"); }
 
@@ -3521,7 +3611,7 @@ function typeRow(t, i){
     + '<label><input type="checkbox" class="t-exp"' + (t.expires ? " checked" : "") + '> Expires</label>'
     + '<label><input type="checkbox" class="t-num"' + (t.number ? " checked" : "") + '> Number</label>'
     + '<label><input type="checkbox" class="t-req"' + (t.required !== false ? " checked" : "") + '> Required</label>'
-    + '<label title="Off for everyone until you turn it on on a user\'s page (⚙ Admin ▸ 👥 Users ▸ click the user)"><input type="checkbox" class="t-opt"' + (isOptIn(Object.assign({ scope: "member" }, t)) ? " checked" : "") + '> Only users I turn it on for</label>'
+    + '<label title="Off for everyone until you mark it issued on a user\'s page (⚙ Admin ▸ 👥 Users ▸ click the user)"><input type="checkbox" class="t-opt"' + (isOptIn(Object.assign({ scope: "member" }, t)) ? " checked" : "") + '> Only if issued to the user</label>'
     + '<button class="x" title="Remove" onclick="this.parentNode.remove()">✕</button><input type="hidden" class="t-id" value="' + esc(t.id) + '"></div>';
 }
 function bagQText(){
@@ -3638,11 +3728,8 @@ function overallFor(u){
   var bad = iss.filter(function(i){ return i.lvl === "bad"; }).length, warn = iss.length - bad;
   return { iss: iss, label: bad ? "Not compliant" : warn ? "Expiring soon" : "Compliant", bad: bad, warn: warn };
 }
-var REPORTS = {
-  // 1.63: one column per document (status + expiry together), one for all immunizations, one each for vehicles and jump bags;
-  // the people with problems come first
-  members: { icon: "👥", title: "User compliance", desc: "Every user: each document (status and expiry), immunizations, vehicles, jump bags and an overall result — problems first.",
-    build: async function(){
+// 1.77: the User compliance table — shown on ⚙ Admin ▸ 👥 Users ▸ Compliance and in the Excel files
+function membersSheet(){
       var ts = docTypes("member").filter(function(t){ return t.cat !== "immunization"; }), its = immTypes();
       var cols = [{ h: "Unit", w: 9, pin: 1 }, { h: "Name", w: 22, pin: 2 }, { h: "Overall", w: 15 }, { h: "To fix", w: 8, foldFrom: 4 + ts.length + 3 }]
         .concat(ts.map(function(t){ return { h: t.name, w: 22, v: "stack" }; }))
@@ -3664,6 +3751,29 @@ var REPORTS = {
       });
       rows.sort(function(x, y){ return (order[x[2]] - order[y[2]]) || unitNum(x[0]) - unitNum(y[0]); });
       return { name: "User compliance", cols: cols, rows: rows };
+}
+var REPORTS = {
+  // 1.63: one column per document (status + expiry together), one for all immunizations, one each for vehicles and jump bags;
+  // the people with problems come first
+  members: { icon: "👥", title: "User compliance", hidden: true, desc: "Every user: each document (status and expiry), immunizations, vehicles, jump bags and an overall result — problems first.",
+    build: async function(){ return membersSheet(); } },
+  // 1.75: just the people who are NOT compliant and what for — one line per person, and one row per problem (to sort / filter in Excel)
+  noncomp: { icon: "🚩", title: "Not compliant — who and why", desc: "Only the users who are not compliant, with exactly what's wrong (and anything else expiring soon). Second sheet: one row per problem.",
+    build: async function(){
+      var CAT = { docs: "Documents / immunizations", vehicles: "Personal vehicle", bag: "Jump bag", rigs: "Agency vehicle" };
+      var ppl = S.users.map(function(u){ return { u: u, o: overallFor(u) }; }).filter(function(x){ return x.o.bad; })
+        .sort(function(a, b){ return (b.o.bad - a.o.bad) || unitNum(a.u.unit) - unitNum(b.u.unit); });
+      var rows = ppl.map(function(x){
+        var bad = x.o.iss.filter(function(i){ return i.lvl === "bad"; }), warn = x.o.iss.filter(function(i){ return i.lvl !== "bad"; });
+        // everything "not on file" goes on one line, so the list stays short
+        var nof = bad.filter(function(i){ return / not on file$/.test(i.text); }).map(function(i){ return i.text.replace(/: not on file$/, ""); });
+        var lines = (nof.length ? ["Not on file: " + nof.join(", ")] : []).concat(bad.filter(function(i){ return !/ not on file$/.test(i.text); }).map(function(i){ return i.text; }));
+        return [x.u.unit, x.u.name || "", fmtPhone(x.u.phone), bad.length, lines.join("\n"), warn.map(function(i){ return i.text; }).join("\n")];
+      });
+      var each = [];
+      ppl.forEach(function(x){ x.o.iss.forEach(function(i){ each.push([x.u.unit, x.u.name || "", CAT[i.tab] || "Other", i.text, i.lvl === "bad" ? "Not compliant" : "Expiring soon"]); }); });
+      return [{ name: "Not compliant (" + ppl.length + " of " + S.users.length + ")", cols: [{ h: "Unit", w: 9, pin: 1 }, { h: "Name", w: 22, pin: 2 }, { h: "Cell", w: 15 }, { h: "Problems", w: 10 }, { h: "Not compliant for", w: 60, t: "w" }, { h: "Also expiring soon", w: 45, t: "w" }], rows: rows },
+        { name: "Every problem", screen: false, cols: [{ h: "Unit", w: 9 }, { h: "Name", w: 22 }, { h: "Area", w: 24 }, { h: "Problem", w: 60, t: "w" }, { h: "Level", w: 14 }], rows: each }];
     } },
   expiring: { icon: "⏳", title: "Expired & expiring", desc: "Everything that's expired or expires within the next N days: documents, vehicles, agency vehicles, jump bag items.", days: true,
     build: async function(days){
@@ -3741,7 +3851,7 @@ function adminReports(){
     + '<div><label for="rep-from" style="margin-top:0">Checks from</label><input id="rep-from" type="date" value="' + esc(from) + '" onchange="App.repDates()"></div>'
     + '<div><label for="rep-to" style="margin-top:0">to</label><input id="rep-to" type="date" value="' + esc(to) + '" onchange="App.repDates()"></div>'
     + '<div><label for="rep-days" style="margin-top:0">Expiring within (days)</label><input id="rep-days" type="number" min="0" max="365" style="width:110px" value="' + esc(S.repDays || 60) + '" onchange="App.repDates()"></div></div></div>';
-  h += '<div class="docs">' + Object.keys(REPORTS).map(function(k){
+  h += '<div class="docs">' + Object.keys(REPORTS).filter(function(k){ return !REPORTS[k].hidden; }).map(function(k){
     var r = REPORTS[k];
     return '<div class="card"><h3>' + r.icon + ' ' + esc(r.title) + '</h3><div class="muted" style="min-height:2.8em">' + esc(r.desc) + (r.range ? " (uses the dates above)" : r.days ? " (uses the days above)" : "") + '</div>'
       + '<div class="row" style="margin-top:10px"><button class="btn sm" onclick="App.repView(\'' + k + '\')">👁 View</button><button class="btn gold sm" onclick="App.repXlsx(\'' + k + '\')">⬇ Excel</button></div></div>';
@@ -3763,6 +3873,7 @@ async function repSheets(k){ var x = await repBuild(k); return Array.isArray(x) 
 function repCls(v){ v = String(v); return /^(Not compliant|Expired|Missing|Problems|Never checked|Needs a new copy|Overdue|Rejected)/.test(v) ? "rep-bad" : /^(Expiring|Expires in|Due|Waiting|Not picked)/.test(v) ? "rep-warn" : /^(Valid|Compliant|All on file|All OK|papers OK)/.test(v) ? "rep-ok" : /^(Not required|None|No bag)$/.test(v) ? "rep-na" : ""; }
 function repTd(v, c, row){
   if (c.hide) return "";
+  if (c.pin === 1 && S.isAdmin){ var mu = S.users.filter(function(x){ return x.unit === v; })[0]; if (mu) return '<td class="pin1">' + memberLink(mu) + '</td>'; }
   var cls = [repCls(v)], pin = c.pin ? "pin" + c.pin : "", h;
   if (c.foldFrom != null && v){
     var list = String(row[c.foldFrom] || "").split("\n").filter(Boolean);
@@ -3793,6 +3904,14 @@ function repCell(v, c){
   if (v instanceof Date) return c.t === "d" ? pad(v.getMonth() + 1) + "/" + pad(v.getDate()) + "/" + v.getFullYear() : fmtTs(v.getTime());
   return esc(v == null ? "" : v).replace(/\n/g, "<br>");
 }
+// 1.77: one report sheet as an on-screen table (used by Reports and by the Compliance page)
+function repTableHtml(sh, rowFilter){
+  var rows = rowFilter ? sh.rows.filter(rowFilter) : sh.rows;
+  return '<div class="tbl-wrap rep-wrap" style="margin-top:10px"><table class="rep-tbl"><thead><tr>' + sh.cols.map(function(c){ return c.hide ? '' : '<th' + (c.pin ? ' class="pin' + c.pin + '"' : '') + '>' + esc(c.h) + '</th>'; }).join("") + '</tr></thead><tbody>'
+    + (rows.length ? rows.map(function(row){ return '<tr' + (row[0] === "Total" ? ' style="font-weight:700"' : '') + '>' + row.map(function(v, i){ return repTd(v, sh.cols[i] || {}, row); }).join("") + '</tr>'; }).join("")
+      : '<tr><td colspan="' + sh.cols.length + '" class="muted">Nothing to show.</td></tr>')
+    + '</tbody></table></div>';
+}
 async function repView(k){
   try {
     toast("Building the report…");
@@ -3800,7 +3919,8 @@ async function repView(k){
     var stamp = smsStamp(), n = shs.reduce(function(t, x){ return t + x.rows.length; }, 0);
     S.repHtml = '<div class="card report" id="rep-print"><div class="row"><div class="grow"><h3 style="margin:0">' + r.icon + ' ' + esc(shs.length > 1 ? r.title : shs[0].name) + '</h3><div class="muted">' + esc(orgName()) + ' · ' + esc(stamp) + (shs.length > 1 ? '' : ' · ' + n + ' row' + (n === 1 ? "" : "s")) + '</div></div>'
       + '<button class="btn sm" onclick="App.repPrint()">🖨 Print</button><button class="btn gold sm" onclick="App.repXlsx(\'' + k + '\')">⬇ Excel</button></div>'
-      + shs.map(function(sh){ return (shs.length > 1 ? '<h3 style="margin:16px 0 0">' + esc(sh.name) + '</h3>' : '')
+      + (shs.some(function(sh){ return sh.screen === false; }) ? '<div class="muted" style="margin-top:6px">The Excel file also has: ' + esc(shs.filter(function(sh){ return sh.screen === false; }).map(function(sh){ return sh.name; }).join(", ")) + ' (one row per item, to sort and filter).</div>' : '')
+      + shs.filter(function(sh){ return sh.screen !== false; }).map(function(sh){ return (shs.length > 1 ? '<h3 style="margin:16px 0 0">' + esc(sh.name) + '</h3>' : '')
       + '<div class="tbl-wrap rep-wrap" style="margin-top:10px"><table class="rep-tbl"><thead><tr>' + sh.cols.map(function(c){ return c.hide ? '' : '<th' + (c.pin ? ' class="pin' + c.pin + '"' : '') + '>' + esc(c.h) + '</th>'; }).join("") + '</tr></thead><tbody>'
       + (sh.rows.length ? sh.rows.map(function(row){ return '<tr' + (row[0] === "Total" ? ' style="font-weight:700"' : '') + '>' + row.map(function(v, i){ return repTd(v, sh.cols[i] || {}, row); }).join("") + '</tr>'; }).join("")
         : '<tr><td colspan="' + sh.cols.length + '" class="muted">Nothing to report.</td></tr>')
@@ -3811,7 +3931,7 @@ async function repView(k){
 }
 function repFileName(name){ return (orgName() + " " + name + " " + todayStr()).replace(/[^\w\- ]+/g, "").replace(/\s+/g, "-") + ".xlsx"; }
 async function repXlsx(k){
-  try { var shs = await repSheets(k); await hzSaveFile(hzXlsxBlob(shs), repFileName(shs[0].name)); toast("✓ Downloaded " + REPORTS[k].title); }
+  try { var shs = await repSheets(k); await hzSaveFile(hzXlsxBlob(shs), repFileName(shs.length > 1 ? REPORTS[k].title.replace(/ — .*/, "") : shs[0].name)); toast("✓ Downloaded " + REPORTS[k].title); }
   catch (e){ toast("⚠ Couldn't make the file: " + e.message, 6000); }
 }
 async function repAll(){
@@ -3886,7 +4006,7 @@ window.App = {
   ck: ck, ckSection: ckSection, ckNote: ckNote, ckQ: ckQ, ckSecNote: ckSecNote, saveCheck: saveCheck,
   adminTab: function(t){ S.adminTab = t; S.admMember = null; render(); window.scrollTo(0, 0); }, adminGroup: adminGroup, openMember: openMember, openImm: openImm, immKind: immKind, bagExempt: bagExempt, bagExemptSave: bagExemptSave, immRow: immRow, saveImmList: saveImmList, goHome: goHome, gridFilter: function(v){ S.gridOnlyProblems = v; render(); },
   gridCell: gridCell, markNA: markNA, openRecord: openRecord, review: review, deleteRecord: deleteRecord,
-  remindTest: remindTest, repFixShow: repFixShow, expQuick: expQuick, setOptIn: setOptIn, sendReminders: sendReminders,
+  remindTest: remindTest, repFixShow: repFixShow, fillFromId: fillFromId, tplInsert: tplInsert, setSend: setSend, tplTest: tplTest, cmpFilter: cmpFilter, tmSetUnit: tmSetUnit, expQuick: expQuick, setOptIn: setOptIn, sendReminders: sendReminders,
   repView: repView, repXlsx: repXlsx, repAll: repAll, repDates: repDates, repPrint: repPrint,
   saveProfile: saveProfile, vfRepl: vfRepl, editBagExp: editBagExp, saveBagExp: saveBagExp, viewBagExp: viewBagExp, phoneTyping: phoneTyping, openProfile: openProfile,
   addType: addType, resetTemplates: resetTemplates, saveSettings: saveSettings,
