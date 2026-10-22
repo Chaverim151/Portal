@@ -3,11 +3,20 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<meta name="trk-version" content="1.57">
+<meta name="trk-version" content="1.58">
 <meta name="trk-mode" content="desktop">
+<script>
+// 1.58: a phone that opens the computer version (Portal/ = index.html) is sent to the phone version, like CallDashboard
+(function(){ try {
+  var m = document.querySelector('meta[name="trk-mode"]');
+  if (m && m.content === "desktop" && /iPhone|iPad|iPod|Android/i.test(navigator.userAgent) && window.innerWidth < 1024 && !/[?&]desktop=1/.test(location.search))
+    location.replace("mobile.html" + (location.search ? location.search + "&" : "?") + "v=" + ((document.querySelector('meta[name="trk-version"]') || {}).content || "") + location.hash);
+} catch (e) {} })();
+</script>
 <meta name="theme-color" content="#ffffff">
 <title>Compliance</title>
 <!-- 1.32: the same Hatzolah MC icon as CallDashboard, built in (no extra files to upload) -->
+<!-- 1.58: phones opening the Portal link go to the phone version (no Admin); phone top bar has no Sign out (it's in My Profile) -->
 <!-- 1.57: Admin "Units" → "Users"; uniform order is a report; overlap fixes -->
 <!-- 1.56: phone document cards fold to name · status · expiry; tap to open -->
 <!-- 1.55: drag & drop files on the computer -->
@@ -121,6 +130,7 @@ h2{font-size:1.1rem;margin:18px 0 10px;color:var(--accent)}
   .tb-right{gap:4px}.tb-right .btn{padding-left:8px;padding-right:8px}
 }
 @media(max-width:340px){.tb-title{display:none}}
+@media(max-width:600px){.trk-mobile #topbar{grid-template-columns:minmax(0,1fr) auto}.trk-mobile .tb-signout{display:none}}   /* 1.58: Sign out is in 👤 My Profile on phones */
 .tb-who{text-align:center;font-family:'Oswald',sans-serif;font-weight:700;font-size:.8rem;color:var(--gray);letter-spacing:.04em;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .tb-right{display:flex;align-items:center;gap:6px}
 .ban-more{color:inherit;font-weight:700}
@@ -365,7 +375,7 @@ td.rep-warn{color:var(--warn);font-weight:700}
     <div class="m-err" id="login-err"></div>
 
     <div style="text-align:center;margin-top:16px"><button class="m-forgot" onclick="App.forgotPw()">Forgot password?</button></div>
-    <div class="m-build">BUILD <span id="li-build">v1.57</span></div>
+    <div class="m-build">BUILD <span id="li-build">v1.58</span></div>
   </div>
 </div>
 <div id="boot" class="empty" style="margin-top:20vh">Signing in…</div>
@@ -382,7 +392,7 @@ td.rep-warn{color:var(--warn);font-weight:700}
       <button id="prof-btn" class="btn sm" onclick="App.setTab('profile')" title="My Profile: addresses, phones, emergency contact, uniform"><span aria-hidden="true">👤</span><span class="prof-lbl"> My Profile</span><span class="prof-unit" id="prof-unit"></span></button>
       <button id="adm-btn" class="btn sm" hidden onclick="App.setTab('admin')" title="Admin: compliance, review, reports, checklists, settings">⚙ Admin</button>
       <button id="bell" onclick="App.openPanel()" aria-label="Notifications">🔔<span class="badge" id="bell-n" hidden></span></button>
-      <button class="btn sm" onclick="App.signOut()">Sign out</button>
+      <button class="btn sm tb-signout" onclick="App.signOut()">Sign out</button>
     </div>
   </div>
   <div id="pagehead" hidden><button class="back-btn" onclick="App.goHome()">← Home</button><div class="page-title" id="page-title"></div></div>
@@ -445,7 +455,7 @@ function trkSmsPayload(phone, message, unit){
 function trkEmailPayload(email, name, subject, html){ return { to: [{ email: email, name: name || email }], subject: subject, body: html }; }
 
 /* ════════════════════════════════════════════════════════════════════════ */
-var TRK_VERSION = "1.57";
+var TRK_VERSION = "1.58";
 // 1.16: owner asked to block the tracker's notifications for now. While this is true the tracker sends NO texts and
 // NO emails (reminders and test reminders). Sign-in "Forgot password?" still works. Set to false to allow sending again.
 var TRK_SENDING_OFF = true;
@@ -2564,7 +2574,7 @@ function profileProblems(d){
 function viewProfile(){
   if (S.myProfile === null) return '<div class="empty">Loading…</div>';
   var p = S.myProfile || {};
-  return profileForm(S.me, p, "pf-")
+  return (TRK_MODE === "mobile" ? '<div class="row" style="justify-content:flex-end;margin:6px 0"><button class="btn" onclick="App.signOut()">⎋ Sign out</button></div>' : '') + profileForm(S.me, p, "pf-")
     + '<div class="row" style="position:sticky;bottom:0;background:var(--bg);padding:10px 0;border-top:1px solid var(--line)"><span class="grow muted" id="pf-msg">' + (p.updatedAt ? "Last saved " + fmtTs(p.updatedAt) : "") + '</span>'
     + '<button class="btn gold" onclick="App.saveProfile()">💾 Save profile</button></div>';
 }
