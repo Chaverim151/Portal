@@ -3,11 +3,12 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<meta name="trk-version" content="1.36">
+<meta name="trk-version" content="1.37">
 <meta name="trk-mode" content="desktop">
 <meta name="theme-color" content="#ffffff">
 <title>Compliance</title>
 <!-- 1.32: the same Hatzolah MC icon as CallDashboard, built in (no extra files to upload) -->
+<!-- 1.37: My Vehicles shows just the cars (picture + year make model); tap one for its details and document cards -->
 <!-- 1.36: car pictures on members' vehicles (carimagesapi.com); tap one for a pop-up with its documents -->
 <!-- 1.35: "rig check" wording → vehicle / ambulance check; ERV jump bag moved to 🚑 Vehicle Checks -->
 <!-- 1.34: plain dispatchers (Dispatcher only, not admin) can't log in and are left off all lists and reminders -->
@@ -166,6 +167,11 @@ h2{font-size:1.1rem;margin:18px 0 10px;color:var(--accent)}
 .car-pic .car-fb{position:absolute;font-size:2rem;opacity:.45}
 .car-pic.big{display:flex;width:100%;height:230px;margin:6px 0 10px;cursor:default}
 .car-pic.big .car-fb{font-size:4rem}
+.veh-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(min(100%,240px),1fr));gap:12px;margin:6px 0 12px}
+.veh-tile{display:flex;flex-direction:column;align-items:stretch;text-align:center;background:var(--card,#fff);border:1px solid var(--line);border-radius:12px;padding:10px;cursor:pointer;font:inherit;color:inherit}
+.veh-tile:hover{border-color:var(--gold,#c9a227)}
+.veh-tile .car-pic{width:100%;height:140px;margin:0 0 8px;cursor:pointer}
+.veh-tile .vt{font-weight:700;font-size:1rem}
 .car-pic.xs{width:58px;height:36px;border-radius:6px;margin-right:6px;vertical-align:middle}
 .car-pic.xs .car-fb{font-size:1.1rem}
 .thumbs{display:flex;gap:6px;flex-wrap:wrap;margin:8px 0}
@@ -289,7 +295,7 @@ td.rep-warn{color:var(--warn);font-weight:700}
     <div class="m-err" id="login-err"></div>
 
     <div style="text-align:center;margin-top:16px"><button class="m-forgot" onclick="App.forgotPw()">Forgot password?</button></div>
-    <div class="m-build">BUILD <span id="li-build">v1.36</span></div>
+    <div class="m-build">BUILD <span id="li-build">v1.37</span></div>
   </div>
 </div>
 <div id="boot" class="empty" style="margin-top:20vh">Signing in…</div>
@@ -368,7 +374,7 @@ function trkSmsPayload(phone, message, unit){
 function trkEmailPayload(email, name, subject, html){ return { to: [{ email: email, name: name || email }], subject: subject, body: html }; }
 
 /* ════════════════════════════════════════════════════════════════════════ */
-var TRK_VERSION = "1.36";
+var TRK_VERSION = "1.37";
 // 1.16: owner asked to block the tracker's notifications for now. While this is true the tracker sends NO texts and
 // NO emails (reminders and test reminders). Sign-in "Forgot password?" still works. Set to false to allow sending again.
 var TRK_SENDING_OFF = true;
@@ -1117,6 +1123,7 @@ function setTab(t, fromHistory){
   if (t === "admin" && TRK_MODE !== "desktop") t = "home";
   if (t !== "home" && tabsList().indexOf(t) < 0) t = "home";
   var changed = S.tab !== t;
+  if (changed) S.vehOpen = null;
   S.tab = t;
   // phone Back key: a page opened from home gets a history entry, so Back returns home (like CAD 5.21)
   if (!fromHistory && changed){ try { if (t === "home"){ if (history.state && history.state.trk && history.state.trk !== "home") history.back(); } else history.pushState({ trk: t }, ""); } catch (e){} }
@@ -1269,23 +1276,32 @@ function vTitle(v){ return [v.year, v.make, v.model].filter(Boolean).join(" ") |
 var FUELS = ["Gas", "Diesel", "Hybrid", "Plug-in Hybrid", "Electric"];
 function viewVehicles(){
   var full = S.myVehicles.length >= 2;
+  var open = S.vehOpen ? S.myVehicles.filter(function(v){ return v.id === S.vehOpen; })[0] : null;
+  if (open) return vehicleDetail(open);
+  // 1.37: first just the cars — picture with year / make / model under it; tap one for its details and documents
   var h = '<div class="row" style="margin-top:6px"><h2 class="grow" style="margin:8px 0">🚗 My Vehicles</h2><button class="btn gold" onclick="App.addVehicle()">+ Add a vehicle</button></div>';
   if (!S.myVehicles.length) return h + '<div class="card empty">Add the vehicle you respond in (up to two), then upload its insurance card and registration.</div>';
-  S.myVehicles.forEach(function(v){
-    h += '<div class="card"><div class="row">' + carImg(v) + '<h3 class="grow">' + (v.slot ? '<span class="pill p-info">Vehicle ' + v.slot + '</span> ' : '') + esc(vTitle(v)) + '</h3>'
-      + '<button class="btn sm" data-id="' + esc(v.id) + '" onclick="App.editVehicle(this.dataset.id)">Edit</button></div>'
-      + '<div class="kv">' + (v.plate ? '<span>Plate</span><span>' + esc(v.plate) + (v.regState ? " (" + esc(v.regState) + ")" : "") + '</span>' : '')
-      + (v.color ? '<span>Color</span><span>' + esc(v.color) + '</span>' : '') + (v.fuel ? '<span>Fuel</span><span>' + esc(v.fuel) + '</span>' : '')
-      + (v.vin ? '<span>VIN</span><span>' + esc(v.vin) + '</span>' : '') + (v.regName ? '<span>Registered to</span><span>' + esc(v.regName) + '</span>' : '') + '</div>'
-      + '<div class="docs" style="margin-top:10px">';
-    docTypes("vehicle").forEach(function(t){
-      h += docCard("v_" + v.id, t, S.myRecords[recKey("v_" + v.id, t.id)], { owner: S.me.uid, unit: S.me.unit, name: S.me.name || "", veh: "v_" + v.id, vehName: vTitle(v) });
-    });
-    h += '</div></div>';
-  });
+  h += '<div class="veh-grid">' + S.myVehicles.slice().sort(function(a, b){ return (a.slot || 9) - (b.slot || 9); }).map(function(v){
+    return '<button type="button" class="veh-tile" data-id="' + esc(v.id) + '" onclick="App.openVeh(this.dataset.id)">' + carImg(v, "", true) + '<span class="vt">' + esc(vTitle(v)) + '</span></button>';
+  }).join("") + '</div>';
   if (full) h += '<p class="muted">You have two vehicles. To add a new one, tap + Add a vehicle and answer Yes to "Replacing vehicle?".</p>';
   return h;
 }
+function vehicleDetail(v){
+  var h = '<div class="row" style="margin-top:6px"><button class="btn" onclick="App.openVeh(\'\')">← My Vehicles</button></div>';
+  h += '<div class="card" style="margin-top:10px">' + carImg(v, "big", true)
+    + '<div class="row"><h3 class="grow">' + (v.slot ? '<span class="pill p-info">Vehicle ' + v.slot + '</span> ' : '') + esc(vTitle(v)) + '</h3>'
+    + '<button class="btn sm" data-id="' + esc(v.id) + '" onclick="App.editVehicle(this.dataset.id)">Edit</button></div>'
+    + '<div class="kv">' + (v.plate ? '<span>Plate</span><span>' + esc(v.plate) + (v.regState ? " (" + esc(v.regState) + ")" : "") + '</span>' : '')
+    + (v.color ? '<span>Color</span><span>' + esc(v.color) + '</span>' : '') + (v.fuel ? '<span>Fuel</span><span>' + esc(v.fuel) + '</span>' : '')
+    + (v.vin ? '<span>VIN</span><span>' + esc(v.vin) + '</span>' : '') + (v.regName ? '<span>Registered to</span><span>' + esc(v.regName) + '</span>' : '') + '</div>'
+    + '<div class="docs" style="margin-top:10px">';
+  docTypes("vehicle").forEach(function(t){
+    h += docCard("v_" + v.id, t, S.myRecords[recKey("v_" + v.id, t.id)], { owner: S.me.uid, unit: S.me.unit, name: S.me.name || "", veh: "v_" + v.id, vehName: vTitle(v) });
+  });
+  return h + '</div></div>';
+}
+function openVeh(id){ S.vehOpen = id || null; render(); window.scrollTo(0, 0); }
 function addVehicle(){ vehicleForm(null); }
 function editVehicle(id){ vehicleForm(S.myVehicles.filter(function(v){ return v.id === id; })[0] || S.allVehicles.filter(function(v){ return v.id === id; })[0]); }
 function vehicleForm(v){
@@ -3101,7 +3117,7 @@ window.App = {
   saveDocs: saveDocs, editRigExp: editRigExp, assignBags: assignBags, asgSave: asgSave,
   asgAdd: function(){ S._asg.extra.push({ id: "b" + Date.now().toString(36), name: "" }); drawAssign(); var n = document.querySelectorAll(".asg-name"); if (n.length) n[n.length - 1].focus(); },
   asgDel: function(i){ S._asg.extra.splice(i, 1); drawAssign(); }, asgName: function(i, v){ S._asg.extra[i].name = v; },
-  asgFleet: function(id, on){ var f = S._asg.fleet, i = f.indexOf(id); if (on && i < 0) f.push(id); if (!on && i >= 0) f.splice(i, 1); }, expOne: expOne, vehPics: vehPics, expOneSave: expOneSave, expOneCancel: expOneCancel, viewObExp: viewObExp, editObExp: editObExp, saveObExp: saveObExp, saveRigExp: saveRigExp, saveTiming: saveTiming, saveMsg: saveMsg, ckPick: ckPick
+  asgFleet: function(id, on){ var f = S._asg.fleet, i = f.indexOf(id); if (on && i < 0) f.push(id); if (!on && i >= 0) f.splice(i, 1); }, expOne: expOne, vehPics: vehPics, openVeh: openVeh, expOneSave: expOneSave, expOneCancel: expOneCancel, viewObExp: viewObExp, editObExp: editObExp, saveObExp: saveObExp, saveRigExp: saveRigExp, saveTiming: saveTiming, saveMsg: saveMsg, ckPick: ckPick
 };
 window.TRK = { S: S, render: render, memberIssues: memberIssues, recStatus: recStatus, bagState: bagState, rigState: rigState, normUnit: normUnit, smsStamp: smsStamp };
 </script>
