@@ -3,11 +3,12 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<meta name="trk-version" content="1.56">
+<meta name="trk-version" content="1.57">
 <meta name="trk-mode" content="mobile">
 <meta name="theme-color" content="#ffffff">
 <title>Compliance</title>
 <!-- 1.32: the same Hatzolah MC icon as CallDashboard, built in (no extra files to upload) -->
+<!-- 1.57: Admin "Units" → "Users"; uniform order is a report; overlap fixes -->
 <!-- 1.56: phone document cards fold to name · status · expiry; tap to open -->
 <!-- 1.55: drag & drop files on the computer -->
 <!-- 1.54: phone tidy-up — tables become cards, short attention box (not on Home), no name squeeze in the top bar -->
@@ -112,6 +113,14 @@ h2{font-size:1.1rem;margin:18px 0 10px;color:var(--accent)}
 .tb-title{font-family:'Oswald',sans-serif;font-weight:700;letter-spacing:.06em;text-transform:uppercase;font-size:1.05rem;color:var(--text);white-space:nowrap}
 .tb-title span{color:var(--accent)}
 .tb-sub{font-size:.62rem;color:var(--gray);letter-spacing:.08em;text-transform:uppercase}
+.tb-text{min-width:0;overflow:hidden}
+.tb-title{overflow:hidden;text-overflow:ellipsis}
+@media(max-width:400px){   /* 1.57: small phones — the name shrinks, never slides under the buttons */
+  .tb-left{flex:1 1 auto;gap:6px}.tb-left img{width:30px}
+  .tb-title{font-size:.86rem;letter-spacing:.03em}.tb-sub{display:none}
+  .tb-right{gap:4px}.tb-right .btn{padding-left:8px;padding-right:8px}
+}
+@media(max-width:340px){.tb-title{display:none}}
 .tb-who{text-align:center;font-family:'Oswald',sans-serif;font-weight:700;font-size:.8rem;color:var(--gray);letter-spacing:.04em;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .tb-right{display:flex;align-items:center;gap:6px}
 .ban-more{color:inherit;font-weight:700}
@@ -356,7 +365,7 @@ td.rep-warn{color:var(--warn);font-weight:700}
     <div class="m-err" id="login-err"></div>
 
     <div style="text-align:center;margin-top:16px"><button class="m-forgot" onclick="App.forgotPw()">Forgot password?</button></div>
-    <div class="m-build">BUILD <span id="li-build">v1.56</span></div>
+    <div class="m-build">BUILD <span id="li-build">v1.57</span></div>
   </div>
 </div>
 <div id="boot" class="empty" style="margin-top:20vh">Signing in…</div>
@@ -436,7 +445,7 @@ function trkSmsPayload(phone, message, unit){
 function trkEmailPayload(email, name, subject, html){ return { to: [{ email: email, name: name || email }], subject: subject, body: html }; }
 
 /* ════════════════════════════════════════════════════════════════════════ */
-var TRK_VERSION = "1.56";
+var TRK_VERSION = "1.57";
 // 1.16: owner asked to block the tracker's notifications for now. While this is true the tracker sends NO texts and
 // NO emails (reminders and test reminders). Sign-in "Forgot password?" still works. Set to false to allow sending again.
 var TRK_SENDING_OFF = true;
@@ -2582,14 +2591,7 @@ function openProfile(uid){
     '<span class="grow muted" id="apf-msg"></span><button class="btn" onclick="App.closeModal()">Cancel</button><button class="btn gold" data-uid="' + esc(uid) + '" onclick="App.saveProfile(this.dataset.uid)">💾 Save</button>');
 }
 function adminProfiles(){
-  var y = thisYear(), sc = {}, jc = {}, filled = 0;
-  SIZES.forEach(function(z){ sc[z] = 0; jc[z] = 0; });
-  S.users.forEach(function(u){ var p = S.profiles[u.uid]; if (!p) return; filled++; var a = sizeFor(p.shirt, y), b = sizeFor(p.jacket, y); if (a) sc[a]++; if (b) jc[b]++; });
-  var noShirt = S.users.filter(function(u){ return !sizeFor((S.profiles[u.uid] || {}).shirt, y); }).length;
-  var h = '<div class="card"><h3>Uniform order ' + y + '</h3><div class="tbl-wrap"><table><thead><tr><th></th>' + SIZES.map(function(z){ return '<th class="c">' + z + '</th>'; }).join("") + '<th class="c">Total</th></tr></thead><tbody>'
-    + '<tr><td><b>Shirts</b></td>' + SIZES.map(function(z){ return '<td class="c">' + sc[z] + '</td>'; }).join("") + '<td class="c"><b>' + SIZES.reduce(function(t, z){ return t + sc[z]; }, 0) + '</b></td></tr>'
-    + '<tr><td><b>Jackets</b></td>' + SIZES.map(function(z){ return '<td class="c">' + jc[z] + '</td>'; }).join("") + '<td class="c"><b>' + SIZES.reduce(function(t, z){ return t + jc[z]; }, 0) + '</b></td></tr>'
-    + '</tbody></table></div><div class="muted" style="margin-top:8px">' + filled + ' of ' + S.users.length + ' members have filled in a profile · ' + noShirt + ' haven\'t picked a ' + y + ' shirt size.</div></div>';
+  var y = thisYear(), h = '<p class="muted">The uniform order (how many of each size) is in 📊 Reports ▸ 👕 Uniform order.</p>';   // 1.57
   h += '<div class="tbl-wrap"><table><thead><tr><th>Unit</th><th>Name</th><th>Date of birth</th><th>Cell</th><th>Home address</th><th>Emergency contact</th><th class="c">Shirt</th><th class="c">Jacket</th><th></th></tr></thead><tbody>';
   S.users.forEach(function(u){
     var p = S.profiles[u.uid] || {}, a = p.home || {}, ec = p.emergency || {};
@@ -2610,7 +2612,7 @@ var ADMIN_SETTINGS_TABS = ["rigcl", "bagcl", "docs", "imm", "timing", "msg"];
 // 1.41: grouped like CallDashboard's admin — main tabs, each with its own sub-tabs. The sub-tab ids (S.adminTab) didn't change.
 var DATES_IN_CHECKS = false;   // 1.42
 var ADMIN_GROUPS = [
-  ["members", "👥 Units", [["grid", "Compliance"], ["profiles", "Profiles"], ["remind", "Reminders"]]],
+  ["members", "👥 Users", [["grid", "Compliance"], ["profiles", "Profiles"], ["remind", "Reminders"]]],
   ["review", "📥 Review", [["review", "Review"]]],
   ["fleet", "🚑 Vehicles & Bags", [["paper", "Agency Paperwork"], ["bags", "Jump Bags"]]],
   ["reports", "📊 Reports", [["reports", "Reports"]]],
@@ -2695,7 +2697,7 @@ function adminMember(uid){
   var p = S.profiles[uid] || {}, a = p.home || {}, ec = p.emergency || {};
   var vehs = S.allVehicles.filter(function(v){ return v.uid === uid; }), iss = memberIssues(u, S.allRecords, vehs, S.allBags[uid]);
   var ctx = { owner: uid, unit: u.unit, name: u.name || "" };
-  var h = '<div class="row" style="margin-bottom:10px"><button class="btn" onclick="App.openMember(\'\')">← All units</button><span class="grow"></span>'
+  var h = '<div class="row" style="margin-bottom:10px"><button class="btn" onclick="App.openMember(\'\')">← All users</button><span class="grow"></span>'
     + '<button class="btn" data-uid="' + esc(uid) + '" onclick="App.openProfile(this.dataset.uid)">👤 Edit profile</button>'
     + '<button class="btn" data-uid="' + esc(uid) + '" onclick="App.assignBags(this.dataset.uid)">🎒 Bags</button></div>';
   h += '<div class="card"><h3 style="margin-bottom:6px">' + esc(u.unit) + (u.name ? ' · ' + esc(u.name) : '') + '</h3>'
@@ -2749,7 +2751,7 @@ function adminGrid(){
     if (!S.gridOnlyProblems) return true;
     return memberIssues(u, S.allRecords, S.allVehicles.filter(function(v){ return v.uid === u.uid; }), S.allBags[u.uid]).length > 0;
   });
-  var h = '<div class="muted" style="margin-bottom:6px">Tap a unit number to see everything for that unit — documents, vehicles, jump bags.</div><div class="row"><label style="margin:0;display:flex;gap:6px;align-items:center;font-weight:400;color:var(--text)"><input type="checkbox" style="width:auto" ' + (S.gridOnlyProblems ? "checked" : "") + ' onchange="App.gridFilter(this.checked)"> Only members with problems</label></div>' + legend();
+  var h = '<div class="muted" style="margin-bottom:6px">Tap a unit number to see everything for that user — documents, vehicles, jump bags.</div><div class="row"><label style="margin:0;display:flex;gap:6px;align-items:center;font-weight:400;color:var(--text)"><input type="checkbox" style="width:auto" ' + (S.gridOnlyProblems ? "checked" : "") + ' onchange="App.gridFilter(this.checked)"> Only members with problems</label></div>' + legend();
   h += '<div class="tbl-wrap"><table class="grid-tbl"><thead><tr><th>Unit</th><th>Name</th>' + ts.map(function(t){ return '<th class="c">' + esc(t.name) + '</th>'; }).join("") + '<th class="c">Immunizations</th><th class="c">Vehicles</th><th class="c">Jump bag</th></tr></thead><tbody>';
   users.forEach(function(u){
     h += '<tr><td>' + memberLink(u) + '</td><td>' + esc(u.name || "") + '</td>';
@@ -3419,6 +3421,17 @@ var REPORTS = {
         rows.push(r);
       });
       return { name: "Vehicles", cols: cols, rows: rows };
+    } },
+  uniformOrder: { icon: "👕", title: "Uniform order", desc: "How many shirts and jackets of each size to order this year, from everyone's profile.",
+    build: async function(){
+      var y = thisYear(), sc = {}, jc = {}, filled = 0;
+      SIZES.forEach(function(z){ sc[z] = 0; jc[z] = 0; });
+      S.users.forEach(function(u){ var p = S.profiles[u.uid]; if (!p) return; filled++; var a = sizeFor(p.shirt, y), b = sizeFor(p.jacket, y); if (a) sc[a]++; if (b) jc[b]++; });
+      var noShirt = S.users.filter(function(u){ return !sizeFor((S.profiles[u.uid] || {}).shirt, y); }).length, noJacket = S.users.filter(function(u){ return !sizeFor((S.profiles[u.uid] || {}).jacket, y); }).length;
+      var rows = SIZES.map(function(z){ return [z, sc[z], jc[z]]; });
+      rows.push(["Total", SIZES.reduce(function(t, z){ return t + sc[z]; }, 0), SIZES.reduce(function(t, z){ return t + jc[z]; }, 0)]);
+      rows.push(["Not picked yet", noShirt, noJacket]);
+      return { name: "Uniform order " + y, cols: [{ h: "Size", w: 14 }, { h: "Shirts", w: 10 }, { h: "Jackets", w: 10 }], rows: rows };
     } },
   uniforms: { icon: "👕", title: "Uniform sizes", desc: "Each member's shirt and jacket size for this year and last year.",
     build: async function(){
