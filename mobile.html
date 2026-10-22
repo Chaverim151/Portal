@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<meta name="trk-version" content="1.79">
+<meta name="trk-version" content="1.82">
 <meta name="trk-mode" content="mobile">
 <script>
 // 1.58: a phone that opens the computer version (Portal/ = index.html) is sent to the phone version, like CallDashboard
@@ -359,6 +359,24 @@ td.rep-warn{color:var(--warn);font-weight:700}
 .tpl-var{border:1px solid var(--line);border-radius:8px;padding:7px 10px;margin-bottom:6px;cursor:pointer;background:#fff;font-size:.82rem;color:var(--gray)}
 .tpl-var:hover{border-color:var(--pick);background:#f3f7fc}
 .tpl-var code{display:inline-block;font-weight:700;color:#0b3d75;background:#eaf2fb;border:1px solid #a9c7ea;border-radius:6px;padding:1px 7px;margin-bottom:2px}
+.veh-grp{border:1px solid var(--line);border-radius:8px;padding:8px 12px;margin-top:8px;background:#fff}
+.veh-grp summary{cursor:pointer;font-size:.92rem}
+.veh-grp summary .dot{vertical-align:middle}
+.ced-sec{border:1px solid var(--line);border-radius:8px;background:#fff;margin-bottom:6px}
+.ced-sec.open{border-color:#a9c7ea;box-shadow:0 1px 4px rgba(0,0,0,.05)}
+.ced-head{display:flex;align-items:center;gap:6px;padding:5px 8px}
+.ced-tog{border:0;background:none;font-size:1rem;width:24px;cursor:pointer;color:var(--gray)}
+.ced-name{flex:1;font-weight:700;padding:5px 8px!important;font-size:.9rem}
+.ced-count{color:var(--gray);font-size:.78rem;white-space:nowrap;cursor:pointer;min-width:110px;text-align:right}
+.ced-body{padding:4px 12px 10px 38px;border-top:1px solid var(--line)}
+.ced-row{display:grid;grid-template-columns:1fr 150px auto;gap:6px;align-items:center;margin-bottom:3px}
+.ced-row.ced-q{grid-template-columns:1fr auto}
+.ced-row input{padding:4px 8px;font-size:.86rem}
+.ced-hdr span{font-size:.7rem;color:var(--gray);font-weight:700;text-transform:uppercase;letter-spacing:.03em}
+.ced-btns{display:flex;gap:3px;align-items:center}
+.ced-btns .btn.sm{padding:2px 7px;font-size:.78rem}
+.ced-exp2{display:grid;grid-template-columns:1fr 1fr;gap:16px}
+@media (max-width:900px){.ced-exp2{grid-template-columns:1fr}}
 .cmp-f.on{background:var(--pick);border-color:var(--pick);color:#fff}
 .cmp-f .dot{vertical-align:middle}
 .timing-grid{display:grid;grid-template-columns:minmax(320px,440px) 1fr;gap:14px;align-items:start;margin-bottom:12px}
@@ -389,6 +407,10 @@ td.rep-warn{color:var(--warn);font-weight:700}
   body.printing-report #view > *:not(#rep-out){display:none!important}
   body.printing-report .report button{display:none!important}
   body.printing-report .tbl-wrap{overflow:visible;border:none;max-height:none}
+  body.printing-report .veh-grp{break-inside:avoid;border:none;border-top:1px solid #999;border-radius:0;padding:8px 0 4px;margin:0}
+  body.printing-report .veh-grp summary{list-style:none;font-size:11pt}
+  body.printing-report .veh-grp summary::-webkit-details-marker{display:none}
+  body.printing-report .veh-grp .tbl-wrap{margin-left:18px}
   body.printing-report .rep-tbl .pin1,body.printing-report .rep-tbl .pin2{position:static;box-shadow:none}
   body.printing-report th{position:static}
   body.printing-report td,body.printing-report th{font-size:9pt;white-space:normal}
@@ -443,7 +465,7 @@ td.rep-warn{color:var(--warn);font-weight:700}
     <div class="m-err" id="login-err"></div>
 
     <div style="text-align:center;margin-top:16px"><button class="m-forgot" onclick="App.forgotPw()">Forgot password?</button></div>
-    <div class="m-build">BUILD <span id="li-build">v1.79</span></div>
+    <div class="m-build">BUILD <span id="li-build">v1.82</span></div>
   </div>
 </div>
 <div id="boot" class="empty" style="margin-top:20vh">Signing in…</div>
@@ -523,7 +545,7 @@ function trkSmsPayload(phone, message, unit){
 function trkEmailPayload(email, name, subject, html){ return { to: [{ email: email, name: name || email }], subject: subject, body: html }; }
 
 /* ════════════════════════════════════════════════════════════════════════ */
-var TRK_VERSION = "1.79";
+var TRK_VERSION = "1.82";
 // 1.16: owner asked to block the tracker's notifications for now. While this is true the tracker sends NO texts and
 // NO emails (reminders and test reminders). Sign-in "Forgot password?" still works. Set to false to allow sending again.
 var TRK_SENDING_OFF = false;   // 1.77: not used any more — ⚙ Settings ▸ Messages ▸ How it's sent decides (all off by default)
@@ -732,6 +754,11 @@ function typeById(id){ return (S.settings.docTypes || []).concat(immTypes()).fil
 function userByUid(uid){ return S.users.filter(function(u){ return u.uid === uid; })[0]; }
 function withName(u){ if (u && !u.name) u.name = ((u.firstName || "") + " " + (u.lastName || "")).trim(); return u; }
 // 1.34: a plain dispatcher (Dispatcher is their ONLY role, not an admin) doesn't use the tracker — can't log in, left off every list and reminder
+// 1.81: the portal is only for responders (Responder, Captain, Chief, Backup) and admins — anyone else can't sign in
+// and is left off every list, report and reminder
+var PORTAL_ROLES = ["responder", "captain", "chief", "backup"];
+function isAdminUser(u){ return !!u && (u.role === "admin" || rolesOf(u).map(function(x){ return String(x).toLowerCase(); }).indexOf("admin") >= 0); }
+function canUsePortal(u){ return isAdminUser(u) || rolesOf(u).some(function(x){ return PORTAL_ROLES.indexOf(String(x).toLowerCase()) >= 0; }); }
 function isPlainDispatcher(u){
   if (!u || u.role === "admin") return false;
   var r = rolesOf(u).map(function(x){ return String(x).toLowerCase(); }).filter(Boolean);
@@ -1075,9 +1102,9 @@ auth.onAuthStateChanged(async function(user){
     return;
   }
   S.isAdmin = S.me.role === "admin" || rolesOf(S.me).indexOf("admin") >= 0;
-  if (!S.isAdmin && isPlainDispatcher(S.me)){
+  if (!canUsePortal(S.me)){
     auth.signOut(); $("app").hidden = true; $("login").hidden = false;
-    loginErr("The Compliance Tracker isn't used by dispatchers. If you think this is wrong, ask an admin."); return;
+    loginErr("The Compliance Tracker is only for responders and admins. If you think this is wrong, ask an admin."); return;
   }
   S.isLogistics = rolesOf(S.me).indexOf("logistics") >= 0;
   $("login").hidden = true; $("app").hidden = false;
@@ -1148,7 +1175,7 @@ function startListeners(){
   }
   if (S.isAdmin){
     listen(db.collection("users"), function(q){
-      S.users = []; q.forEach(function(d){ var u = d.data(); if (u && u.unit && !isPlainDispatcher(u)) S.users.push(withName(Object.assign({ uid: d.id }, u))); });
+      S.users = []; q.forEach(function(d){ var u = d.data(); if (u && u.unit && canUsePortal(u)) S.users.push(withName(Object.assign({ uid: d.id }, u))); });
       S.users.sort(function(a, b){ return unitNum(a.unit) - unitNum(b.unit); }); renderSoon();
     });
     listen(db.collection("trk_records"), function(q){ S.allRecords = {}; q.forEach(function(d){ S.allRecords[d.id] = Object.assign({ id: d.id }, d.data()); }); renderSoon(); });
@@ -3029,7 +3056,7 @@ function adminMember(uid){
   vehs.slice().sort(function(x, y){ return (x.slot || 9) - (y.slot || 9); }).forEach(function(v){
     h += '<div class="card"><div class="row">' + carImg(v, "", true) + '<div class="grow"><h3 style="margin:0">' + (v.slot ? '<span class="pill p-info">Vehicle ' + v.slot + '</span> ' : '') + esc(vTitle(v)) + '</h3>'
       + '<div class="muted">' + [v.plate ? "Plate " + esc(v.plate) + (v.regState ? " (" + esc(v.regState) + ")" : "") : "", v.color ? esc(v.color) : "", v.vin ? "VIN " + esc(v.vin) : ""].filter(Boolean).join(" · ") + '</div></div>'
-      + '<button class="btn sm" data-id="' + esc(v.id) + '" onclick="App.editVehicle(this.dataset.id)">Edit</button></div><div class="docs" style="margin-top:10px">'
+      + '<button class="btn sm" data-id="' + esc(v.id) + '" onclick="App.editVehicle(this.dataset.id)">Edit</button></div><div style="margin-top:10px">'
       + docTable("v_" + v.id, docTypes("vehicle"), S.allRecords, Object.assign({ veh: "v_" + v.id, vehName: vTitle(v) }, ctx)) + '</div></div>';
   });
   var asg = bagAssignOf(uid);
@@ -3363,30 +3390,43 @@ function panelChecklist(key){
     + (rig ? "What's checked on every ambulance check, section by section." : "What's checked on every jump bag check (members' own bags and the agency bags / cabinets).")
     + ' Each item has a name and how many should be there. Yes / No checks come at the end of their section. Every section gets a Notes box automatically.</p>'
     + (E.dirty ? '<div class="note" style="background:#fff4d6;border-color:#e2c27a;color:#5c3c00;margin-top:8px">Unsaved changes — press 💾 Save at the bottom.</div>' : '') + '</div>';
+  // 1.82: compact — each section is one line (closed) until you open it; items are small rows
+  S.cedOpen = S.cedOpen || new WeakSet();
+  h += '<div class="row" style="margin:0 0 6px"><span class="muted grow" style="font-size:.82rem">' + E.data.length + ' sections · ' + E.data.reduce(function(t, x){ return t + (x.items || []).length; }, 0) + ' items</span>'
+    + '<button class="btn sm" onclick="App.cedAll(' + K + ',true)">Open all</button><button class="btn sm" onclick="App.cedAll(' + K + ',false)">Close all</button></div>';
   E.data.forEach(function(sec, si){
-    h += '<div class="card"><div class="row"><input value="' + esc(sec.name) + '" placeholder="Section name" style="flex:1;font-weight:700" aria-label="Section name" oninput="App.cedSet(' + K + ',\'name\',' + si + ',-1,this.value)">'
+    var open = S.cedOpen.has(sec), ni = (sec.items || []).length, nq = (sec.questions || []).length;
+    h += '<div class="ced-sec' + (open ? ' open' : '') + '"><div class="ced-head">'
+      + '<button class="ced-tog" title="' + (open ? 'Close' : 'Open') + '" onclick="App.cedToggle(' + K + ',' + si + ')">' + (open ? '▾' : '▸') + '</button>'
+      + '<input class="ced-name" value="' + esc(sec.name) + '" placeholder="Section name" aria-label="Section name" oninput="App.cedSet(' + K + ',\'name\',' + si + ',-1,this.value)">'
+      + '<span class="ced-count" onclick="App.cedToggle(' + K + ',' + si + ')">' + ni + ' item' + (ni === 1 ? '' : 's') + (nq ? ' · ' + nq + ' Yes/No' : '') + '</span>'
       + '<button class="btn sm" title="Move section up" onclick="App.cedOp(' + K + ',\'secUp\',' + si + ')"' + (si ? '' : ' disabled') + '>↑</button>'
       + '<button class="btn sm" title="Move section down" onclick="App.cedOp(' + K + ',\'secDown\',' + si + ')"' + (si < E.data.length - 1 ? '' : ' disabled') + '>↓</button>'
-      + '<button class="btn red sm" onclick="App.cedOp(' + K + ',\'secDel\',' + si + ')">Delete section</button></div>';
-    h += '<div style="margin-top:8px">' + (sec.items || []).map(function(it, ii){
-      return '<div class="row" style="margin-bottom:4px;flex-wrap:nowrap"><input value="' + esc(it.n) + '" placeholder="Item" aria-label="Item" style="flex:3" oninput="App.cedSet(' + K + ',\'n\',' + si + ',' + ii + ',this.value)">'
-        + '<input value="' + esc(it.par || "") + '" placeholder="How many" aria-label="How many" style="flex:1;min-width:90px" oninput="App.cedSet(' + K + ',\'par\',' + si + ',' + ii + ',this.value)">'
-        + '<button class="btn sm" title="Up" onclick="App.cedOp(' + K + ',\'itUp\',' + si + ',' + ii + ')"' + (ii ? '' : ' disabled') + '>↑</button>'
-        + '<button class="btn sm" title="Down" onclick="App.cedOp(' + K + ',\'itDown\',' + si + ',' + ii + ')"' + (ii < sec.items.length - 1 ? '' : ' disabled') + '>↓</button>'
-        + '<button class="x" title="Remove item" onclick="App.cedOp(' + K + ',\'itDel\',' + si + ',' + ii + ')">✕</button></div>';
-    }).join("") + '<button class="btn sm" onclick="App.cedOp(' + K + ',\'itAdd\',' + si + ')">+ Add item</button></div>';
-    h += '<div style="margin-top:10px"><div class="muted" style="font-weight:700;margin-bottom:4px">Yes / No checks</div>' + (sec.questions || []).map(function(q, qi){
-      return '<div class="row" style="margin-bottom:4px;flex-wrap:nowrap"><input value="' + esc(q) + '" placeholder="Question (answered Yes or No)" aria-label="Yes / No check" style="flex:1" oninput="App.cedSet(' + K + ',\'q\',' + si + ',' + qi + ',this.value)">'
-        + '<button class="x" title="Remove check" onclick="App.cedOp(' + K + ',\'qDel\',' + si + ',' + qi + ')">✕</button></div>';
-    }).join("") + '<button class="btn sm" onclick="App.cedOp(' + K + ',\'qAdd\',' + si + ')">+ Add Yes / No check</button></div></div>';
+      + '<button class="btn red sm" title="Delete section" onclick="App.cedOp(' + K + ',\'secDel\',' + si + ')">Delete</button></div>';
+    if (open){
+      h += '<div class="ced-body"><div class="ced-row ced-hdr"><span>Item</span><span>How many</span><span></span></div>' + (sec.items || []).map(function(it, ii){
+        return '<div class="ced-row"><input value="' + esc(it.n) + '" placeholder="Item" aria-label="Item" oninput="App.cedSet(' + K + ',\'n\',' + si + ',' + ii + ',this.value)">'
+          + '<input value="' + esc(it.par || "") + '" placeholder="How many" aria-label="How many" oninput="App.cedSet(' + K + ',\'par\',' + si + ',' + ii + ',this.value)">'
+          + '<span class="ced-btns"><button class="btn sm" title="Up" onclick="App.cedOp(' + K + ',\'itUp\',' + si + ',' + ii + ')"' + (ii ? '' : ' disabled') + '>↑</button>'
+          + '<button class="btn sm" title="Down" onclick="App.cedOp(' + K + ',\'itDown\',' + si + ',' + ii + ')"' + (ii < sec.items.length - 1 ? '' : ' disabled') + '>↓</button>'
+          + '<button class="x" title="Remove item" onclick="App.cedOp(' + K + ',\'itDel\',' + si + ',' + ii + ')">✕</button></span></div>';
+      }).join("") + '<button class="btn sm" style="margin-top:4px" onclick="App.cedOp(' + K + ',\'itAdd\',' + si + ')">+ Add item</button>';
+      h += '<div class="muted" style="font-weight:700;margin:10px 0 4px;font-size:.8rem">Yes / No checks</div>' + (sec.questions || []).map(function(q, qi){
+        return '<div class="ced-row ced-q"><input value="' + esc(q) + '" placeholder="Question (answered Yes or No)" aria-label="Yes / No check" oninput="App.cedSet(' + K + ',\'q\',' + si + ',' + qi + ',this.value)">'
+          + '<span class="ced-btns"><button class="x" title="Remove check" onclick="App.cedOp(' + K + ',\'qDel\',' + si + ',' + qi + ')">✕</button></span></div>';
+      }).join("") + '<button class="btn sm" style="margin-top:4px" onclick="App.cedOp(' + K + ',\'qAdd\',' + si + ')">+ Add Yes / No check</button></div>';
+    }
+    h += '</div>';
   });
   h += '<div class="row"><button class="btn" onclick="App.cedOp(' + K + ',\'secAdd\')">+ Add section</button><span class="grow"></span>'
     + '<button class="btn sm" onclick="App.cedOp(' + K + ',\'reset\')">Restore the Hatzolah MC form</button></div>';
-  if (rig) h += '<div class="card" style="margin-top:12px"><h3>⏳ Items on the ambulance that expire</h3><p class="muted" style="margin:0 0 6px">Each ambulance keeps its own date for each of these (Vehicle Checks ▸ ⏳ Expiration Dates on its card). One per line.</p><textarea id="st-rigexp" rows="10">' + esc((S.settings.rigExpItems || []).join("\n")) + '</textarea></div>';
-  if (!rig) h += '<div class="card" style="margin-top:12px"><h3>⏳ Items that expire — members\' own bags</h3><p class="muted" style="margin:0 0 6px">Members enter the expiration date of each of these when they check their own bag. One per line.</p><textarea id="st-exp" rows="10">' + esc((S.settings.expItems || []).join("\n")) + '</textarea>'
-    + '<h3 style="margin-top:14px">⏳ Items that expire — agency bags (rig bags, ERV bag…)</h3><p class="muted" style="margin:0 0 6px">Each agency bag keeps its own date for each of these (Vehicle Checks ▸ ⏳ Expiration Dates on its card). One per line.</p><textarea id="st-obexp" rows="10">' + esc((S.settings.orgBagExpItems || []).join("\n")) + '</textarea></div>';
+  if (rig) h += '<div class="card" style="margin-top:12px"><h3>⏳ Items on the ambulance that expire</h3><p class="muted" style="margin:0 0 6px">Each ambulance keeps its own date for each of these (Vehicle Checks ▸ ⏳ Expiration Dates on its card). One per line.</p><textarea id="st-rigexp" rows="6">' + esc((S.settings.rigExpItems || []).join("\n")) + '</textarea></div>';
+  if (!rig) h += '<div class="card" style="margin-top:12px"><div class="ced-exp2"><div><h3>⏳ Items that expire — members\' own bags</h3><p class="muted" style="margin:0 0 6px">Members enter the expiration date of each of these when they check their own bag. One per line.</p><textarea id="st-exp" rows="8">' + esc((S.settings.expItems || []).join("\n")) + '</textarea></div>'
+    + '<div><h3>⏳ Items that expire — agency bags (rig bags, ERV bag…)</h3><p class="muted" style="margin:0 0 6px">Each agency bag keeps its own date for each of these. One per line.</p><textarea id="st-obexp" rows="8">' + esc((S.settings.orgBagExpItems || []).join("\n")) + '</textarea></div></div></div>';
   return h + saveRow(rig ? "saveRigList" : "saveBagList", "ced-msg");
 }
+function cedToggle(key, si){ var sec = cedState(key).data[si]; if (!sec) return; S.cedOpen = S.cedOpen || new WeakSet(); if (S.cedOpen.has(sec)) S.cedOpen.delete(sec); else S.cedOpen.add(sec); render(); }
+function cedAll(key, on){ S.cedOpen = new WeakSet(); if (on) cedState(key).data.forEach(function(x){ S.cedOpen.add(x); }); render(); }
 function cedSet(key, field, si, ii, val){
   var E = cedState(key), sec = E.data[si]; if (!sec) return;
   if (field === "name") sec.name = val; else if (field === "q") sec.questions[ii] = val; else if (sec.items[ii]) sec.items[ii][field] = val;
@@ -3398,7 +3438,7 @@ function cedOp(key, op, si, ii){
   if (op === "secUp" && si > 0) swap(d, si, si - 1);
   else if (op === "secDown" && si < d.length - 1) swap(d, si, si + 1);
   else if (op === "secDel"){ if (!confirm("Delete the section \"" + (sec.name || "untitled") + "\" and everything in it?")) return; d.splice(si, 1); }
-  else if (op === "secAdd") d.push({ name: "", items: [], questions: [] });
+  else if (op === "secAdd"){ var ns = { name: "", items: [], questions: [] }; d.push(ns); S.cedOpen && S.cedOpen.add(ns); }
   else if (op === "itAdd"){ sec.items = sec.items || []; sec.items.push({ n: "", par: "" }); }
   else if (op === "itDel") sec.items.splice(ii, 1);
   else if (op === "itUp" && ii > 0) swap(sec.items, ii, ii - 1);
@@ -3823,6 +3863,25 @@ var REPORTS = {
         rows.push(r);
       });
       return { name: "Vehicles", cols: cols, rows: rows };
+    },
+    // 1.80: on screen — one line per user (and one for the agency); tap to open their vehicles and papers
+    view: function(sh){
+      var vt = docTypes("vehicle"), groups = {}, order = [];
+      sh.rows.forEach(function(r){ var k = r[0] + "|" + r[1]; if (!groups[k]){ groups[k] = []; order.push(k); } groups[k].push(r); });
+      var lv = { bad: 0, warn: 1, info: 2, ok: 3, na: 4 };
+      function lvl(lbl){ return repCls(lbl) === "rep-bad" ? "bad" : repCls(lbl) === "rep-warn" ? "warn" : /review/i.test(lbl) ? "info" : "ok"; }
+      return '<div class="veh-groups">' + order.map(function(k){
+        var rows = groups[k], first = rows[0], worst = "ok", probs = 0;
+        rows.forEach(function(r){ vt.forEach(function(t, i){ var l = lvl(String(r[10 + i * 2])); if (l === "bad" || l === "warn") probs++; if (lv[l] < lv[worst]) worst = l; }); });
+        var mu = S.users.filter(function(x){ return x.unit === first[0]; })[0];
+        return '<details class="veh-grp"><summary><span class="dot d-' + worst + '"></span> <b>' + esc(first[0]) + '</b>' + (first[1] ? ' · ' + esc(first[1]) : '')
+          + ' <span class="muted">— ' + rows.length + ' vehicle' + (rows.length === 1 ? '' : 's') + (probs ? ' · <span class="rep-' + (worst === "bad" ? "bad" : "warn") + '">' + probs + ' paper' + (probs === 1 ? '' : 's') + ' need attention</span>' : ' · papers OK') + '</span>'
+          + (mu ? ' <button class="lnk" style="margin-left:8px" data-uid="' + esc(mu.uid) + '" onclick="event.preventDefault();App.setTab(\'admin\');App.adminTab(\'grid\');App.openMember(this.dataset.uid)">Open user ›</button>' : '') + '</summary>'
+          + '<div class="tbl-wrap" style="margin-top:8px"><table class="rep-tbl"><thead><tr><th>Vehicle</th><th>Plate</th><th>VIN</th><th>Color</th>' + vt.map(function(t){ return '<th>' + esc(t.name) + '</th>'; }).join("") + '</tr></thead><tbody>'
+          + rows.map(function(r){ return '<tr><td><b>' + esc((r[2] ? "#" + r[2] + " " : "") + r[3]) + '</b></td><td>' + esc(r[4] + (r[5] ? " (" + r[5] + ")" : "")) + '</td><td>' + esc(r[6]) + '</td><td>' + esc(r[7]) + '</td>'
+            + vt.map(function(t, i){ var st = String(r[10 + i * 2]), ex = r[11 + i * 2]; return '<td class="' + repCls(st) + '">' + esc(st) + (ex instanceof Date ? '<div class="rep-sub">' + repCell(ex, { t: "d" }) + '</div>' : '') + '</td>'; }).join("") + '</tr>'; }).join("")
+          + '</tbody></table></div></details>';
+      }).join("") + '</div>';
     } },
   // 1.72: one merch-order report — the totals to order AND each person's sizes (two sheets in one Excel file)
   merch: { icon: "👕", title: "Merch order", desc: "What to order this year — how many shirts and jackets of each size — plus each person's sizes (and who hasn't picked yet).",
@@ -3917,10 +3976,10 @@ async function repView(k){
     toast("Building the report…");
     var shs = await repSheets(k), r = REPORTS[k];
     var stamp = smsStamp(), n = shs.reduce(function(t, x){ return t + x.rows.length; }, 0);
-    S.repHtml = '<div class="card report" id="rep-print"><div class="row"><div class="grow"><h3 style="margin:0">' + r.icon + ' ' + esc(shs.length > 1 ? r.title : shs[0].name) + '</h3><div class="muted">' + esc(orgName()) + ' · ' + esc(stamp) + (shs.length > 1 ? '' : ' · ' + n + ' row' + (n === 1 ? "" : "s")) + '</div></div>'
+    S.repHtml = '<div class="card report" id="rep-print"><div class="row"><div class="grow"><h3 style="margin:0">' + r.icon + ' ' + esc(shs.length > 1 ? r.title : shs[0].name) + '</h3><div class="muted">' + esc(orgName()) + ' · ' + esc(stamp) + (shs.length > 1 ? '' : ' · ' + (r.view ? r.view(shs[0]).split('class="veh-grp"').length - 1 + ' owners' : n + ' row' + (n === 1 ? "" : "s"))) + '</div></div>'
       + '<button class="btn sm" onclick="App.repPrint()">🖨 Print</button><button class="btn gold sm" onclick="App.repXlsx(\'' + k + '\')">⬇ Excel</button></div>'
       + (shs.some(function(sh){ return sh.screen === false; }) ? '<div class="muted" style="margin-top:6px">The Excel file also has: ' + esc(shs.filter(function(sh){ return sh.screen === false; }).map(function(sh){ return sh.name; }).join(", ")) + ' (one row per item, to sort and filter).</div>' : '')
-      + shs.filter(function(sh){ return sh.screen !== false; }).map(function(sh){ return (shs.length > 1 ? '<h3 style="margin:16px 0 0">' + esc(sh.name) + '</h3>' : '')
+      + (r.view ? r.view(shs[0]) : '') + shs.filter(function(sh){ return !r.view && sh.screen !== false; }).map(function(sh){ return (shs.length > 1 ? '<h3 style="margin:16px 0 0">' + esc(sh.name) + '</h3>' : '')
       + '<div class="tbl-wrap rep-wrap" style="margin-top:10px"><table class="rep-tbl"><thead><tr>' + sh.cols.map(function(c){ return c.hide ? '' : '<th' + (c.pin ? ' class="pin' + c.pin + '"' : '') + '>' + esc(c.h) + '</th>'; }).join("") + '</tr></thead><tbody>'
       + (sh.rows.length ? sh.rows.map(function(row){ return '<tr' + (row[0] === "Total" ? ' style="font-weight:700"' : '') + '>' + row.map(function(v, i){ return repTd(v, sh.cols[i] || {}, row); }).join("") + '</tr>'; }).join("")
         : '<tr><td colspan="' + sh.cols.length + '" class="muted">Nothing to report.</td></tr>')
@@ -4006,7 +4065,7 @@ window.App = {
   ck: ck, ckSection: ckSection, ckNote: ckNote, ckQ: ckQ, ckSecNote: ckSecNote, saveCheck: saveCheck,
   adminTab: function(t){ S.adminTab = t; S.admMember = null; render(); window.scrollTo(0, 0); }, adminGroup: adminGroup, openMember: openMember, openImm: openImm, immKind: immKind, bagExempt: bagExempt, bagExemptSave: bagExemptSave, immRow: immRow, saveImmList: saveImmList, goHome: goHome, gridFilter: function(v){ S.gridOnlyProblems = v; render(); },
   gridCell: gridCell, markNA: markNA, openRecord: openRecord, review: review, deleteRecord: deleteRecord,
-  remindTest: remindTest, repFixShow: repFixShow, fillFromId: fillFromId, tplInsert: tplInsert, setSend: setSend, tplTest: tplTest, cmpFilter: cmpFilter, tmSetUnit: tmSetUnit, expQuick: expQuick, setOptIn: setOptIn, sendReminders: sendReminders,
+  remindTest: remindTest, repFixShow: repFixShow, cedToggle: cedToggle, cedAll: cedAll, fillFromId: fillFromId, tplInsert: tplInsert, setSend: setSend, tplTest: tplTest, cmpFilter: cmpFilter, tmSetUnit: tmSetUnit, expQuick: expQuick, setOptIn: setOptIn, sendReminders: sendReminders,
   repView: repView, repXlsx: repXlsx, repAll: repAll, repDates: repDates, repPrint: repPrint,
   saveProfile: saveProfile, vfRepl: vfRepl, editBagExp: editBagExp, saveBagExp: saveBagExp, viewBagExp: viewBagExp, phoneTyping: phoneTyping, openProfile: openProfile,
   addType: addType, resetTemplates: resetTemplates, saveSettings: saveSettings,
