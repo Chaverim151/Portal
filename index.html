@@ -3,11 +3,13 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<meta name="trk-version" content="1.37">
+<meta name="trk-version" content="1.39">
 <meta name="trk-mode" content="desktop">
 <meta name="theme-color" content="#ffffff">
 <title>Compliance</title>
 <!-- 1.32: the same Hatzolah MC icon as CallDashboard, built in (no extra files to upload) -->
+<!-- 1.39: My Profile ▸ Home Address ▸ 🪪 Import from driver's license -->
+<!-- 1.38: expiration-date boxes start closed -->
 <!-- 1.37: My Vehicles shows just the cars (picture + year make model); tap one for its details and document cards -->
 <!-- 1.36: car pictures on members' vehicles (carimagesapi.com); tap one for a pop-up with its documents -->
 <!-- 1.35: "rig check" wording → vehicle / ambulance check; ERV jump bag moved to 🚑 Vehicle Checks -->
@@ -295,7 +297,7 @@ td.rep-warn{color:var(--warn);font-weight:700}
     <div class="m-err" id="login-err"></div>
 
     <div style="text-align:center;margin-top:16px"><button class="m-forgot" onclick="App.forgotPw()">Forgot password?</button></div>
-    <div class="m-build">BUILD <span id="li-build">v1.37</span></div>
+    <div class="m-build">BUILD <span id="li-build">v1.39</span></div>
   </div>
 </div>
 <div id="boot" class="empty" style="margin-top:20vh">Signing in…</div>
@@ -374,7 +376,7 @@ function trkSmsPayload(phone, message, unit){
 function trkEmailPayload(email, name, subject, html){ return { to: [{ email: email, name: name || email }], subject: subject, body: html }; }
 
 /* ════════════════════════════════════════════════════════════════════════ */
-var TRK_VERSION = "1.37";
+var TRK_VERSION = "1.39";
 // 1.16: owner asked to block the tracker's notifications for now. While this is true the tracker sends NO texts and
 // NO emails (reminders and test reminders). Sign-in "Forgot password?" still works. Set to false to allow sending again.
 var TRK_SENDING_OFF = true;
@@ -621,7 +623,8 @@ function expTableOf(rows, attrs, at, by){
 }
 function expDetails(rows, tableHtml, btnAttrs){
   var s = expSumRows(rows);
-  return '<details style="margin-top:8px"' + (s.expired || s.missing ? " open" : "") + '><summary style="cursor:pointer;font-weight:700">⏳ Expiration Dates ' + expPills(s) + '</summary>'
+  // 1.38: always closed until tapped — the pills on the title show what's wrong
+  return '<details style="margin-top:8px"><summary style="cursor:pointer;font-weight:700">⏳ Expiration Dates ' + expPills(s) + '</summary>'
     + '<div style="margin-top:8px">' + tableHtml + '<button class="btn sm" style="margin-top:6px" ' + btnAttrs + '>✎ Update all dates</button></div></details>';
 }
 function expInputsOf(title, items, dates, px){
@@ -2243,6 +2246,33 @@ function fmtPhone(v){
 function phoneTyping(el){ el.value = fmtPhone(el.value); }
 function sizeFor(map, year){ return (map && map[year]) || ""; }
 
+// 1.39: the address printed on the member's driver's license (read by the ✨ scanner) → Home Address boxes
+function licAddress(uid){ var r = visibleRecords()[recKey(uid, "dl")]; return (r && r.fields && String(r.fields.address || "").trim()) || ""; }
+function splitAddress(raw){
+  var t = String(raw || "").replace(/\s+/g, " ").trim(), out = { line1: "", line2: "", city: "", state: "", zip: "" };
+  function tc(x){ return x.toLowerCase().replace(/(^|[\s\-\/'])([a-z])/g, function(m, a, b){ return a + b.toUpperCase(); }).replace(/\b(Ne|Nw|Se|Sw|Po)\b/g, function(m){ return m.toUpperCase(); }); }
+  var m = t.match(/[,\s]+([A-Za-z]{2})[,\s]+(\d{5})(?:-?(\d{4}))?\s*$/);
+  if (m && US_STATES.indexOf(m[1].toUpperCase()) >= 0){ out.state = m[1].toUpperCase(); out.zip = m[2] + (m[3] ? "-" + m[3] : ""); t = t.slice(0, m.index); }
+  var parts = t.split(/\s*[,\n]\s*/).filter(Boolean), street = t, city = "";
+  if (parts.length >= 2){ city = parts.pop(); street = parts.join(", "); }
+  else {
+    // no commas: the street ends at its ST / AVE / RD … word (and an APT / UNIT number after it); the rest is the town
+    var sm = t.match(/^(.*?\b(?:ST|STREET|AVE|AVENUE|RD|ROAD|DR|DRIVE|LN|LANE|CT|COURT|BLVD|PL|PLACE|WAY|TER|TERRACE|CIR|CIRCLE|PKWY|HWY|SQ|TRL|PATH|ROW|RUN|LOOP|XING)\.?)((?:\s+(?:APT|UNIT|STE|SUITE|FL|#)\s*#?\s*[A-Z0-9-]+)?)\s+(.+)$/i);
+    if (sm){ street = sm[1] + sm[2]; city = sm[3]; }
+  }
+  var u = street.match(/^(.*?)[,\s]+((?:APT|UNIT|STE|SUITE|FL|#)\s*#?\s*[A-Z0-9-]+)$/i);
+  if (u){ street = u[1]; var um = u[2].match(/^(APT|UNIT|STE|SUITE|FL|#)\s*#?\s*([A-Z0-9-]+)$/i); out.line2 = um ? (um[1] === "#" ? "#" : tc(um[1]) + " ") + um[2].toUpperCase() : u[2]; }
+  out.line1 = tc(street.replace(/,\s*$/, "")); out.city = tc(city);
+  return out;
+}
+function importLicAddr(uid, px){
+  var raw = licAddress(uid); if (!raw) return;
+  var a = splitAddress(raw);
+  function put(id, v){ var el = $(px + "home-" + id); if (el && v){ el.value = v; el.style.background = "#fff8db"; } }
+  put("1", a.line1); put("2", a.line2); put("city", a.city); put("zip", a.zip);
+  var st = $(px + "home-state"); if (st && a.state){ st.value = a.state; st.style.background = "#fff8db"; }
+  toast(a.city && a.zip ? "✓ Filled in from your license — check it, then tap Save." : "Filled in what could be read — please check the boxes, then tap Save.", 6000);
+}
 // px = id prefix so the same form works on the page (pf-) and in the admin pop-up (apf-)
 function profileForm(u, p, px){
   p = p || {};
@@ -2251,8 +2281,10 @@ function profileForm(u, p, px){
   function ro(label, val){ return '<div class="pf-f"><label>' + label + '</label><div class="pf-ro">' + (val ? esc(val) : '<span class="muted">—</span>') + '</div></div>'; }
   function sel(id, label, val, opts, first){ return '<div class="pf-f"><label for="' + px + id + '">' + label + '</label><select id="' + px + id + '"><option value="">' + first + '</option>' + opts.map(function(o){ return '<option' + (o === val ? " selected" : "") + '>' + o + '</option>'; }).join("") + '</select></div>'; }
   function addr(k, title){
-    var a = p[k] || {};
-    return '<div class="card"><h3>' + title + '</h3><div class="pf-grid">'
+    var a = p[k] || {}, lic = k === "home" ? licAddress(u.uid) : "";
+    return '<div class="card"><div class="row"><h3 class="grow">' + title + '</h3>'
+      + (lic ? '<button class="btn sm" type="button" data-uid="' + esc(u.uid) + '" data-px="' + esc(px) + '" onclick="App.importLicAddr(this.dataset.uid, this.dataset.px)">🪪 Import from driver\'s license</button>' : '')
+      + '</div><div class="pf-grid">'
       + inp(k + "-1", title, a.line1, ' autocomplete="address-line1"').replace(title + '</label>', 'Street</label>')
       + inp(k + "-2", "Address 2", a.line2)
       + inp(k + "-city", "City", a.city)
@@ -3117,7 +3149,7 @@ window.App = {
   saveDocs: saveDocs, editRigExp: editRigExp, assignBags: assignBags, asgSave: asgSave,
   asgAdd: function(){ S._asg.extra.push({ id: "b" + Date.now().toString(36), name: "" }); drawAssign(); var n = document.querySelectorAll(".asg-name"); if (n.length) n[n.length - 1].focus(); },
   asgDel: function(i){ S._asg.extra.splice(i, 1); drawAssign(); }, asgName: function(i, v){ S._asg.extra[i].name = v; },
-  asgFleet: function(id, on){ var f = S._asg.fleet, i = f.indexOf(id); if (on && i < 0) f.push(id); if (!on && i >= 0) f.splice(i, 1); }, expOne: expOne, vehPics: vehPics, openVeh: openVeh, expOneSave: expOneSave, expOneCancel: expOneCancel, viewObExp: viewObExp, editObExp: editObExp, saveObExp: saveObExp, saveRigExp: saveRigExp, saveTiming: saveTiming, saveMsg: saveMsg, ckPick: ckPick
+  asgFleet: function(id, on){ var f = S._asg.fleet, i = f.indexOf(id); if (on && i < 0) f.push(id); if (!on && i >= 0) f.splice(i, 1); }, expOne: expOne, vehPics: vehPics, openVeh: openVeh, importLicAddr: importLicAddr, expOneSave: expOneSave, expOneCancel: expOneCancel, viewObExp: viewObExp, editObExp: editObExp, saveObExp: saveObExp, saveRigExp: saveRigExp, saveTiming: saveTiming, saveMsg: saveMsg, ckPick: ckPick
 };
 window.TRK = { S: S, render: render, memberIssues: memberIssues, recStatus: recStatus, bagState: bagState, rigState: rigState, normUnit: normUnit, smsStamp: smsStamp };
 </script>
