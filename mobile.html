@@ -3,11 +3,12 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<meta name="trk-version" content="1.47">
+<meta name="trk-version" content="1.48">
 <meta name="trk-mode" content="mobile">
 <meta name="theme-color" content="#ffffff">
 <title>Compliance</title>
 <!-- 1.32: the same Hatzolah MC icon as CallDashboard, built in (no extra files to upload) -->
+<!-- 1.48: ⚙ Admin wider + compliance table headers wrap, so every column fits -->
 <!-- 1.47: admin member page — + Add bag / Remove (no checkbox) -->
 <!-- 1.46: no personal jump bag by default — admins give bags member by member; agency vehicle bags unchanged -->
 <!-- 1.45: immunizations moved into My Documents (no separate tile) -->
@@ -156,6 +157,10 @@ h2{font-size:1.1rem;margin:18px 0 10px;color:var(--accent)}
 @media (max-width:640px){.trk-desktop .tiles{grid-template-columns:1fr 1fr}.trk-desktop .tile{aspect-ratio:auto}.trk-desktop .tb-who{display:none}}
 .trk-mobile .tb-who{display:block}
 #view{max-width:1100px;margin:0 auto;padding:12px 16px 80px}
+#view.wide{max-width:1600px}   /* 1.48: ⚙ Admin uses the whole screen */
+.grid-tbl th.c{white-space:normal;min-width:64px;max-width:104px;text-align:center;line-height:1.2;vertical-align:bottom}
+.grid-tbl td{padding:6px 8px}
+.grid-tbl td.c{text-align:center}
 #banner:empty{display:none}
 .banner{margin:12px 16px 0;padding:12px 14px;border-radius:10px;background:#fdecea;border:1px solid #e3a6a0;color:#7a1810}
 .banner.warn{background:#fff4d6;border-color:#e2c27a;color:#5c3c00}
@@ -314,7 +319,7 @@ td.rep-warn{color:var(--warn);font-weight:700}
     <div class="m-err" id="login-err"></div>
 
     <div style="text-align:center;margin-top:16px"><button class="m-forgot" onclick="App.forgotPw()">Forgot password?</button></div>
-    <div class="m-build">BUILD <span id="li-build">v1.47</span></div>
+    <div class="m-build">BUILD <span id="li-build">v1.48</span></div>
   </div>
 </div>
 <div id="boot" class="empty" style="margin-top:20vh">Signing in…</div>
@@ -393,7 +398,7 @@ function trkSmsPayload(phone, message, unit){
 function trkEmailPayload(email, name, subject, html){ return { to: [{ email: email, name: name || email }], subject: subject, body: html }; }
 
 /* ════════════════════════════════════════════════════════════════════════ */
-var TRK_VERSION = "1.47";
+var TRK_VERSION = "1.48";
 // 1.16: owner asked to block the tracker's notifications for now. While this is true the tracker sends NO texts and
 // NO emails (reminders and test reminders). Sign-in "Forgot password?" still works. Set to false to allow sending again.
 var TRK_SENDING_OFF = true;
@@ -1184,6 +1189,7 @@ function render(){
   if (pg) $("page-title").textContent = pg.icon + " " + pg.label;
   $("banner").hidden = S.tab === "admin";
   var v = $("view");
+  v.classList.toggle("wide", S.tab === "admin");
   var f = { home: viewHome, profile: viewProfile, docs: viewDocs, imm: viewImm, vehicles: viewVehicles, bag: viewBag, rigs: viewRigs, admin: viewAdmin }[S.tab] || viewHome;
   // keep focus/typing safe: don't redraw a settings form someone is typing in
   if ((S.tab === "profile" || (S.tab === "admin" && (ADMIN_SETTINGS_TABS.indexOf(S.adminTab) >= 0 || S.adminTab === "remind" || S.adminTab === "reports"))) && v.contains(document.activeElement) && /INPUT|TEXTAREA|SELECT/.test(document.activeElement.tagName)){ renderBell(); return; }
@@ -2667,7 +2673,7 @@ function adminGrid(){
     return memberIssues(u, S.allRecords, S.allVehicles.filter(function(v){ return v.uid === u.uid; }), S.allBags[u.uid]).length > 0;
   });
   var h = '<div class="muted" style="margin-bottom:6px">Tap a unit number to see everything for that member.</div><div class="row"><label style="margin:0;display:flex;gap:6px;align-items:center;font-weight:400;color:var(--text)"><input type="checkbox" style="width:auto" ' + (S.gridOnlyProblems ? "checked" : "") + ' onchange="App.gridFilter(this.checked)"> Only members with problems</label></div>' + legend();
-  h += '<div class="tbl-wrap"><table><thead><tr><th>Unit</th><th>Name</th>' + ts.map(function(t){ return '<th class="c">' + esc(t.name) + '</th>'; }).join("") + '<th class="c">Immunizations</th><th class="c">Vehicles</th><th class="c">Jump bag</th></tr></thead><tbody>';
+  h += '<div class="tbl-wrap"><table class="grid-tbl"><thead><tr><th>Unit</th><th>Name</th>' + ts.map(function(t){ return '<th class="c">' + esc(t.name) + '</th>'; }).join("") + '<th class="c">Immunizations</th><th class="c">Vehicles</th><th class="c">Jump bag</th></tr></thead><tbody>';
   users.forEach(function(u){
     h += '<tr><td>' + memberLink(u) + '</td><td>' + esc(u.name || "") + '</td>';
     ts.forEach(function(t){
