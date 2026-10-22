@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<meta name="trk-version" content="1.21">
+<meta name="trk-version" content="1.22">
 <meta name="trk-mode" content="mobile">
 <meta name="theme-color" content="#ffffff">
 <title>Compliance</title>
@@ -271,7 +271,7 @@ td.rep-warn{color:var(--warn);font-weight:700}
     <div class="m-err" id="login-err"></div>
 
     <div style="text-align:center;margin-top:16px"><button class="m-forgot" onclick="App.forgotPw()">Forgot password?</button></div>
-    <div class="m-build">BUILD <span id="li-build">v1.21</span></div>
+    <div class="m-build">BUILD <span id="li-build">v1.22</span></div>
   </div>
 </div>
 <div id="boot" class="empty" style="margin-top:20vh">Signing in…</div>
@@ -349,7 +349,7 @@ function trkSmsPayload(phone, message, unit){
 function trkEmailPayload(email, name, subject, html){ return { to: [{ email: email, name: name || email }], subject: subject, body: html }; }
 
 /* ════════════════════════════════════════════════════════════════════════ */
-var TRK_VERSION = "1.21";
+var TRK_VERSION = "1.22";
 // 1.16: owner asked to block the tracker's notifications for now. While this is true the tracker sends NO texts and
 // NO emails (reminders and test reminders). Sign-in "Forgot password?" still works. Set to false to allow sending again.
 var TRK_SENDING_OFF = true;
@@ -370,6 +370,18 @@ var DOC_FIELDS = {
   reg: [["plate", "Plate"], ["vin", "VIN"], ["regName", "Name on registration"], ["state", "State"]]
 };
 function docFields(t){ return DOC_FIELDS[t.id] || []; }
+// 1.22: extra words for the scanner (what it is asked), so it doesn't copy an address into a name box or a stray digit into a VIN
+var SCAN_HINTS = { regName: "Registered owner's name(s) only — no address", insured: "Name(s) of the insured only — no address",
+  fullName: "Full name as printed — no address", vin: "exactly 17 characters", plate: "letters and digits only" };
+function scanLabel(key, label){ return SCAN_HINTS[key] ? label + " (" + SCAN_HINTS[key] + ")" : label; }
+// VIN check digit (US / Canada), so a misread VIN is never filled in
+function vinOk(v){
+  v = String(v || "").toUpperCase();
+  if (!/^[A-HJ-NPR-Z0-9]{17}$/.test(v)) return false;
+  var tr = { A:1,B:2,C:3,D:4,E:5,F:6,G:7,H:8,J:1,K:2,L:3,M:4,N:5,P:7,R:9,S:2,T:3,U:4,V:5,W:6,X:7,Y:8,Z:9 }, w = [8,7,6,5,4,3,2,10,0,9,8,7,6,5,4,3,2], sum = 0;
+  for (var i = 0; i < 17; i++){ var c = v[i]; sum += (/\d/.test(c) ? +c : tr[c]) * w[i]; }
+  var k = sum % 11; return v[8] === (k === 10 ? "X" : String(k));
+}
 var DEFAULT_SETTINGS = {
   docTypes: [
     { id: "dl",   name: "Driver's License",       cat: "document",      scope: "member",  expires: true, number: true,  required: true },
@@ -997,6 +1009,10 @@ function vehicleForm(v){
   S.vf = { docs: {} };
   if (!v) b += '<div class="muted" style="margin:8px 0 2px">Add the vehicle\'s papers first — the details below are filled in from them. You can also skip this and add them later.</div>'
     + docTypes("vehicle").map(vfDocSlot).join("");
+  var onFile = v ? docTypes("vehicle").filter(function(t){ var r = visibleRecords()[recKey("v_" + v.id, t.id)]; return r && r.files && r.files.length; }).length : 0;
+  b += '<div class="scan-box" id="vf-combine"' + (onFile ? '' : ' hidden') + '><div class="row"><span class="grow" id="vf-combine-msg">'
+    + (onFile ? "✨ The details below can be read again from the " + onFile + " paper" + (onFile === 1 ? "" : "s") + " on file." : "") + '</span>'
+    + (onFile ? '<button class="btn sm" type="button" data-id="' + esc(v.id) + '" onclick="App.vfReread(this.dataset.id)">✨ Re-read from the papers</button>' : '') + '</div></div>';
   b += '<div class="pf-grid" style="margin-top:6px">'
     + sel("vf-slot", "Vehicle 1 or 2?", slot, [["1", "Vehicle 1" + (taken[1] ? " — now " + vTitle(taken[1]) : "")], ["2", "Vehicle 2" + (taken[2] ? " — now " + vTitle(taken[2]) : "")]], "Select")
     + inp("vf-plate", "License Plate", v && v.plate, ' autocapitalize="characters" maxlength="10"')
@@ -1072,7 +1088,7 @@ async function vfDocScan(tid){
     var want = [["number", "Document / policy / registration number"], ["issued", "Issue date"]].concat(t.expires ? [["expires", "Expiration date"]] : []).concat(docFields(t));
     var keys = {}; want.forEach(function(w){ keys[w[0]] = 1; });
     VF_VEHICLE_FIELDS.forEach(function(w){ if (!keys[w[0]]) want.push(w); });
-    var r = await callFn("docScan", { docType: t.name, fields: want.map(function(w){ return { key: w[0], label: w[1], date: w[0] === "issued" || w[0] === "expires" || w[2] === "date" }; }), mime: pdf ? "application/pdf" : "image/jpeg", data: data });
+    var r = await callFn("docScan", { docType: t.name, fields: want.map(function(w){ return { key: w[0], label: scanLabel(w[0], w[1]), date: w[0] === "issued" || w[0] === "expires" || w[2] === "date" }; }), mime: pdf ? "application/pdf" : "image/jpeg", data: data });
     if (!S.vf.docs[tid] || D.scanN !== my) return;
     var got = (r && r.fields) || {}, filled = 0, vfilled = 0;
     Object.keys(got).forEach(function(key){ var el = $(k + key), v = got[key]; if (!el || !v || el.dataset.typed) return; el.value = v; el.classList.add("scanned"); filled++; });
@@ -1080,7 +1096,7 @@ async function vfDocScan(tid){
     // the vehicle's own boxes (only ones the member hasn't typed in)
     var plate = String(got.plate || "").toUpperCase().replace(/\s+/g, ""), vin = String(got.vin || "").toUpperCase().replace(/\s+/g, "");
     if (plate && vfFill("vf-plate", plate)) vfilled++;
-    if (/^[A-HJ-NPR-Z0-9]{17}$/.test(vin) && vfFill("vf-vin", vin)) vfilled++;
+    if (vinOk(vin) && vfFill("vf-vin", vin)) vfilled++;
     if (vfFill("vf-make", got.make)) vfilled++;
     if (vfFill("vf-model", got.model)) vfilled++;
     if (/^(19|20)\d\d$/.test(String(got.year || "")) && vfFill("vf-year", String(got.year))) vfilled++;
@@ -1095,6 +1111,7 @@ async function vfDocScan(tid){
       vfDocPreview(tid);
     }
     D.scanned = true;
+    vfCombineSoon();
     msg.innerHTML = (r && r.matches === false ? "⚠ This doesn't look like a " + esc(t.name) + ". " : "")
       + (filled || vfilled ? "✨ Filled in " + (filled + vfilled) + " box" + (filled + vfilled === 1 ? "" : "es") + " — please check them." : "✨ Couldn't read any details — please type them in.");
   } catch (e){
@@ -1102,6 +1119,46 @@ async function vfDocScan(tid){
     msg.textContent = /404|Failed to fetch|not.?found/i.test(e.message) ? "✨ Scanning isn't set up on the server yet — type the details in." : "✨ Couldn't scan (" + e.message + ") — type the details in.";
   }
   $(k + "btn").disabled = false;
+}
+// 1.22: piece the vehicle together from ALL its papers — the scanner reads them side by side, writes abbreviations out in
+// full (registration "CHE MAL" + insurance "Chevrolet Malibu" → Chevrolet / Malibu), checks the VIN and keeps names without addresses.
+// New vehicle: the files picked in the form. Edit vehicle: the papers already on file (by their Storage paths).
+var vfCombineSoon = (function(){ var t; return function(){ clearTimeout(t); t = setTimeout(vfCombine, 400); }; })();
+function vfApply(v, force){
+  var n = 0;
+  function put(id, val){ var el = $(id); if (!el || !val || el.dataset.typed) return; if (el.tagName === "SELECT" && !Array.from(el.options).some(function(o){ return o.value === val; })) return; if (el.value !== val){ el.value = val; n++; } el.classList.add("scanned"); }
+  put("vf-make", v.make); put("vf-model", v.model); put("vf-year", v.year); put("vf-color", v.color);
+  put("vf-plate", v.plate); if (vinOk(v.vin)) put("vf-vin", v.vin); put("vf-state", v.state); put("vf-regname", v.regName); put("vf-fuel", v.fuel);
+  return n;
+}
+async function vfCombine(paths){
+  var box = $("vf-combine"), msg = $("vf-combine-msg"); if (!box) return;
+  var my = (S.vf.combineN = (S.vf.combineN || 0) + 1), files = [];
+  try {
+    if (!paths){
+      var ids = Object.keys(S.vf.docs).filter(function(tid){ return S.vf.docs[tid] && S.vf.docs[tid].file; });
+      if (!ids.length) return;
+      box.hidden = false; msg.textContent = "✨ Putting the vehicle's details together from " + (ids.length === 1 ? "the paper" : "both papers") + "…";
+      for (var i = 0; i < ids.length; i++){
+        var D = S.vf.docs[ids[i]], pdf = isPdfFile(D.file), blob = pdf ? D.file : await shrinkForScan(D.file, 0);
+        var data = await new Promise(function(res, rej){ var r = new FileReader(); r.onload = function(){ res(String(r.result).split(",")[1]); }; r.onerror = rej; r.readAsDataURL(blob); });
+        files.push({ mime: pdf ? "application/pdf" : "image/jpeg", data: data, label: typeById(ids[i]).name });
+      }
+    } else { box.hidden = false; msg.textContent = "✨ Reading the papers on file…"; }
+    var r = await callFn("docScan", paths ? { purpose: "vehicle", paths: paths } : { purpose: "vehicle", files: files });
+    if (S.vf.combineN !== my) return;
+    var n = vfApply((r && r.vehicle) || {});
+    msg.textContent = "✨ Vehicle details put together from " + ((r && r.papers) || files.length) + " paper" + (((r && r.papers) || files.length) === 1 ? "" : "s") + (n ? " — " + n + " box" + (n === 1 ? "" : "es") + " updated. Please check them." : " — nothing new to fill in.");
+  } catch (e){
+    if (S.vf.combineN !== my) return;
+    msg.textContent = /404|Failed to fetch|not.?found|No papers|invalid-argument/i.test(e.message) ? "✨ Couldn't put the details together yet — check the boxes below." : "✨ Couldn't put the details together (" + e.message + ") — check the boxes below.";
+  }
+}
+function vfReread(id){
+  var recs = visibleRecords(), paths = [];
+  docTypes("vehicle").forEach(function(t){ var r = recs[recKey("v_" + id, t.id)]; if (r && r.files && r.files[0] && r.files[0].path) paths.push({ path: r.files[0].path, label: t.name }); });
+  if (!paths.length){ toast("No papers on file for this vehicle yet."); return; }
+  vfCombine(paths);
 }
 // Save one paper picked in the vehicle form as its own document (same record as the upload form makes)
 async function vfStoreDoc(vehId, vehName, tid){
@@ -1341,7 +1398,7 @@ async function upScan(){
     var blob = isPdf ? U.file : await shrinkForScan(U.file, sentRot);
     var data = await new Promise(function(res, rej){ var r = new FileReader(); r.onload = function(){ res(String(r.result).split(",")[1]); }; r.onerror = rej; r.readAsDataURL(blob); });
     var want = [["number", "Document / license / certificate / policy number"], ["issued", "Issue date"]].concat(t.expires ? [["expires", "Expiration date"]] : []).concat(docFields(t));
-    var r = await callFn("docScan", { docType: t.name, fields: want.map(function(w){ return { key: w[0], label: w[1], date: w[0] === "issued" || w[0] === "expires" || w[2] === "date" }; }), mime: isPdf ? "application/pdf" : "image/jpeg", data: data });
+    var r = await callFn("docScan", { docType: t.name, fields: want.map(function(w){ return { key: w[0], label: scanLabel(w[0], w[1]), date: w[0] === "issued" || w[0] === "expires" || w[2] === "date" }; }), mime: isPdf ? "application/pdf" : "image/jpeg", data: data });
     if (my !== U.scanN) return;   // a newer scan started
     var got = (r && r.fields) || {}, filled = 0;
     Object.keys(got).forEach(function(k){ var el = $("upf-" + k), v = got[k]; if (!el || !v || el.dataset.typed) return; el.value = v; el.classList.add("scanned"); filled++; });
@@ -2346,7 +2403,7 @@ setInterval(function(){ if (S.me) render(); }, 600000);
 window.App = {
   signIn: signIn, signOut: signOut, togglePw: togglePw, forgotPw: forgotPw, setTab: setTab, openPanel: openPanel, closePanel: closePanel, goNotif: goNotif,
   goNotifHome: goNotif,
-  openUpload: openUpload, saveUpload: saveUpload, upPick: upPick, upFile: upFile, upRotate: upRotate, upAutoExp: upAutoExp, vfDocFile: vfDocFile, vfDocScan: vfDocScan, upCropToggle: upCropToggle, upScan: upScan, closeModal: closeModal,
+  openUpload: openUpload, saveUpload: saveUpload, upPick: upPick, upFile: upFile, upRotate: upRotate, upAutoExp: upAutoExp, vfDocFile: vfDocFile, vfReread: vfReread, vfDocScan: vfDocScan, upCropToggle: upCropToggle, upScan: upScan, closeModal: closeModal,
   addVehicle: addVehicle, editVehicle: editVehicle, saveVehicle: saveVehicle, removeVehicle: removeVehicle,
   startBagCheck: startBagCheck, bagHistory: bagHistory, startRigCheck: startRigCheck, rigHistory: rigHistory, rigFixed: rigFixed,
   rigSub: function(s){ S.rigSub = s; render(); },
