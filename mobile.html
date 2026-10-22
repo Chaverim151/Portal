@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<meta name="trk-version" content="1.26">
+<meta name="trk-version" content="1.27">
 <meta name="trk-mode" content="mobile">
 <meta name="theme-color" content="#ffffff">
 <title>Compliance</title>
@@ -273,7 +273,7 @@ td.rep-warn{color:var(--warn);font-weight:700}
     <div class="m-err" id="login-err"></div>
 
     <div style="text-align:center;margin-top:16px"><button class="m-forgot" onclick="App.forgotPw()">Forgot password?</button></div>
-    <div class="m-build">BUILD <span id="li-build">v1.26</span></div>
+    <div class="m-build">BUILD <span id="li-build">v1.27</span></div>
   </div>
 </div>
 <div id="boot" class="empty" style="margin-top:20vh">Signing in…</div>
@@ -352,7 +352,7 @@ function trkSmsPayload(phone, message, unit){
 function trkEmailPayload(email, name, subject, html){ return { to: [{ email: email, name: name || email }], subject: subject, body: html }; }
 
 /* ════════════════════════════════════════════════════════════════════════ */
-var TRK_VERSION = "1.26";
+var TRK_VERSION = "1.27";
 // 1.16: owner asked to block the tracker's notifications for now. While this is true the tracker sends NO texts and
 // NO emails (reminders and test reminders). Sign-in "Forgot password?" still works. Set to false to allow sending again.
 var TRK_SENDING_OFF = true;
@@ -662,9 +662,16 @@ async function saveRigExp(vid){
   catch (e){ toast("⚠ Not saved: " + e.message, 6000); }
 }
 function bagExpFor(uid){ return uid === (S.me && S.me.uid) ? (S.myBagExp || {}) : (S.allBagExp[uid] || {}); }
+// 1.27: bags an admin gives a member — settings.bagAssign[uid] = { extra: [{id, name}] (more personal bags), fleet: [Fleet bag ids] (bags they look after)
+function bagAssignOf(uid){ var a = ((S.settings || {}).bagAssign || {})[uid] || {}; return { extra: (a.extra || []).filter(function(x){ return x && x.id && x.name; }), fleet: (a.fleet || []).filter(Boolean) }; }
+function personalBagStatus(uid, bid){ var d = uid === (S.me && S.me.uid) ? S.myBag : S.allBags[uid]; return bid ? ((d && d.bags && d.bags[bid]) || null) : d; }
+function personalBagName(uid, bid){ if (!bid) return "Primary Bag"; var x = bagAssignOf(uid).extra.filter(function(e){ return e.id === bid; })[0]; return x ? x.name : "Bag"; }
+function bagDatesOf(uid, bid){ var e = bagExpFor(uid); return bid ? ((e.bagDates || {})[bid] || null) : (e.updatedAt ? (e.dates || {}) : null); }
+function bagDatesMeta(uid, bid){ var e = bagExpFor(uid); return bid ? ((e.bagDatesMeta || {})[bid] || {}) : { at: e.updatedAt, by: e.updatedBy }; }
+function fleetBagById(id){ return S.fleet.filter(function(v){ return v.id === id; })[0]; }
 // [{item, date, st}] for every item on the admin's list
-function bagExpRows(uid){
-  var dates = (bagExpFor(uid).dates) || {};
+function bagExpRows(uid, bid){
+  var dates = bagDatesOf(uid, bid) || {};
   return (S.settings.expItems || []).map(function(n){ return { item: n, date: dates[n] || "", st: expState(dates[n]) }; });
 }
 function bagRequired(u){
@@ -732,6 +739,29 @@ function memberIssues(u, records, vehicles, bag){
     });
     else if ((S.settings.expItems || []).length) out.push({ lvl: "warn", text: "Jump bag: expiration dates not entered yet", tab: "bag" });
   }
+  var asg = bagAssignOf(u.uid);
+  asg.extra.forEach(function(x){
+    var bs2 = bagState(personalBagStatus(u.uid, x.id)), nm = x.name;
+    if (bs2.lvl === "bad") out.push({ lvl: "bad", text: nm + " check: " + bs2.lbl.toLowerCase(), tab: "bag" });
+    else if (bs2.k === "soon") out.push({ lvl: "warn", text: nm + " check: " + bs2.lbl.toLowerCase(), tab: "bag" });
+    else if (bs2.k === "missing") out.push({ lvl: "warn", text: nm + ": " + bs2.lbl, tab: "bag" });
+    if (bagDatesOf(u.uid, x.id)) bagExpRows(u.uid, x.id).forEach(function(r){
+      if (r.st.k === "expired") out.push({ lvl: "bad", text: nm + " — " + r.item + ": expired " + fmtDate(r.date), tab: "bag" });
+      else if (r.st.k === "expiring") out.push({ lvl: "warn", text: nm + " — " + r.item + ": expires " + fmtDate(r.date), tab: "bag" });
+    });
+    else if ((S.settings.expItems || []).length) out.push({ lvl: "warn", text: nm + ": expiration dates not entered yet", tab: "bag" });
+  });
+  asg.fleet.forEach(function(fid){
+    var fv = fleetBagById(fid); if (!fv) return;
+    var nm = bagLabel(fv), bs3 = bagState(S.allBags["org_" + fid]);
+    if (bs3.lvl === "bad") out.push({ lvl: "bad", text: nm + " check: " + bs3.lbl.toLowerCase(), tab: "bag" });
+    else if (bs3.k === "soon") out.push({ lvl: "warn", text: nm + " check: " + bs3.lbl.toLowerCase(), tab: "bag" });
+    else if (bs3.k === "missing") out.push({ lvl: "warn", text: nm + ": " + bs3.lbl, tab: "bag" });
+    obExpRows(fid).forEach(function(r){
+      if (r.st.k === "expired") out.push({ lvl: "bad", text: nm + " — " + r.item + ": expired " + fmtDate(r.date), tab: "bag" });
+      else if (r.st.k === "expiring") out.push({ lvl: "warn", text: nm + " — " + r.item + ": expires " + fmtDate(r.date), tab: "bag" });
+    });
+  });
   return out;
 }
 
@@ -818,7 +848,16 @@ auth.onAuthStateChanged(async function(user){
 /* ════════════════════════════════════════════════════════════════════════
    LIVE DATA
    ════════════════════════════════════════════════════════════════════════ */
-function stopListeners(){ S.unsubs.forEach(function(f){ try { f(); } catch (e){} }); S.unsubs = []; }
+function stopListeners(){ S.unsubs.forEach(function(f){ try { f(); } catch (e){} }); S.unsubs = []; S.fbl = {}; }
+// a member (not admin / logistics) follows the status of the Fleet bags an admin gave them (needs the 1.27 rules)
+function syncFleetBagListeners(){
+  if (!S.me || S.isAdmin || S.isLogistics) return;
+  S.fbl = S.fbl || {};
+  bagAssignOf(S.me.uid).fleet.forEach(function(fid){
+    if (S.fbl[fid]) return; S.fbl[fid] = 1;
+    listen(db.collection("trk_bagStatus").doc("org_" + fid), function(d){ if (d.exists) S.allBags["org_" + fid] = d.data(); else delete S.allBags["org_" + fid]; renderSoon(); });
+  });
+}
 function listen(ref, fn){
   S.unsubs.push(ref.onSnapshot(fn, function(err){ console.warn("listener", err); if (err.code === "permission-denied") toast("Some data couldn't load (permission). Have the tracker rules been published?", 6000); }));
 }
@@ -829,7 +868,7 @@ function startListeners(){
   listen(db.collection("trk_settings").doc("main"), function(d){
     var s = clone(DEFAULT_SETTINGS);
     if (d.exists){ var x = d.data(); Object.keys(x).forEach(function(k){ s[k] = x[k]; }); s.templates = Object.assign({}, DEFAULT_SETTINGS.templates, x.templates || {}); }
-    S.settings = s; renderSoon();
+    S.settings = s; syncFleetBagListeners(); renderSoon();
   });
   listen(db.collection("appdata").doc("restockList"), function(d){ S.restock = d.exists ? d.data() : null; renderSoon(); });
   db.collection("appdata").doc("org").get().then(function(d){ if (d.exists) S.org = d.data(); }).catch(function(){});
@@ -1727,29 +1766,44 @@ async function saveUpload(){
 }
 
 /* ── Jump bag ── */
+function personalBagCard(bid){
+  var st0 = personalBagStatus(S.me.uid, bid), bs = bagState(st0), iv = S.settings.bagIntervalDays || 30, pick = bid ? "mine:" + bid : "mine";
+  var h = '<div class="card"><div class="row"><h3 class="grow" style="margin:0">🎒 ' + esc(personalBagName(S.me.uid, bid)) + '</h3>' + pillFor(bs) + '</div>'
+    + '<div class="muted" style="margin-top:6px">Last checked: <b>' + (st0 && st0.lastAt ? fmtTs(st0.lastAt) : "Never") + '</b> · check every ' + iv + ' days' + (st0 && st0.lastAt ? ' · next due ' + fmtTs(st0.lastAt + iv * 86400000).split(" ")[0] : '') + '</div>';
+  if (!bid && !bagRequired(S.me)) h += '<div class="muted" style="margin-top:6px">(Not required for your role — you can still log a check.)</div>';
+  if (st0 && st0.missing && st0.missing.length) h += '<div class="note" style="background:#fff4d6;border-color:#e2c27a;color:#5c3c00"><b>Missing from the last check:</b><br>' + st0.missing.map(function(m){ return esc(m.n) + (m.note ? " — " + esc(m.note) : ""); }).join("<br>") + '</div>';
+  h += '<div class="row" style="margin-top:10px"><button class="btn gold" data-b="' + esc(pick) + '" onclick="App.startBagCheck(this.dataset.b)">✓ Start bag check</button><button class="btn" onclick="App.bagHistory()">🕘 History</button></div>';
+  var er = bagExpRows(S.me.uid, bid), bad = !bagDatesOf(S.me.uid, bid) || er.some(function(r){ return r.st.lvl !== "ok"; });
+  h += '<details style="margin-top:10px"' + (bad ? " open" : "") + '><summary style="cursor:pointer;font-weight:700">⏳ Expiration Dates' + (bad ? "" : ' <span class="pill p-ok">All in date</span>') + '</summary><div style="margin-top:8px">' + expTable(S.me.uid, bid)
+    + '<button class="btn sm" style="margin-top:6px" data-bag="' + esc(bid || "") + '" onclick="App.editBagExp(null, this.dataset.bag)">✎ Update all dates</button></div></details></div>';
+  return h;
+}
 function viewBag(){
-  var bs = bagState(S.myBag), iv = S.settings.bagIntervalDays || 30;
-  var h = '<h2>🎒 My Jump Bag</h2><div class="card"><div class="row"><div class="grow"><div class="muted">Last checked</div><b>' + (S.myBag ? fmtTs(S.myBag.lastAt) : "Never") + '</b></div>' + pillFor(bs) + '</div>'
-    + '<div class="muted" style="margin-top:8px">Check your bag every ' + iv + ' days.' + (S.myBag && S.myBag.lastAt ? ' Next check due ' + fmtTs(S.myBag.lastAt + iv * 86400000).split(" ")[0] + '.' : '') + '</div>';
-  if (!bagRequired(S.me)) h += '<div class="muted" style="margin-top:6px">(Not required for your role — you can still log a check.)</div>';
-  if (S.myBag && S.myBag.missing && S.myBag.missing.length){
-    h += '<div class="note" style="background:#fff4d6;border-color:#e2c27a;color:#5c3c00"><b>Missing from your last check:</b><br>' + S.myBag.missing.map(function(m){ return esc(m.n) + (m.note ? " — " + esc(m.note) : ""); }).join("<br>") + '</div>';
-  }
-  h += '<div class="row" style="margin-top:12px"><button class="btn gold" onclick="App.startBagCheck(\'mine\')">✓ Start bag check</button><button class="btn" onclick="App.bagHistory()">🕘 History</button></div></div>';
-  var groups = bagsByVehicle(true);
+  var asg = bagAssignOf(S.me.uid), mine = [""].concat(asg.extra.map(function(x){ return x.id; }));
+  var h = '<h2>🎒 ' + (mine.length > 1 ? "My Bags" : "My Jump Bag") + '</h2>' + mine.map(personalBagCard).join("");
+  // Fleet bags an admin asked this member to look after (even a rig's bag)
+  var look = asg.fleet.map(fleetBagById).filter(Boolean);
+  if (look.length) h += '<h2>🧰 Bags You Look After</h2>' + look.map(function(v){
+    var bs = S.allBags["org_" + v.id], st = bagState(bs), ob = obExpSummary(v.id);
+    return '<div class="card"><div class="row"><h3 class="grow" style="margin:0">🎒 ' + esc(bagLabel(v)) + '</h3>' + pillFor(st) + '</div>'
+      + '<div class="muted" style="margin-top:6px">Last checked: <b>' + (bs && bs.lastAt ? fmtTs(bs.lastAt) + (bs.by ? " by " + esc(bs.by) : "") : "Never") + '</b>'
+      + (ob.expired ? ' · <span class="pill p-bad">' + ob.expired + ' expired</span>' : '') + (ob.expiring ? ' · <span class="pill p-warn">' + ob.expiring + ' expiring</span>' : '') + '</div>'
+      + (bs && bs.missing && bs.missing.length ? '<div class="note" style="background:#fff4d6;border-color:#e2c27a;color:#5c3c00"><b>Missing:</b> ' + bs.missing.map(function(m){ return esc(m.n); }).join(", ") + '</div>' : '')
+      + '<div class="row" style="margin-top:10px"><button class="btn gold" data-b="org_' + esc(v.id) + '" onclick="App.startBagCheck(this.dataset.b)">✓ Start bag check</button><button class="btn" data-id="' + esc(v.id) + '" onclick="App.viewObExp(this.dataset.id)">⏳ Dates</button></div></div>';
+  }).join("");
+  var groups = bagsByVehicle(true).map(function(g){ return { veh: g.veh, bags: g.bags.filter(function(b){ return asg.fleet.indexOf(b.id) < 0; }) }; }).filter(function(g){ return g.bags.length; });
   if (groups.length) h += '<h2>🧰 Vehicle Jump Bags</h2><div class="card"><div class="muted" style="margin-bottom:8px">Rig jump bags are checked with the rig check (Rig Checks). Other vehicle bags are checked here.</div>'
     + groups.map(function(g){
       return '<div style="margin:8px 0 4px;font-weight:700">' + (g.veh ? (isAmbulance(g.veh) ? "🚑 " : "🚙 ") + esc(vName(g.veh)) : "Other bags") + '</div><div class="row">'
         + g.bags.map(function(v){ var st = S.allBags["org_" + v.id]; return '<button class="btn" data-b="org_' + esc(v.id) + '" onclick="App.startBagCheck(this.dataset.b)">🎒 ' + esc(bagLabel(v)) + (st && st.lastAt ? ' <span class="muted">· ' + fmtTs(st.lastAt).split(" ")[0] + '</span>' : '') + '</button>'; }).join("") + '</div>';
     }).join("") + '</div>';
-  h += '<div class="row" style="margin-top:6px"><h2 class="grow" style="margin:8px 0">⏳ Expiration Dates</h2><button class="btn" onclick="App.editBagExp()">✎ Update dates</button></div>' + expTable(S.me.uid);
   return h;
 }
-function expTable(uid){
-  var rows = bagExpRows(uid), exp = bagExpFor(uid);
+function expTable(uid, bid){
+  var rows = bagExpRows(uid, bid), meta = bagDatesMeta(uid, bid), exp = { updatedAt: meta.at, updatedBy: meta.by };
   if (!rows.length) return '<div class="card empty">No items on the list. An admin can add them in ⚙ Admin.</div>';
   return '<div class="tbl-wrap"><table class="exp-tbl"><thead><tr><th>Item</th><th>Expires</th><th>Status</th><th>Action</th></tr></thead><tbody>'
-    + rows.map(function(r, i){ return '<tr><td>' + esc(r.item) + '</td><td class="num">' + (r.date ? fmtDash(r.date) : '<span class="muted">—</span>') + '</td><td>' + pillFor(r.st) + '</td>' + '<td><button class="btn sm" title="Update this date" data-k="mine" data-id="' + esc(uid) + '" data-i="' + i + '" onclick="App.expOne(this)">✎ Update</button></td>' + '</tr>'; }).join("")
+    + rows.map(function(r, i){ return '<tr><td>' + esc(r.item) + '</td><td class="num">' + (r.date ? fmtDash(r.date) : '<span class="muted">—</span>') + '</td><td>' + pillFor(r.st) + '</td>' + '<td><button class="btn sm" title="Update this date" data-k="mine" data-id="' + esc(uid) + '" data-bag="' + esc(bid || "") + '" data-i="' + i + '" onclick="App.expOne(this)">✎ Update</button></td>' + '</tr>'; }).join("")
     + '</tbody></table></div><div class="muted" style="margin-top:6px">' + (exp.updatedAt ? "Updated " + fmtTs(exp.updatedAt) + (exp.updatedBy ? " by " + esc(exp.updatedBy) : "") : "Dates not entered yet.") + '</div>';
 }
 // 1.25: update ONE expiration date (✎ Update on a row) — personal bag, a rig, or an agency bag
@@ -1757,8 +1811,9 @@ function expOne(btn){
   var kind = btn.dataset.k, id = btn.dataset.id, i = +btn.dataset.i;
   var list = kind === "rig" ? S.settings.rigExpItems : kind === "org" ? S.settings.orgBagExpItems : S.settings.expItems, item = (list || [])[i];
   if (!item) return;
-  var cur = kind === "rig" ? ((S.rigStatus[id] || {}).expDates || {})[item] : kind === "org" ? ((S.allBags["org_" + id] || {}).expDates || {})[item] : ((bagExpFor(id).dates) || {})[item];
-  var back = S._expBack = { kind: kind, id: id, i: i, item: item, reopen: kind === "org" && !$("modal-bg").hidden };
+  var bag = btn.dataset.bag || "";
+  var cur = kind === "rig" ? ((S.rigStatus[id] || {}).expDates || {})[item] : kind === "org" ? ((S.allBags["org_" + id] || {}).expDates || {})[item] : (bagDatesOf(id, bag) || {})[item];
+  var back = S._expBack = { kind: kind, id: id, bag: bag, i: i, item: item, reopen: kind === "org" && !$("modal-bg").hidden };
   openModal("⏳ " + item, '<label for="exp1">Expiration date</label><input id="exp1" type="date" value="' + esc(cur || "") + '">'
     + (cur ? '<div class="muted" style="margin-top:6px">Now: ' + fmtDash(cur) + ' — ' + esc(expState(cur).lbl) + '</div>' : ''),
     '<button class="btn" onclick="App.expOneCancel()">Cancel</button><button class="btn gold" id="exp1-save" onclick="App.expOneSave()">Save</button>');
@@ -1779,14 +1834,14 @@ async function expOneSave(){
       var bv = S.fleet.filter(function(x){ return x.id === b.id; })[0], bl = bv ? bagLabel(bv) : b.id;
       await db.collection("trk_bagStatus").doc("org_" + b.id).set({ org: true, bagId: b.id, bag: bl, unit: bl, byUid: S.me.uid, expDates: upd, expUpdatedAt: Date.now(), expUpdatedBy: S.me.unit || "" }, { merge: true });
     } else {
-      await writeBagExp(b.id, Object.assign({}, (bagExpFor(b.id).dates) || {}, upd));
+      await writeBagExp(b.id, Object.assign({}, bagDatesOf(b.id, b.bag) || {}, upd), b.bag);
     }
     toast("✓ " + b.item + " saved");
     closeModal(); if (b.reopen) setTimeout(function(){ viewObExp(b.id); }, 300);
   } catch (e){ $("exp1-save").disabled = false; toast("⚠ Not saved: " + e.message, 6000); }
 }
-function expInputs(uid){
-  var dates = (bagExpFor(uid).dates) || {};
+function expInputs(uid, bid){
+  var dates = bagDatesOf(uid, bid) || {};
   return '<div class="sec"><div class="sec-h"><b>⏳ Expiration Dates</b></div>' + (S.settings.expItems || []).map(function(n, i){
     return '<div class="item"><label class="nm" for="exp-' + i + '" style="margin:0;font-weight:400;font-size:.92rem">' + esc(n) + '</label><input id="exp-' + i + '" type="date" style="width:170px" value="' + esc(dates[n] || "") + '"></div>';
   }).join("") + '</div>';
@@ -1796,20 +1851,23 @@ function readExpInputs(){
   (S.settings.expItems || []).forEach(function(n, i){ var el = $("exp-" + i); var v = el ? el.value : ""; if (v) out[n] = v; else missing++; });
   return { dates: out, missing: missing };
 }
-function editBagExp(uid){
-  uid = uid || S.me.uid;
+function editBagExp(uid, bid){
+  uid = uid || S.me.uid; bid = bid || "";
   var u = uid === S.me.uid ? S.me : userByUid(uid);
-  openModal("⏳ Expiration Dates" + (uid !== S.me.uid ? " — " + u.unit : ""), '<p class="muted">Enter the expiration date printed on each item in the bag.</p>' + expInputs(uid),
-    '<button class="btn" onclick="App.closeModal()">Cancel</button><button class="btn gold" id="exp-save" data-uid="' + esc(uid) + '" onclick="App.saveBagExp(this.dataset.uid)">Save</button>');
+  openModal("⏳ " + personalBagName(uid, bid) + " — Expiration Dates" + (uid !== S.me.uid ? " — " + u.unit : ""), '<p class="muted">Enter the expiration date printed on each item in the bag.</p>' + expInputs(uid, bid),
+    '<button class="btn" onclick="App.closeModal()">Cancel</button><button class="btn gold" id="exp-save" data-uid="' + esc(uid) + '" data-bag="' + esc(bid) + '" onclick="App.saveBagExp(this.dataset.uid, this.dataset.bag)">Save</button>');
 }
-async function saveBagExp(uid){
+async function saveBagExp(uid, bid){
   var r = readExpInputs();
   if (r.missing){ toast(r.missing + " item" + (r.missing === 1 ? " has" : "s have") + " no date yet. Fill in every date."); return; }
-  try { await writeBagExp(uid, r.dates); closeModal(); toast("✓ Dates saved"); } catch (e){ toast("⚠ Not saved: " + e.message, 6000); }
+  try { await writeBagExp(uid, r.dates, bid); closeModal(); toast("✓ Dates saved"); } catch (e){ toast("⚠ Not saved: " + e.message, 6000); }
 }
-function writeBagExp(uid, dates){
-  var u = uid === S.me.uid ? S.me : userByUid(uid);
-  return db.collection("trk_bagExp").doc(uid).set({ uid: uid, unit: (u && u.unit) || "", dates: dates, updatedAt: Date.now(), updatedBy: S.me.unit || "" });
+// merge, so the Primary Bag's dates and each extra bag's dates (bagDates.<id>) never overwrite each other
+function writeBagExp(uid, dates, bid){
+  var u = uid === S.me.uid ? S.me : userByUid(uid), now = Date.now(), d = { uid: uid, unit: (u && u.unit) || "" };
+  if (bid){ d.bagDates = {}; d.bagDates[bid] = dates; d.bagDatesMeta = {}; d.bagDatesMeta[bid] = { at: now, by: S.me.unit || "" }; }
+  else { d.dates = dates; d.updatedAt = now; d.updatedBy = S.me.unit || ""; }
+  return db.collection("trk_bagExp").doc(uid).set(d, { merge: true });
 }
 function startBagCheck(pick){
   S.check = { kind: "bag", pick: pick || "mine", sections: clone(bagChecklist()), ans: {}, notes: {}, qa: {}, secNotes: {} };
@@ -1820,10 +1878,16 @@ function startBagCheck(pick){
 function ckHeader(kind){
   var C = S.check, opts;
   if (kind === "rig") opts = rigList().map(function(v){ return '<option value="' + esc(v.id) + '"' + (v.id === C.pick ? " selected" : "") + '>' + esc(vName(v)) + '</option>'; }).join("");
-  else opts = '<option value="mine"' + (C.pick === "mine" ? " selected" : "") + '>' + esc((S.me.unit || "") + " Primary Bag") + '</option>'
-    + bagsByVehicle(true).map(function(g){
-      return '<optgroup label="' + esc(g.veh ? vName(g.veh) : "Other bags") + '">' + g.bags.map(function(v){ return '<option value="org_' + esc(v.id) + '"' + ("org_" + v.id === C.pick ? " selected" : "") + '>' + esc(bagLabel(v)) + '</option>'; }).join("") + '</optgroup>';
+  else {
+    var asg = bagAssignOf(S.me.uid), o = function(val, txt){ return '<option value="' + esc(val) + '"' + (val === C.pick ? " selected" : "") + '>' + esc(txt) + '</option>'; };
+    opts = '<optgroup label="My bags">' + o("mine", (S.me.unit || "") + " Primary Bag") + asg.extra.map(function(x){ return o("mine:" + x.id, (S.me.unit || "") + " " + x.name); }).join("") + '</optgroup>';
+    var look = asg.fleet.map(fleetBagById).filter(Boolean);
+    if (look.length) opts += '<optgroup label="Bags I look after">' + look.map(function(v){ return o("org_" + v.id, bagLabel(v)); }).join("") + '</optgroup>';
+    opts += bagsByVehicle(true).map(function(g){
+      var bs = g.bags.filter(function(v){ return asg.fleet.indexOf(v.id) < 0; }); if (!bs.length) return "";
+      return '<optgroup label="' + esc(g.veh ? vName(g.veh) : "Other bags") + '">' + bs.map(function(v){ return '<option value="org_' + esc(v.id) + '"' + ("org_" + v.id === C.pick ? " selected" : "") + '>' + esc(bagLabel(v)) + '</option>'; }).join("") + '</optgroup>';
     }).join("");
+  }
   return '<div class="pf-grid" style="margin-bottom:6px"><div class="pf-f"><label for="ck-what">' + (kind === "rig" ? "Rig" : "Bag") + '</label><select id="ck-what" onchange="App.ckPick(this.value)"><option value="">Select</option>' + opts + '</select></div></div>';
 }
 function ckPick(v){
@@ -1835,7 +1899,7 @@ function ckPick(v){
     if (ticked && !confirm("Switch to another rig? What you've ticked so far will be cleared.")){ $("ck-what").value = C.vid || ""; C.pick = C.vid; return; }
     startRigCheck(v); return;
   }
-  var ex = $("ck-exp"); if (ex) ex.hidden = C.pick !== "mine";
+  var ex = $("ck-exp"); if (ex){ ex.hidden = !/^mine/.test(C.pick || ""); if (!ex.hidden) ex.innerHTML = expInputs(S.me.uid, C.pick.slice(5)); }
   var oe = $("ck-oexp"); if (oe && C.kind === "bag") oe.innerHTML = /^org_/.test(v || "") ? obExpInputs(v.replace(/^org_/, "")) : "";
 }
 
@@ -1918,7 +1982,7 @@ function openChecklist(title, help, extraTop){
   if (C.kind === "rig" && (S.settings.rigExpItems || []).length) b += '<div id="ck-rexp">' + (C.vid ? rigExpInputs(C.vid) : '<div class="muted">Pick the rig at the top to see its expiration dates.</div>') + '</div>';
   if (C.kind === "rig" && C.vid && (S.settings.orgBagExpItems || []).length) b += bagsOfVehicle(C.vid).map(function(bg, n){ return obExpInputs(bg.id, "oexp-" + n + "-", "⏳ Expiration Dates — 🎒 " + bagLabel(bg)); }).join("");
   if (C.kind === "bag" && (S.settings.orgBagExpItems || []).length) b += '<div id="ck-oexp">' + (/^org_/.test(C.pick || "") ? obExpInputs(C.pick.replace(/^org_/, "")) : "") + '</div>';
-  if (C.kind === "bag" && (S.settings.expItems || []).length) b += '<div id="ck-exp"' + (C.pick === "mine" ? "" : " hidden") + '>' + expInputs(S.me.uid) + '</div>';
+  if (C.kind === "bag" && (S.settings.expItems || []).length) b += '<div id="ck-exp"' + (/^mine/.test(C.pick || "") ? "" : " hidden") + '>' + expInputs(S.me.uid, /^mine:/.test(C.pick || "") ? C.pick.slice(5) : "") + '</div>';
   openModal(title, b, '<span id="ck-count" class="muted grow"></span><button class="btn" onclick="App.closeModal()">Cancel</button><button class="btn gold" id="ck-save" onclick="App.saveCheck()">Submit check</button>');
   ckCount();
 }
@@ -1978,7 +2042,7 @@ async function saveCheck(){
   var what = $("ck-what") ? $("ck-what").value : C.pick;
   if (!what){ toast(C.kind === "rig" ? "Pick the rig at the top." : "Pick the bag at the top."); $("ck-what") && $("ck-what").scrollIntoView({ block: "center", behavior: "smooth" }); return; }
   var inspDate = ($("ck-date") && $("ck-date").value) || todayStr();
-  var expR = C.kind === "bag" && what === "mine" && (S.settings.expItems || []).length ? readExpInputs() : null;
+  var expR = C.kind === "bag" && /^mine/.test(what) && (S.settings.expItems || []).length ? readExpInputs() : null;
   var rexpR = C.kind === "rig" && (S.settings.rigExpItems || []).length ? readRigExp() : null;
   var oexpR = C.kind === "bag" && /^org_/.test(what) && (S.settings.orgBagExpItems || []).length ? readObExp() : null;
   var rigBags = C.kind === "rig" ? bagsOfVehicle(C.vid) : [], bagExp = {};
@@ -1994,11 +2058,19 @@ async function saveCheck(){
   var who = { uid: S.me.uid, unit: S.me.unit || "", name: S.me.name || "", email: S.me.email || "", inspDate: inspDate };
   try {
     var batch = db.batch();
-    if (C.kind === "bag" && what === "mine"){
-      var mine = (S.me.unit || "") + " Primary Bag";
-      batch.set(db.collection("trk_bagChecks").doc(), Object.assign({}, who, { at: now, bagId: "mine", bag: mine, results: results, answers: answers, sectionNotes: secNotes, missing: problems, notes: notes }));
-      if (expR) batch.set(db.collection("trk_bagExp").doc(S.me.uid), { uid: S.me.uid, unit: S.me.unit || "", dates: expR.dates, updatedAt: now, updatedBy: S.me.unit || "" });
-      batch.set(db.collection("trk_bagStatus").doc(S.me.uid), { uid: S.me.uid, unit: S.me.unit || "", name: S.me.name || "", lastAt: now, inspDate: inspDate, missing: problems, notes: notes });
+    if (C.kind === "bag" && /^mine/.test(what)){
+      var xb = what.slice(5), mine = (S.me.unit || "") + " " + personalBagName(S.me.uid, xb);
+      batch.set(db.collection("trk_bagChecks").doc(), Object.assign({}, who, { at: now, bagId: xb ? "mine:" + xb : "mine", bag: mine, results: results, answers: answers, sectionNotes: secNotes, missing: problems, notes: notes }));
+      var me0 = { uid: S.me.uid, unit: S.me.unit || "" };
+      if (expR){
+        var ed = Object.assign({}, me0);
+        if (xb){ ed.bagDates = {}; ed.bagDates[xb] = expR.dates; ed.bagDatesMeta = {}; ed.bagDatesMeta[xb] = { at: now, by: S.me.unit || "" }; }
+        else { ed.dates = expR.dates; ed.updatedAt = now; ed.updatedBy = S.me.unit || ""; }
+        batch.set(db.collection("trk_bagExp").doc(S.me.uid), ed, { merge: true });
+      }
+      var sd = Object.assign({ name: S.me.name || "" }, me0), one = { lastAt: now, inspDate: inspDate, missing: problems, notes: notes };
+      if (xb){ sd.bags = {}; sd.bags[xb] = Object.assign({ name: personalBagName(S.me.uid, xb) }, one); } else Object.assign(sd, one);
+      batch.set(db.collection("trk_bagStatus").doc(S.me.uid), sd, { merge: true });
     } else if (C.kind === "bag"){
       // an agency bag / cabinet: its own status, kept as "org_<id>" (needs the 1.24 rules)
       var bid = what.replace(/^org_/, ""), bv = S.fleet.filter(function(x){ return x.id === bid; })[0], bl = bv ? bagLabel(bv) : bid;
@@ -2329,13 +2401,45 @@ function adminVehicles(){
   return h;
 }
 function viewBagExp(uid){
-  var u = userByUid(uid);
-  openModal("⏳ " + u.unit + " — Expiration Dates", expTable(uid), '<button class="btn" onclick="App.closeModal()">Close</button><button class="btn gold" data-uid="' + esc(uid) + '" onclick="App.editBagExp(this.dataset.uid)">✎ Edit dates</button>');
+  var u = userByUid(uid), bags = [""].concat(bagAssignOf(uid).extra.map(function(x){ return x.id; }));
+  openModal("⏳ " + u.unit + " — Expiration Dates", bags.map(function(bid){
+    return (bags.length > 1 ? '<h2>🎒 ' + esc(personalBagName(uid, bid)) + '</h2>' : '') + expTable(uid, bid)
+      + '<button class="btn sm" style="margin:6px 0 4px" data-uid="' + esc(uid) + '" data-bag="' + esc(bid) + '" onclick="App.editBagExp(this.dataset.uid, this.dataset.bag)">✎ Edit all dates</button>';
+  }).join(""), '<button class="btn" onclick="App.closeModal()">Close</button>');
+}
+// 1.27: give a member more personal bags, and Fleet bags to look after
+function assignBags(uid){
+  var u = userByUid(uid); if (!u) return;
+  var a = bagAssignOf(uid); S._asg = { uid: uid, extra: a.extra.map(function(x){ return { id: x.id, name: x.name }; }), fleet: a.fleet.slice() };
+  drawAssign();
+}
+function drawAssign(){
+  var A = S._asg, u = userByUid(A.uid);
+  var b = '<h2 style="margin-top:8px">🎒 Personal bags</h2><p class="muted" style="margin:0 0 6px">Every member has a Primary Bag. Add more bags this member carries — each is checked on its own, with its own dates.</p>'
+    + '<div class="item" style="border:1px solid var(--line);border-radius:8px"><span class="nm"><b>Primary Bag</b></span><span class="muted">always</span></div>'
+    + A.extra.map(function(x, i){ return '<div class="row" style="margin-top:6px;flex-wrap:nowrap"><input class="asg-name" data-i="' + i + '" value="' + esc(x.name) + '" placeholder="Bag name, e.g. Peds Bag" oninput="App.asgName(' + i + ',this.value)"><button class="btn red sm" onclick="App.asgDel(' + i + ')">Remove</button></div>'; }).join("")
+    + '<button class="btn sm" style="margin-top:8px" onclick="App.asgAdd()">+ Add a bag</button>';
+  var all = agencyBags();
+  b += '<h2>🧰 Fleet bags to look after</h2><p class="muted" style="margin:0 0 6px">These show on the member\'s Jump Bag page and in their reminders. Anyone can still check them.</p>'
+    + (all.length ? '<div class="row">' + all.map(function(v){ var on = A.fleet.indexOf(v.id) >= 0;
+        return '<label style="margin:0;display:flex;gap:6px;align-items:center;font-weight:400;color:var(--text);border:1px solid var(--line);border-radius:8px;padding:6px 10px"><input type="checkbox" style="width:auto" ' + (on ? "checked " : "") + 'onchange="App.asgFleet(\'' + esc(v.id) + '\',this.checked)"> ' + esc(bagLabel(v)) + '</label>'; }).join("") + '</div>'
+      : '<div class="muted">No jump bags in CallDashboard ▸ Fleet.</div>');
+  openModal("🎒 Bags — " + u.unit + (u.name ? " · " + u.name : ""), b, '<button class="btn" onclick="App.closeModal()">Cancel</button><button class="btn gold" id="asg-save" onclick="App.asgSave()">Save</button>');
+}
+function asgSave(){
+  var A = S._asg, extra = A.extra.map(function(x){ return { id: x.id, name: String(x.name || "").trim() }; }).filter(function(x){ return x.name; });
+  var names = {}, dup = extra.some(function(x){ var k = x.name.toLowerCase(); if (k === "primary bag" || names[k]) return true; names[k] = 1; return false; });
+  if (dup){ toast("Each bag needs its own name (and not \"Primary Bag\")."); return; }
+  var all = Object.assign({}, S.settings.bagAssign || {}); all[A.uid] = { extra: extra, fleet: A.fleet };
+  $("asg-save").disabled = true;
+  db.collection("trk_settings").doc("main").set({ bagAssign: all, updatedAt: Date.now(), updatedBy: S.me.unit || "" }, { merge: true })
+    .then(function(){ closeModal(); toast("✓ Bags saved"); })
+    .catch(function(e){ $("asg-save").disabled = false; toast("⚠ Not saved: " + e.message, 6000); });
 }
 function adminBags(){
-  var users = S.users.filter(function(u){ return bagRequired(u) || S.allBags[u.uid]; });
+  var users = S.users.filter(function(u){ var a = bagAssignOf(u.uid); return bagRequired(u) || S.allBags[u.uid] || a.extra.length || a.fleet.length; });
   var h = '<p class="muted">Every ' + (S.settings.bagIntervalDays || 30) + ' days. Change it in ⚙ Admin ▸ Timing & Equipment.</p>';
-  h += '<div class="tbl-wrap"><table><thead><tr><th>Unit</th><th>Name</th><th>Last check</th><th>Status</th><th>Missing items</th><th>Expiration dates</th><th></th></tr></thead><tbody>';
+  h += '<div class="tbl-wrap"><table><thead><tr><th>Unit</th><th>Name</th><th>Bags</th><th>Last check</th><th>Status</th><th>Missing items</th><th>Expiration dates</th><th></th></tr></thead><tbody>';
   users.forEach(function(u){
     var b = S.allBags[u.uid], st = bagState(b);
     var er = bagExpRows(u.uid), ex = er.filter(function(r){ return r.st.k === "expired"; }), so = er.filter(function(r){ return r.st.k === "expiring"; });
@@ -2343,10 +2447,13 @@ function adminBags(){
       : ex.length ? '<span class="pill p-bad">' + ex.length + ' expired</span> <span class="muted">' + ex.map(function(r){ return esc(r.item); }).join(", ") + '</span>'
       : so.length ? '<span class="pill p-warn">' + so.length + ' expiring</span> <span class="muted">' + so.map(function(r){ return esc(r.item); }).join(", ") + '</span>'
       : '<span class="pill p-ok">All in date</span>';
-    h += '<tr><td><b>' + esc(u.unit) + '</b></td><td>' + esc(u.name || "") + '</td><td>' + (b ? fmtTs(b.lastAt) : "Never") + '</td><td>' + pillFor(st) + '</td>'
+    var asg = bagAssignOf(u.uid), bagsTxt = ["Primary"].concat(asg.extra.map(function(x){ return x.name; })).concat(asg.fleet.map(function(f){ var fv = fleetBagById(f); return fv ? "🧰 " + bagLabel(fv) : ""; }).filter(Boolean)).join(", ");
+    var worst = [""].concat(asg.extra.map(function(x){ return x.id; })).map(function(bid){ return bagState(personalBagStatus(u.uid, bid)); }).concat(asg.fleet.map(function(f){ return bagState(S.allBags["org_" + f]); }))
+      .sort(function(x, y){ var o = { bad: 0, warn: 1, info: 2, ok: 3, na: 4 }; return o[x.lvl] - o[y.lvl]; })[0] || st;
+    h += '<tr><td><b>' + esc(u.unit) + '</b></td><td>' + esc(u.name || "") + '</td><td style="white-space:normal;min-width:140px">' + esc(bagsTxt) + '</td><td>' + (b ? fmtTs(b.lastAt) : "Never") + '</td><td>' + pillFor(asg.extra.length || asg.fleet.length ? worst : st) + '</td>'
       + '<td style="white-space:normal">' + (b && b.missing && b.missing.length ? b.missing.map(function(m){ return esc(m.n); }).join(", ") : '<span class="muted">—</span>') + '</td>'
       + '<td style="white-space:normal">' + expCell + '</td>'
-      + '<td><div class="row" style="flex-wrap:nowrap"><button class="btn sm" data-uid="' + esc(u.uid) + '" onclick="App.viewBagExp(this.dataset.uid)">Dates</button><button class="btn sm" data-uid="' + esc(u.uid) + '" onclick="App.bagHistory(this.dataset.uid)">History</button></div></td></tr>';
+      + '<td><div class="row" style="flex-wrap:nowrap"><button class="btn sm" data-uid="' + esc(u.uid) + '" onclick="App.viewBagExp(this.dataset.uid)">Dates</button><button class="btn sm" data-uid="' + esc(u.uid) + '" onclick="App.assignBags(this.dataset.uid)">🎒 Bags…</button><button class="btn sm" data-uid="' + esc(u.uid) + '" onclick="App.bagHistory(this.dataset.uid)">History</button></div></td></tr>';
   });
   h += '</tbody></table></div>';
   var ab = agencyBags();
@@ -2909,7 +3016,10 @@ window.App = {
   saveProfile: saveProfile, vfRepl: vfRepl, editBagExp: editBagExp, saveBagExp: saveBagExp, viewBagExp: viewBagExp, phoneTyping: phoneTyping, openProfile: openProfile,
   addType: addType, resetTemplates: resetTemplates, saveSettings: saveSettings,
   panelTab: function(t){ S.adminTab = { rig: "rigcl", bag: "bagcl" }[t] || t; setTab("admin"); render(); window.scrollTo(0, 0); }, cedSet: cedSet, cedOp: cedOp, saveRigList: saveRigList, saveBagList: saveBagList,
-  saveDocs: saveDocs, editRigExp: editRigExp, expOne: expOne, expOneSave: expOneSave, expOneCancel: expOneCancel, viewObExp: viewObExp, editObExp: editObExp, saveObExp: saveObExp, saveRigExp: saveRigExp, saveTiming: saveTiming, saveMsg: saveMsg, ckPick: ckPick
+  saveDocs: saveDocs, editRigExp: editRigExp, assignBags: assignBags, asgSave: asgSave,
+  asgAdd: function(){ S._asg.extra.push({ id: "b" + Date.now().toString(36), name: "" }); drawAssign(); var n = document.querySelectorAll(".asg-name"); if (n.length) n[n.length - 1].focus(); },
+  asgDel: function(i){ S._asg.extra.splice(i, 1); drawAssign(); }, asgName: function(i, v){ S._asg.extra[i].name = v; },
+  asgFleet: function(id, on){ var f = S._asg.fleet, i = f.indexOf(id); if (on && i < 0) f.push(id); if (!on && i >= 0) f.splice(i, 1); }, expOne: expOne, expOneSave: expOneSave, expOneCancel: expOneCancel, viewObExp: viewObExp, editObExp: editObExp, saveObExp: saveObExp, saveRigExp: saveRigExp, saveTiming: saveTiming, saveMsg: saveMsg, ckPick: ckPick
 };
 window.TRK = { S: S, render: render, memberIssues: memberIssues, recStatus: recStatus, bagState: bagState, rigState: rigState, normUnit: normUnit, smsStamp: smsStamp };
 </script>
