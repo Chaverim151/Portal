@@ -3,11 +3,12 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<meta name="trk-version" content="1.52">
+<meta name="trk-version" content="1.53">
 <meta name="trk-mode" content="desktop">
 <meta name="theme-color" content="#ffffff">
 <title>Compliance</title>
 <!-- 1.32: the same Hatzolah MC icon as CallDashboard, built in (no extra files to upload) -->
+<!-- 1.53: 👤 My Profile moved from a home tile to the top bar -->
 <!-- 1.52: documents shown as a table — View opens the document (with Update inside) -->
 <!-- 1.51: ⚙ Admin "Members" tab → "Units"; no separate Members' Vehicles page (vehicles are on each unit's page) -->
 <!-- 1.50: ⚙ Admin ▸ 🧰 Equipment Checklist tab with Vehicle / Bag sub-tabs (moved out of Settings) -->
@@ -110,6 +111,7 @@ h2{font-size:1.1rem;margin:18px 0 10px;color:var(--accent)}
 .tb-sub{font-size:.62rem;color:var(--gray);letter-spacing:.08em;text-transform:uppercase}
 .tb-who{text-align:center;font-family:'Oswald',sans-serif;font-weight:700;font-size:.8rem;color:var(--gray);letter-spacing:.04em;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .tb-right{display:flex;align-items:center;gap:6px}
+@media(max-width:600px){.prof-lbl{display:none}}   /* 1.53: phone shows just 👤 */
 #bell{position:relative;background:#fff;border:1px solid var(--field);color:var(--text);border-radius:6px;width:42px;height:38px;font-size:1.1rem;box-shadow:inset 0 0 0 1px rgba(31,35,40,.32)}
 #bell .badge{position:absolute;top:-6px;right:-6px;background:var(--bad);color:#fff;border-radius:999px;font-size:.7rem;font-weight:800;min-width:20px;height:20px;line-height:20px;padding:0 5px}
 /* page header: ← Home + page name (CAD .inner-topbar / .m-subpage-header) */
@@ -323,7 +325,7 @@ td.rep-warn{color:var(--warn);font-weight:700}
     <div class="m-err" id="login-err"></div>
 
     <div style="text-align:center;margin-top:16px"><button class="m-forgot" onclick="App.forgotPw()">Forgot password?</button></div>
-    <div class="m-build">BUILD <span id="li-build">v1.52</span></div>
+    <div class="m-build">BUILD <span id="li-build">v1.53</span></div>
   </div>
 </div>
 <div id="boot" class="empty" style="margin-top:20vh">Signing in…</div>
@@ -337,6 +339,7 @@ td.rep-warn{color:var(--warn);font-weight:700}
     </div>
     <div class="tb-who" id="who"></div>
     <div class="tb-right">
+      <button id="prof-btn" class="btn sm" onclick="App.setTab('profile')" title="My Profile: addresses, phones, emergency contact, uniform"><span aria-hidden="true">👤</span><span class="prof-lbl"> My Profile</span></button>
       <button id="adm-btn" class="btn sm" hidden onclick="App.setTab('admin')" title="Admin: compliance, review, reports, checklists, settings">⚙ Admin</button>
       <button id="bell" onclick="App.openPanel()" aria-label="Notifications">🔔<span class="badge" id="bell-n" hidden></span></button>
       <button class="btn sm" onclick="App.signOut()">Sign out</button>
@@ -402,7 +405,7 @@ function trkSmsPayload(phone, message, unit){
 function trkEmailPayload(email, name, subject, html){ return { to: [{ email: email, name: name || email }], subject: subject, body: html }; }
 
 /* ════════════════════════════════════════════════════════════════════════ */
-var TRK_VERSION = "1.52";
+var TRK_VERSION = "1.53";
 // 1.16: owner asked to block the tracker's notifications for now. While this is true the tracker sends NO texts and
 // NO emails (reminders and test reminders). Sign-in "Forgot password?" still works. Set to false to allow sending again.
 var TRK_SENDING_OFF = true;
@@ -1153,7 +1156,7 @@ var PAGES = {
   admin:    { icon: "⚙", label: "Admin", sub: "Compliance, review, reports, checklists, settings" }
 };
 function tabsList(){
-  var t = ["profile", "docs", "vehicles"];   // 1.45: immunizations live inside My Documents
+  var t = ["profile", "docs", "vehicles"];   // 1.53: "profile" opens from the 👤 My Profile button in the top bar, not a tile   // 1.45: immunizations live inside My Documents
   if (S.isAdmin || S.isLogistics || (S.me && hasAnyBag(S.me.uid))) t.push("bag");   // 1.46: Jump Bag tile only for members with a bag
   if (S.isAdmin || S.isLogistics) t.push("rigs");
   if (S.isAdmin && TRK_MODE === "desktop") t.push("admin");   // opened from the ⚙ Admin button in the top bar (1.25), not a tile   // like the CAD, admin is on the computer
@@ -1204,7 +1207,7 @@ function render(){
 /* ── Home ── */
 function viewHome(){
   var cnt = tileCounts();
-  var h = '<div class="tiles">' + tabsList().filter(function(k){ return k !== "admin"; }).map(function(k, i){
+  var h = '<div class="tiles">' + tabsList().filter(function(k){ return k !== "admin" && k !== "profile"; }).map(function(k, i){
     var p = PAGES[k], c = cnt[k], badge = c && (c.bad || c.warn) ? '<span class="tb' + (c.bad ? "" : " w") + '">' + (c.bad || c.warn) + '</span>' : '';
     return '<button class="tile" data-sec="' + k + '" style="animation-delay:' + (i * 0.04) + 's" onclick="App.setTab(\'' + k + '\')">' + badge
       + '<span class="ti">' + p.icon + '</span><span class="tl">' + p.label + '</span><span class="ts">' + p.sub + '</span></button>';
