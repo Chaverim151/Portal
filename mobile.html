@@ -3,11 +3,12 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<meta name="trk-version" content="1.42">
+<meta name="trk-version" content="1.43">
 <meta name="trk-mode" content="mobile">
 <meta name="theme-color" content="#ffffff">
 <title>Compliance</title>
 <!-- 1.32: the same Hatzolah MC icon as CallDashboard, built in (no extra files to upload) -->
+<!-- 1.43: ⚙ Admin ▸ Members — tap a member for one page with everything (profile, to-do, documents, vehicles, jump bags) -->
 <!-- 1.42: checks no longer ask for expiration dates (dates are only in the ⏳ Expiration Dates boxes) -->
 <!-- 1.41: ⚙ Admin grouped into main tabs with sub-tabs, like CallDashboard -->
 <!-- 1.40: the "not the latest version — tap to update" bar, same as CallDashboard -->
@@ -127,6 +128,7 @@ h2{font-size:1.1rem;margin:18px 0 10px;color:var(--accent)}
 .admin-tab{background:none;border:none;border-bottom:3px solid transparent;color:var(--gray);font-family:'Oswald',sans-serif;font-size:.82rem;font-weight:700;letter-spacing:.06em;text-transform:uppercase;padding:12px 14px;cursor:pointer;white-space:nowrap}
 .admin-tab.on{color:var(--accent);border-bottom-color:var(--accent)}
 /* 1.41: sub-tabs inside an admin group (like CallDashboard's Fleet / Users / Security sub-tabs) */
+.lnk{background:none;border:none;padding:0;font:inherit;color:var(--accent);text-decoration:underline;cursor:pointer}
 .admin-subtabs{display:flex;gap:8px;flex-wrap:wrap;margin:-4px 0 14px}
 .admin-subtab{font-family:'Oswald',sans-serif;font-size:.75rem;letter-spacing:.08em;text-transform:uppercase;padding:6px 14px;border-radius:20px;border:1px solid var(--line);background:#fff;color:var(--gray);cursor:pointer;box-shadow:inset 0 0 0 1px rgba(31,35,40,.12)}
 .admin-subtab:hover{color:var(--text)}
@@ -305,7 +307,7 @@ td.rep-warn{color:var(--warn);font-weight:700}
     <div class="m-err" id="login-err"></div>
 
     <div style="text-align:center;margin-top:16px"><button class="m-forgot" onclick="App.forgotPw()">Forgot password?</button></div>
-    <div class="m-build">BUILD <span id="li-build">v1.42</span></div>
+    <div class="m-build">BUILD <span id="li-build">v1.43</span></div>
   </div>
 </div>
 <div id="boot" class="empty" style="margin-top:20vh">Signing in…</div>
@@ -384,7 +386,7 @@ function trkSmsPayload(phone, message, unit){
 function trkEmailPayload(email, name, subject, html){ return { to: [{ email: email, name: name || email }], subject: subject, body: html }; }
 
 /* ════════════════════════════════════════════════════════════════════════ */
-var TRK_VERSION = "1.42";
+var TRK_VERSION = "1.43";
 // 1.16: owner asked to block the tracker's notifications for now. While this is true the tracker sends NO texts and
 // NO emails (reminders and test reminders). Sign-in "Forgot password?" still works. Set to false to allow sending again.
 var TRK_SENDING_OFF = true;
@@ -1316,7 +1318,7 @@ function openVeh(id){ S.vehOpen = id || null; render(); window.scrollTo(0, 0); }
 function addVehicle(){ vehicleForm(null); }
 function editVehicle(id){ vehicleForm(S.myVehicles.filter(function(v){ return v.id === id; })[0] || S.allVehicles.filter(function(v){ return v.id === id; })[0]); }
 function vehicleForm(v){
-  var mine = S.myVehicles, y = new Date().getFullYear();
+  var mine = v && v.uid && S.me && v.uid !== S.me.uid ? S.allVehicles.filter(function(x){ return x.uid === v.uid; }) : S.myVehicles, y = new Date().getFullYear();   // 1.43: an admin editing a member's car sees that member's slots
   var taken = {}; mine.forEach(function(x){ if (!v || x.id !== v.id) taken[x.slot] = x; });
   var freeSlot = !taken[1] ? 1 : !taken[2] ? 2 : 0;
   var slot = v ? (v.slot || "") : freeSlot || "";
@@ -1519,7 +1521,9 @@ async function saveVehicle(id){
   var replacing = !id && $("vf-repl") && $("vf-repl").value === "yes";
   var replId = replacing && $("vf-repl-which") ? $("vf-repl-which").value : "";
   if (replacing && !replId) bad.push("There's no vehicle to replace — answer No to \"Replacing Vehicle?\"");
-  var other = S.myVehicles.filter(function(x){ return x.id !== id && x.id !== replId && x.slot === d.slot; })[0];
+  var cur0 = id ? S.myVehicles.concat(S.allVehicles).filter(function(x){ return x.id === id; })[0] : null;
+  var ownList = cur0 && cur0.uid && cur0.uid !== S.me.uid ? S.allVehicles.filter(function(x){ return x.uid === cur0.uid; }) : S.myVehicles;
+  var other = ownList.filter(function(x){ return x.id !== id && x.id !== replId && x.slot === d.slot; })[0];
   if (other) bad.push("Vehicle " + d.slot + " is already your " + vTitle(other) + ". Pick the other number, or answer Yes to \"Replacing Vehicle?\"");
   if (!id && !replacing && S.myVehicles.length >= 2) bad.push("You already have two vehicles. Answer Yes to \"Replacing Vehicle?\"");
   var papers = !id && S.vf ? Object.keys(S.vf.docs).filter(function(tid){ return S.vf.docs[tid] && S.vf.docs[tid].file && typeById(tid); }) : [];
@@ -2391,7 +2395,7 @@ function adminProfiles(){
   h += '<div class="tbl-wrap"><table><thead><tr><th>Unit</th><th>Name</th><th>Date of birth</th><th>Cell</th><th>Home address</th><th>Emergency contact</th><th class="c">Shirt</th><th class="c">Jacket</th><th></th></tr></thead><tbody>';
   S.users.forEach(function(u){
     var p = S.profiles[u.uid] || {}, a = p.home || {}, ec = p.emergency || {};
-    h += '<tr><td><b>' + esc(u.unit) + '</b></td><td>' + esc(u.name || "") + '</td><td>' + (p.dob ? fmtDate(p.dob) : '<span class="muted">—</span>') + '</td><td>' + esc(fmtPhone(u.phone)) + '</td>'
+    h += '<tr><td>' + memberLink(u) + '</td><td>' + esc(u.name || "") + '</td><td>' + (p.dob ? fmtDate(p.dob) : '<span class="muted">—</span>') + '</td><td>' + esc(fmtPhone(u.phone)) + '</td>'
       + '<td>' + (a.line1 ? esc(a.line1 + (a.city ? ", " + a.city : "") + (a.state ? " " + a.state : "")) : '<span class="muted">—</span>') + '</td>'
       + '<td>' + (ec.first || ec.last ? esc((ec.first + " " + ec.last).trim() + (ec.relationship ? " (" + ec.relationship + ")" : "")) + '<br><span class="muted">' + esc(ec.cell || ec.home || "") + '</span>' : '<span class="muted">—</span>') + '</td>'
       + '<td class="c">' + esc(sizeFor(p.shirt, y) || "—") + '</td><td class="c">' + esc(sizeFor(p.jacket, y) || "—") + '</td>'
@@ -2418,7 +2422,7 @@ function adminGroupOf(k){ return ADMIN_GROUPS.filter(function(g){ return g[2].so
 function adminGroup(gid){
   var g = ADMIN_GROUPS.filter(function(x){ return x[0] === gid; })[0]; if (!g) return;
   S.admLast = S.admLast || {};
-  S.adminTab = S.admLast[gid] || g[2][0][0]; render(); window.scrollTo(0, 0);
+  S.admMember = null; S.adminTab = S.admLast[gid] || g[2][0][0]; render(); window.scrollTo(0, 0);
 }
 function viewAdmin(){
   var pend = Object.values(S.allRecords).filter(function(r){ return r.status === "pending"; }).length;
@@ -2432,8 +2436,58 @@ function viewAdmin(){
   if (cur[2].length > 1) h += '<div class="admin-subtabs">' + cur[2].map(function(t){
     return '<button class="admin-subtab' + (S.adminTab === t[0] ? " on" : "") + '" onclick="App.adminTab(\'' + t[0] + '\')">' + t[1] + dirty(t[0]) + '</button>';
   }).join("") + '</div>';
+  if (S.admMember && cur[0] === "members") return h + adminMember(S.admMember);
   return h + ({ grid: adminGrid, review: adminReview, vehicles: adminVehicles, paper: adminPaper, bags: adminBags, profiles: adminProfiles, reports: adminReports, remind: adminRemind,
     rigcl: function(){ return panelChecklist("rigChecklist"); }, bagcl: function(){ return panelChecklist("bagChecklist"); }, docs: panelDocs, timing: panelTiming, msg: panelMsg }[S.adminTab] || adminGrid)();
+}
+// 1.43: ⚙ Admin ▸ Members ▸ tap a member → everything about that one member on one page
+function memberLink(u){ return '<button class="lnk" data-uid="' + esc(u.uid) + '" onclick="App.openMember(this.dataset.uid)" title="Open everything for ' + esc(u.unit) + '"><b>' + esc(u.unit) + '</b></button>'; }
+function openMember(uid){ S.admMember = uid || null; if (uid){ S.adminTab = adminGroupOf(S.adminTab)[0] === "members" ? S.adminTab : "grid"; } render(); window.scrollTo(0, 0); }
+function adminMember(uid){
+  var u = userByUid(uid);
+  if (!u) return '<div class="card empty">Member not found. <button class="btn sm" onclick="App.openMember(\'\')">← Back</button></div>';
+  var p = S.profiles[uid] || {}, a = p.home || {}, ec = p.emergency || {};
+  var vehs = S.allVehicles.filter(function(v){ return v.uid === uid; }), iss = memberIssues(u, S.allRecords, vehs, S.allBags[uid]);
+  var ctx = { owner: uid, unit: u.unit, name: u.name || "" };
+  var h = '<div class="row" style="margin-bottom:10px"><button class="btn" onclick="App.openMember(\'\')">← All members</button><span class="grow"></span>'
+    + '<button class="btn" data-uid="' + esc(uid) + '" onclick="App.openProfile(this.dataset.uid)">👤 Edit profile</button>'
+    + '<button class="btn" data-uid="' + esc(uid) + '" onclick="App.assignBags(this.dataset.uid)">🎒 Assign bags</button></div>';
+  h += '<div class="card"><h3 style="margin-bottom:6px">' + esc(u.unit) + (u.name ? ' · ' + esc(u.name) : '') + '</h3>'
+    + '<div class="muted" style="margin-bottom:6px">' + esc(rolesOf(u).join(", ")) + '</div><div class="kv">'
+    + (u.email ? '<span>E-mail</span><span>' + esc(u.email) + '</span>' : '') + (u.phone ? '<span>Cell</span><span>' + esc(fmtPhone(u.phone)) + '</span>' : '')
+    + (p.dob ? '<span>Date of birth</span><span>' + fmtDate(p.dob) + '</span>' : '')
+    + (a.line1 ? '<span>Home</span><span>' + esc([a.line1, a.line2].filter(Boolean).join(" ") + (a.city ? ", " + a.city : "") + (a.state ? " " + a.state : "") + (a.zip ? " " + a.zip : "")) + '</span>' : '')
+    + (ec.first || ec.last ? '<span>Emergency</span><span>' + esc(((ec.first || "") + " " + (ec.last || "")).trim() + (ec.relationship ? " (" + ec.relationship + ")" : "") + (ec.cell || ec.home ? " · " + (ec.cell || ec.home) : "")) + '</span>' : '')
+    + '<span>Uniform ' + thisYear() + '</span><span>Shirt ' + esc(sizeFor(p.shirt, thisYear()) || "—") + ' · Jacket ' + esc(sizeFor(p.jacket, thisYear()) || "—") + '</span>'
+    + '</div></div>';
+  h += '<div class="card"><h3>What needs fixing</h3>' + (iss.length ? iss.map(function(i){ return '<span class="pill p-' + i.lvl + '" style="margin:2px">' + esc(i.text) + '</span>'; }).join(" ") : '<span class="pill p-ok">✅ All good</span>');
+  var rl = S.reminderLog[uid]; h += '<div class="muted" style="margin-top:8px">Last reminder: ' + (rl ? fmtTs(rl.lastAt) + (rl.via ? " (" + esc(rl.via) + ")" : "") : "never") + '</div></div>';
+  h += '<h2>📄 Documents & Certifications</h2><div class="docs">' + docTypes("member").map(function(t){ return docCard(uid, t, S.allRecords[recKey(uid, t.id)], ctx); }).join("") + '</div>';
+  h += '<h2>🚗 Vehicles</h2>';
+  if (!vehs.length) h += '<div class="card empty">No vehicles on file.</div>';
+  vehs.slice().sort(function(x, y){ return (x.slot || 9) - (y.slot || 9); }).forEach(function(v){
+    h += '<div class="card"><div class="row">' + carImg(v, "", true) + '<div class="grow"><h3 style="margin:0">' + (v.slot ? '<span class="pill p-info">Vehicle ' + v.slot + '</span> ' : '') + esc(vTitle(v)) + '</h3>'
+      + '<div class="muted">' + [v.plate ? "Plate " + esc(v.plate) + (v.regState ? " (" + esc(v.regState) + ")" : "") : "", v.color ? esc(v.color) : "", v.vin ? "VIN " + esc(v.vin) : ""].filter(Boolean).join(" · ") + '</div></div>'
+      + '<button class="btn sm" data-id="' + esc(v.id) + '" onclick="App.editVehicle(this.dataset.id)">Edit</button></div><div class="docs" style="margin-top:10px">'
+      + docTypes("vehicle").map(function(t){ return docCard("v_" + v.id, t, S.allRecords[recKey("v_" + v.id, t.id)], Object.assign({ veh: "v_" + v.id, vehName: vTitle(v) }, ctx)); }).join("") + '</div></div>';
+  });
+  var asg = bagAssignOf(uid);
+  h += '<h2>🎒 Jump Bags</h2>';
+  [""].concat(asg.extra.map(function(x){ return x.id; })).forEach(function(bid){
+    var st0 = personalBagStatus(uid, bid), bs = bagState(st0), rows = bagExpRows(uid, bid);
+    if (!bid && !bagRequired(u) && !st0 && !bagDatesOf(uid, "")){ h += '<div class="card muted">Primary bag: not required for this member\'s role.</div>'; return; }
+    h += '<div class="card"><div class="row"><h3 class="grow" style="margin:0">🎒 ' + esc(personalBagName(uid, bid)) + '</h3>' + pillFor(bs) + '</div>'
+      + '<div class="muted" style="margin-top:6px">Last checked: <b>' + (st0 && st0.lastAt ? fmtTs(st0.lastAt) : "Never") + '</b></div>'
+      + (st0 && st0.missing && st0.missing.length ? '<div class="note" style="background:#fff4d6;border-color:#e2c27a;color:#5c3c00"><b>Missing:</b> ' + st0.missing.map(function(m){ return esc(m.n) + (m.note ? " — " + esc(m.note) : ""); }).join(", ") + '</div>' : '')
+      + (rows.length ? expDetails(rows, expTable(uid, bid), 'data-uid="' + esc(uid) + '" data-bag="' + esc(bid) + '" onclick="App.editBagExp(this.dataset.uid, this.dataset.bag)"') : '') + '</div>';
+  });
+  asg.fleet.map(fleetBagById).filter(Boolean).forEach(function(v){
+    var bs = S.allBags["org_" + v.id], orows = obExpRows(v.id);
+    h += '<div class="card"><div class="row"><h3 class="grow" style="margin:0">🧰 ' + esc(bagLabel(v)) + ' <span class="muted" style="font-weight:400">(looks after)</span></h3>' + pillFor(bagState(bs)) + '</div>'
+      + '<div class="muted" style="margin-top:6px">Last checked: <b>' + (bs && bs.lastAt ? fmtTs(bs.lastAt) + (bs.by ? " by " + esc(bs.by) : "") : "Never") + '</b></div>'
+      + (orows.length ? expDetails(orows, obExpTable(v.id), 'data-id="' + esc(v.id) + '" onclick="App.editObExp(this.dataset.id)"') : '') + '</div>';
+  });
+  return h;
 }
 function legend(){
   return '<div class="legend"><span><i class="dot d-ok"></i>Valid</span><span><i class="dot d-info"></i>Waiting for review</span><span><i class="dot d-warn"></i>Expiring soon</span><span><i class="dot d-bad"></i>Expired / rejected / overdue</span><span><i class="dot d-missing"></i>Missing</span><span><i class="dot d-na"></i>Not required</span></div>';
@@ -2444,10 +2498,10 @@ function adminGrid(){
     if (!S.gridOnlyProblems) return true;
     return memberIssues(u, S.allRecords, S.allVehicles.filter(function(v){ return v.uid === u.uid; }), S.allBags[u.uid]).length > 0;
   });
-  var h = '<div class="row"><label style="margin:0;display:flex;gap:6px;align-items:center;font-weight:400;color:var(--text)"><input type="checkbox" style="width:auto" ' + (S.gridOnlyProblems ? "checked" : "") + ' onchange="App.gridFilter(this.checked)"> Only members with problems</label></div>' + legend();
+  var h = '<div class="muted" style="margin-bottom:6px">Tap a unit number to see everything for that member.</div><div class="row"><label style="margin:0;display:flex;gap:6px;align-items:center;font-weight:400;color:var(--text)"><input type="checkbox" style="width:auto" ' + (S.gridOnlyProblems ? "checked" : "") + ' onchange="App.gridFilter(this.checked)"> Only members with problems</label></div>' + legend();
   h += '<div class="tbl-wrap"><table><thead><tr><th>Unit</th><th>Name</th>' + ts.map(function(t){ return '<th class="c">' + esc(t.name) + '</th>'; }).join("") + '<th class="c">Vehicles</th><th class="c">Jump bag</th></tr></thead><tbody>';
   users.forEach(function(u){
-    h += '<tr><td><b>' + esc(u.unit) + '</b></td><td>' + esc(u.name || "") + '</td>';
+    h += '<tr><td>' + memberLink(u) + '</td><td>' + esc(u.name || "") + '</td>';
     ts.forEach(function(t){
       var key = recKey(u.uid, t.id), rec = S.allRecords[key], st = recStatus(rec, t);
       h += '<td class="c"><button class="dot ' + (st.k === "missing" ? "d-missing" : "d-" + st.lvl) + '" style="cursor:pointer" title="' + esc(t.name + ": " + st.lbl + (rec && rec.expires ? " (" + fmtDate(rec.expires) + ")" : "")) + '" data-id="' + esc(key) + '" data-uid="' + esc(u.uid) + '" data-t="' + esc(t.id) + '" onclick="App.gridCell(this)"></button></td>';
@@ -2609,7 +2663,7 @@ function adminBags(){
     var asg = bagAssignOf(u.uid), bagsTxt = ["Primary"].concat(asg.extra.map(function(x){ return x.name; })).concat(asg.fleet.map(function(f){ var fv = fleetBagById(f); return fv ? "🧰 " + bagLabel(fv) : ""; }).filter(Boolean)).join(", ");
     var worst = [""].concat(asg.extra.map(function(x){ return x.id; })).map(function(bid){ return bagState(personalBagStatus(u.uid, bid)); }).concat(asg.fleet.map(function(f){ return bagState(S.allBags["org_" + f]); }))
       .sort(function(x, y){ var o = { bad: 0, warn: 1, info: 2, ok: 3, na: 4 }; return o[x.lvl] - o[y.lvl]; })[0] || st;
-    h += '<tr><td><b>' + esc(u.unit) + '</b></td><td>' + esc(u.name || "") + '</td><td style="white-space:normal;min-width:140px">' + esc(bagsTxt) + '</td><td>' + (b ? fmtTs(b.lastAt) : "Never") + '</td><td>' + pillFor(asg.extra.length || asg.fleet.length ? worst : st) + '</td>'
+    h += '<tr><td>' + memberLink(u) + '</td><td>' + esc(u.name || "") + '</td><td style="white-space:normal;min-width:140px">' + esc(bagsTxt) + '</td><td>' + (b ? fmtTs(b.lastAt) : "Never") + '</td><td>' + pillFor(asg.extra.length || asg.fleet.length ? worst : st) + '</td>'
       + '<td style="white-space:normal">' + (b && b.missing && b.missing.length ? b.missing.map(function(m){ return esc(m.n); }).join(", ") : '<span class="muted">—</span>') + '</td>'
       + '<td style="white-space:normal">' + expCell + '</td>'
       + '<td><div class="row" style="flex-wrap:nowrap"><button class="btn sm" data-uid="' + esc(u.uid) + '" onclick="App.viewBagExp(this.dataset.uid)">Dates</button><button class="btn sm" data-uid="' + esc(u.uid) + '" onclick="App.assignBags(this.dataset.uid)">🎒 Bags…</button><button class="btn sm" data-uid="' + esc(u.uid) + '" onclick="App.bagHistory(this.dataset.uid)">History</button></div></td></tr>';
@@ -2643,7 +2697,7 @@ function adminRemind(){
   h += '<div class="tbl-wrap"><table><thead><tr><th><input type="checkbox" style="width:auto" onchange="document.querySelectorAll(\'.rm-pick\').forEach(function(c){c.checked=this.checked}.bind(this))"></th><th>Unit</th><th>Items</th><th>Last reminder</th></tr></thead><tbody>';
   rows.forEach(function(r){
     var last = S.reminderLog[r.u.uid], recent = last && daysAgo(last.lastAt) < cool;
-    h += '<tr><td><input type="checkbox" class="rm-pick" style="width:auto" value="' + esc(r.u.uid) + '" ' + (recent ? "" : "checked") + '></td><td><b>' + esc(r.u.unit) + '</b><br><span class="muted">' + esc(r.u.name || "") + '</span></td>'
+    h += '<tr><td><input type="checkbox" class="rm-pick" style="width:auto" value="' + esc(r.u.uid) + '" ' + (recent ? "" : "checked") + '></td><td>' + memberLink(r.u) + '<br><span class="muted">' + esc(r.u.name || "") + '</span></td>'
       + '<td style="white-space:normal">' + r.iss.map(function(i){ return '<span class="pill p-' + i.lvl + '" style="margin:1px">' + esc(i.text) + '</span>'; }).join(" ") + '</td>'
       + '<td>' + (last ? fmtTs(last.lastAt) + '<br><span class="muted">' + esc(last.via || "") + '</span>' : '<span class="muted">Never</span>') + '</td></tr>';
   });
@@ -3168,7 +3222,7 @@ window.App = {
   startBagCheck: startBagCheck, bagHistory: bagHistory, startRigCheck: startRigCheck, rigHistory: rigHistory, rigFixed: rigFixed,
   rigSub: function(s){ S.rigSub = s; render(); },
   ck: ck, ckSection: ckSection, ckNote: ckNote, ckQ: ckQ, ckSecNote: ckSecNote, saveCheck: saveCheck,
-  adminTab: function(t){ S.adminTab = t; render(); window.scrollTo(0, 0); }, adminGroup: adminGroup, goHome: goHome, gridFilter: function(v){ S.gridOnlyProblems = v; render(); },
+  adminTab: function(t){ S.adminTab = t; S.admMember = null; render(); window.scrollTo(0, 0); }, adminGroup: adminGroup, openMember: openMember, goHome: goHome, gridFilter: function(v){ S.gridOnlyProblems = v; render(); },
   gridCell: gridCell, markNA: markNA, openRecord: openRecord, review: review, deleteRecord: deleteRecord,
   remindTest: remindTest, sendReminders: sendReminders,
   repView: repView, repXlsx: repXlsx, repAll: repAll, repDates: repDates, repPrint: repPrint,
