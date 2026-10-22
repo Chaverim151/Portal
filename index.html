@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<meta name="trk-version" content="1.68">
+<meta name="trk-version" content="1.70">
 <meta name="trk-mode" content="desktop">
 <script>
 // 1.58: a phone that opens the computer version (Portal/ = index.html) is sent to the phone version, like CallDashboard
@@ -417,7 +417,7 @@ td.rep-warn{color:var(--warn);font-weight:700}
     <div class="m-err" id="login-err"></div>
 
     <div style="text-align:center;margin-top:16px"><button class="m-forgot" onclick="App.forgotPw()">Forgot password?</button></div>
-    <div class="m-build">BUILD <span id="li-build">v1.68</span></div>
+    <div class="m-build">BUILD <span id="li-build">v1.70</span></div>
   </div>
 </div>
 <div id="boot" class="empty" style="margin-top:20vh">Signing in…</div>
@@ -497,7 +497,7 @@ function trkSmsPayload(phone, message, unit){
 function trkEmailPayload(email, name, subject, html){ return { to: [{ email: email, name: name || email }], subject: subject, body: html }; }
 
 /* ════════════════════════════════════════════════════════════════════════ */
-var TRK_VERSION = "1.68";
+var TRK_VERSION = "1.70";
 // 1.16: owner asked to block the tracker's notifications for now. While this is true the tracker sends NO texts and
 // NO emails (reminders and test reminders). Sign-in "Forgot password?" still works. Set to false to allow sending again.
 var TRK_SENDING_OFF = true;
@@ -821,7 +821,7 @@ function viewObExp(bid){
 }
 function editObExp(bid){
   var v = fleetBagById(bid);
-  openModal("⏳ " + (v ? bagLabel(v) : bid) + " — Expiration Dates", '<p class="muted">Enter the expiration date printed on each item in the bag — or tap 📷 and take a photo of the label.</p>' + obExpInputs(bid),
+  openModal("⏳ " + (v ? bagLabel(v) : bid) + " — Expiration Dates", '<p class="muted">Enter the expiration date printed on each item in the bag — or tap 📷 and take a photo of the label. If only a month and year are printed, use the last day of that month.</p>' + obExpInputs(bid),
     '<button class="btn" onclick="App.closeModal()">Cancel</button><button class="btn gold" data-id="' + esc(bid) + '" onclick="App.saveObExp(this.dataset.id)">Save</button>');
 }
 async function saveObExp(bid){
@@ -834,7 +834,7 @@ async function saveObExp(bid){
 function rigExpSummary(vid){ return expSumRows(rigExpRows(vid)); }
 function editRigExp(vid){
   var v = S.fleet.filter(function(x){ return x.id === vid; })[0];
-  openModal("⏳ " + (v ? vName(v) : vid) + " — Expiration Dates", '<p class="muted">Enter the expiration date printed on each item on the ambulance — or tap 📷 and take a photo of the label.</p>' + rigExpInputs(vid),
+  openModal("⏳ " + (v ? vName(v) : vid) + " — Expiration Dates", '<p class="muted">Enter the expiration date printed on each item on the ambulance — or tap 📷 and take a photo of the label. If only a month and year are printed, use the last day of that month.</p>' + rigExpInputs(vid),
     '<button class="btn" onclick="App.closeModal()">Cancel</button><button class="btn gold" data-id="' + esc(vid) + '" onclick="App.saveRigExp(this.dataset.id)">Save</button>');
 }
 async function saveRigExp(vid){
@@ -2060,25 +2060,42 @@ async function upScan(){
   }
   $("up-scan-btn").disabled = false;
 }
+// 1.69: a medication's expiry with no day of the month (e.g. "2027-03", "03/2027", "MAR 2027") = the LAST day of that month
+function expDateFrom(raw){
+  var v = String(raw || "").trim().toUpperCase(), y, m, d, M = { JAN:1, FEB:2, MAR:3, APR:4, MAY:5, JUN:6, JUL:7, AUG:8, SEP:9, OCT:10, NOV:11, DEC:12 }, x;
+  if ((x = v.match(/^(\d{4})-(\d{1,2})-(\d{1,2})$/))){ y = +x[1]; m = +x[2]; d = +x[3]; }
+  else if ((x = v.match(/^(\d{1,2})[\/.\-](\d{1,2})[\/.\-](\d{2}|\d{4})$/))){ m = +x[1]; d = +x[2]; y = +x[3]; }
+  else if ((x = v.match(/^(\d{4})[\/.\-](\d{1,2})$/))){ y = +x[1]; m = +x[2]; }
+  else if ((x = v.match(/^(\d{1,2})[\/.\-](\d{2}|\d{4})$/))){ m = +x[1]; y = +x[2]; }
+  else if ((x = v.match(/^([A-Z]{3})[A-Z]*\.?[\s\-\/]*(\d{2}|\d{4})$/)) && M[x[1]]){ m = M[x[1]]; y = +x[2]; }
+  else if ((x = v.match(/^(\d{2}|\d{4})[\s\-\/]*([A-Z]{3})[A-Z]*$/)) && M[x[2]]){ y = +x[1]; m = M[x[2]]; }
+  else return "";
+  if (y < 100) y += 2000;
+  if (!(m >= 1 && m <= 12) || y < 2000 || y > 2100) return "";
+  var last = new Date(y, m, 0).getDate();
+  if (d == null) d = last;
+  if (!(d >= 1 && d <= last)) return "";
+  return y + "-" + pad(m) + "-" + pad(d);
+}
 // 1.65: 📷 next to each item in an Expiration Dates form — photo of the label → the AI reads the date into the box
 function expScan(btn){
   var pick = document.createElement("input"); pick.type = "file"; pick.accept = "image/*"; pick.setAttribute("capture", "environment");
   pick.onchange = async function(){
     var f = pick.files && pick.files[0]; if (!f) return;
-    var el = $(btn.dataset.id), n = btn.dataset.n; if (!el) return;
-    btn.disabled = true; btn.textContent = "⏳";
+    var el = $(btn.dataset.id), n = btn.dataset.n, label = btn.textContent; if (!el) return;
+    btn.disabled = true; btn.textContent = label.length > 3 ? "⏳ Reading the label…" : "⏳";
     try {
       var blob = await shrinkForScan(f, 0);
       var data = await new Promise(function(res, rej){ var r = new FileReader(); r.onload = function(){ res(String(r.result).split(",")[1]); }; r.onerror = rej; r.readAsDataURL(blob); });
       var r = await callFn("docScan", { docType: "label on " + n + " (medical supply)", mime: "image/jpeg", data: data,
-        fields: [{ key: "expires", label: "Expiration / use-by date on the item. Month+year only = last day of that month", date: true }] });
-      var v = r && r.fields && r.fields.expires;
+        fields: [{ key: "expires", label: "Expiration/use-by date exactly as printed, as YYYY-MM-DD, or YYYY-MM if no day is printed" }] });
+      var v = expDateFrom(r && r.fields && r.fields.expires);
       if (v){ el.value = v; el.classList.add("scanned"); toast("✓ " + n + ": " + fmtDate(v) + (r.matches === false ? " — check it's the right item" : "")); }
       else toast("Couldn't read a date for " + n + " — try a closer photo, or type it in.", 5000);
     } catch (e){
       toast(/404|Failed to fetch|not.?found/i.test(e.message) ? "Scanning isn't set up on the server yet — type the date in." : "Couldn't scan (" + e.message + ") — type the date in.", 6000);
     }
-    btn.disabled = false; btn.textContent = "📷";
+    btn.disabled = false; btn.textContent = label;
   };
   pick.click();
 }
@@ -2247,9 +2264,12 @@ function expOne(btn){
   var cur = kind === "rig" ? ((S.rigStatus[id] || {}).expDates || {})[item] : kind === "org" ? ((S.allBags["org_" + id] || {}).expDates || {})[item] : (bagDatesOf(id, bag) || {})[item];
   var back = S._expBack = { kind: kind, id: id, bag: bag, i: i, item: item, reopen: kind === "org" && !$("modal-bg").hidden };
   openModal("⏳ " + item, '<label for="exp1">Expiration date</label><input id="exp1" type="date" value="' + esc(cur || "") + '">'
+    // 1.70: scan the label here too (this is how a single date is changed, mostly on phones)
+    + '<button class="btn gold" type="button" style="margin-top:10px;width:100%" data-id="exp1" data-n="' + esc(item) + '" onclick="App.expScan(this)">📷 Scan the label</button>'
+    + '<div class="muted" style="margin-top:6px">If only a month and year are printed, the last day of that month is used.</div>'
     + (cur ? '<div class="muted" style="margin-top:6px">Now: ' + fmtDash(cur) + ' — ' + esc(expState(cur).lbl) + '</div>' : ''),
     '<button class="btn" onclick="App.expOneCancel()">Cancel</button><button class="btn gold" id="exp1-save" onclick="App.expOneSave()">Save</button>');
-  setTimeout(function(){ var el = $("exp1"); if (el) el.focus(); }, 50);
+  if (TRK_MODE !== "mobile") setTimeout(function(){ var el = $("exp1"); if (el) el.focus(); }, 50);   // 1.70: on phones don't pop the date wheel over the 📷 button
 }
 function expOneCancel(){ var b = S._expBack; closeModal(); if (b && b.reopen) viewObExp(b.id); }
 async function expOneSave(){
@@ -2283,7 +2303,7 @@ function readExpInputs(){
 function editBagExp(uid, bid){
   uid = uid || S.me.uid; bid = bid || "";
   var u = uid === S.me.uid ? S.me : userByUid(uid);
-  openModal("⏳ " + personalBagName(uid, bid) + " — Expiration Dates" + (uid !== S.me.uid ? " — " + u.unit : ""), '<p class="muted">Enter the expiration date printed on each item in the bag — or tap 📷 and take a photo of the label.</p>' + expInputs(uid, bid),
+  openModal("⏳ " + personalBagName(uid, bid) + " — Expiration Dates" + (uid !== S.me.uid ? " — " + u.unit : ""), '<p class="muted">Enter the expiration date printed on each item in the bag — or tap 📷 and take a photo of the label. If only a month and year are printed, use the last day of that month.</p>' + expInputs(uid, bid),
     '<button class="btn" onclick="App.closeModal()">Cancel</button><button class="btn gold" id="exp-save" data-uid="' + esc(uid) + '" data-bag="' + esc(bid) + '" onclick="App.saveBagExp(this.dataset.uid, this.dataset.bag)">Save</button>');
 }
 async function saveBagExp(uid, bid){
