@@ -3,9 +3,10 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<meta name="trk-version" content="1.01">
+<meta name="trk-version" content="1.02">
 <meta name="theme-color" content="#ffffff">
 <title>Compliance Tracker</title>
+<link href="https://fonts.googleapis.com/css2?family=Oswald:wght@400;600;700&family=Source+Sans+3:wght@300;400;600&display=swap" rel="stylesheet">
 <style>
 /* Basic look — same colours as CallDashboard / HCAD "Basic" (white background, simple buttons) */
 :root{
@@ -46,11 +47,33 @@ h2{font-size:1.1rem;margin:18px 0 10px;color:var(--accent)}
 .p-info{background:#eaf2fb;color:var(--info);border-color:#a9c7ea}
 .p-na{background:var(--soft2);color:var(--gray);border-color:var(--line)}
 
-/* sign in */
-#login{max-width:380px;margin:12vh auto 0;padding:0 16px}
-#login .card{padding:22px}
-#login h1{font-size:1.3rem;margin:0 0 4px;color:var(--accent)}
-#login-err{color:var(--bad);min-height:1.2em;margin-top:8px;font-size:.9rem}
+/* sign in — copied from CallDashboard's phone login (Basic look) */
+#login{min-height:100vh;display:flex;align-items:center;justify-content:center;padding:40px 16px}
+.m-login-box{width:100%;max-width:400px;background:#fff;border:1px solid var(--line);border-radius:18px;padding:36px 32px 32px;animation:fadeUp .5s ease both}
+@keyframes fadeUp{from{opacity:0;transform:translateY(12px)}to{opacity:1;transform:none}}
+.m-login-logo{text-align:center;margin-bottom:22px}
+.m-login-logo img{width:72px}
+.m-login-title{text-align:center;font-family:'Oswald',sans-serif;font-size:1.25rem;font-weight:700;letter-spacing:.07em;text-transform:uppercase;margin-bottom:4px;color:var(--text)}
+.m-login-title span{color:var(--accent)}
+.m-login-sub{text-align:center;font-size:.72rem;color:var(--gray);letter-spacing:.1em;text-transform:uppercase;margin-bottom:28px}
+.m-field{margin-bottom:16px}
+.m-label{display:block;font-size:.72rem;letter-spacing:.1em;text-transform:uppercase;color:var(--gray);margin:0 0 6px;font-weight:400}
+.m-unit-wrap{display:flex;align-items:center;background:var(--soft2);border:1px solid var(--line);border-radius:8px;overflow:hidden;transition:border-color .2s}
+.m-unit-wrap:focus-within{border-color:var(--accent)}
+.m-unit-prefix{padding:12px 10px 12px 14px;font-family:'Oswald',sans-serif;font-size:1rem;font-weight:600;color:var(--accent);border-right:1px solid var(--line);background:rgba(29,63,114,.06);white-space:nowrap}
+.m-unit-input{background:transparent;border:none;padding:12px 14px;color:var(--text);font-size:16px;outline:none;flex:1;border-radius:0}
+.m-input{width:100%;background:var(--soft2);border:1px solid var(--line);border-radius:8px;padding:12px 14px;color:var(--text);font-size:16px;outline:none;transition:border-color .2s}
+.m-input:focus{border-color:var(--accent)}
+.m-pw-wrap{position:relative}
+.m-pw-wrap .m-input{padding-right:44px}
+.m-pw-toggle{position:absolute;right:12px;top:50%;transform:translateY(-50%);background:none;border:none;color:var(--gray);cursor:pointer;padding:4px;display:flex}
+.m-signin-btn{width:100%;margin-top:8px;background:var(--accent);color:#fff;border:none;border-radius:6px;font-size:1rem;font-weight:600;padding:14px;cursor:pointer;box-shadow:inset 0 0 0 1px rgba(0,0,0,.25)}
+.m-signin-btn:hover{background:var(--accent-dk)}
+.m-signin-btn:disabled{opacity:.6;cursor:not-allowed}
+.m-err{margin-top:14px;padding:10px 14px;background:#fdecea;border:1px solid #f2c4bf;border-radius:7px;font-size:.82rem;color:var(--bad);text-align:center;display:none}
+.m-err.show{display:block}
+.m-forgot{background:none;border:none;color:var(--gray);font-size:.78rem;cursor:pointer;text-decoration:underline}
+.m-build{text-align:center;margin-top:18px;font-size:.72rem;font-weight:700;letter-spacing:.1em;color:var(--accent);border:1px solid rgba(29,63,114,.4);border-radius:6px;padding:6px 12px;display:inline-block;position:relative;left:50%;transform:translateX(-50%)}
 
 /* app shell */
 #topbar{position:sticky;top:0;z-index:20;background:#fff;border-bottom:1px solid var(--line);
@@ -146,17 +169,39 @@ tbody tr:hover{background:var(--soft)}
 </head>
 <body>
 
-<!-- ═══════════ SIGN IN ═══════════ -->
+<!-- ═══════════ SIGN IN (same as CallDashboard's login) ═══════════ -->
 <div id="login" hidden>
-  <div class="card">
-    <h1>Compliance Tracker</h1>
-    <div class="muted">Sign in with your unit number and your CallDashboard password.</div>
-    <label for="li-unit">Unit number</label>
-    <input id="li-unit" autocomplete="username" autocapitalize="characters" placeholder="MC-16">
-    <label for="li-pw">Password</label>
-    <input id="li-pw" type="password" autocomplete="current-password">
-    <div id="login-err"></div>
-    <button class="btn gold" style="width:100%;margin-top:10px" id="li-btn" onclick="App.signIn()">Sign in</button>
+  <div class="m-login-box">
+    <div class="m-login-logo">
+      <img id="li-logo" src="https://i.ibb.co/j40wTVT/hatzolah-middelessex-county-final-removebg-preview-1-20231129-233435-0000.png" alt="Logo">
+    </div>
+    <div class="m-login-title" id="li-title">Hatzolah <span>MC</span></div>
+    <div class="m-login-sub">Compliance Tracker — Authorized Personnel Only</div>
+
+    <div class="m-field">
+      <label class="m-label" for="li-unit">Unit Number</label>
+      <div class="m-unit-wrap">
+        <span class="m-unit-prefix" id="li-prefix">MC-</span>
+        <input class="m-unit-input" id="li-unit" type="text" inputmode="numeric" placeholder="Enter Unit ID" maxlength="4" autocomplete="off"
+          oninput="this.value=this.value.replace(/[^0-9]/g,'')">
+      </div>
+    </div>
+
+    <div class="m-field">
+      <label class="m-label" for="li-pw">Password</label>
+      <div class="m-pw-wrap">
+        <input class="m-input" id="li-pw" type="password" placeholder="Enter Password" autocomplete="current-password">
+        <button class="m-pw-toggle" type="button" id="li-eye" onclick="App.togglePw()" aria-label="Show password">
+          <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
+        </button>
+      </div>
+    </div>
+
+    <button class="m-signin-btn" id="li-btn" onclick="App.signIn()">Sign In</button>
+    <div class="m-err" id="login-err"></div>
+
+    <div style="text-align:center;margin-top:16px"><button class="m-forgot" onclick="App.forgotPw()">Forgot password?</button></div>
+    <div class="m-build">BUILD <span id="li-build">v1.02</span></div>
   </div>
 </div>
 <div id="boot" class="empty" style="margin-top:20vh">Signing in…</div>
@@ -200,27 +245,38 @@ tbody tr:hover{background:var(--soft)}
    SETUP — the only part you need to change
    ════════════════════════════════════════════════════════════════════════ */
 var TRK_CONFIG = {
-  // Copy the firebaseConfig block from index.html (CallDashboard) and paste it here.
+  // Same project as CallDashboard (copied from mobile.html)
   firebaseConfig: {
-    apiKey: "PASTE-FROM-INDEX.HTML",
+    apiKey: "AIzaSyDFWxlw9aLIn9HB2L_B6vbhvY5-nlXhpHM",
     authDomain: "hvac-ops.firebaseapp.com",
     projectId: "hvac-ops",
-    storageBucket: "PASTE-FROM-INDEX.HTML",
-    messagingSenderId: "PASTE-FROM-INDEX.HTML",
-    appId: "PASTE-FROM-INDEX.HTML"
+    storageBucket: "hvac-ops.firebasestorage.app",
+    messagingSenderId: "636260762798",
+    appId: "1:636260762798:web:2ae24d5c15f3aeb315993f"
   },
+
   // Where your Cloud Functions live (same address CallDashboard calls sendSms / sendEmail on).
-  functionsBase: "https://us-central1-hvac-ops.cloudfunctions.net",
+  functionsBase: "https://us-central1-hvac-ops.cloudfunctions.net",   // same as CallDashboard
   unitPrefix: "MC-"
 };
 
-// How a text / email is handed to your existing sendSms / sendEmail functions.
-// If CallDashboard sends them with different field names, change only these two lines.
-function trkSmsPayload(phones, message, units){ return { to: phones, message: message, log: { kind: "Compliance reminder", phoneUnits: units } }; }
-function trkEmailPayload(emails, subject, html){ return { to: emails, subject: subject, html: html }; }
+// Texts and emails go through CallDashboard's own sendSms / sendEmail functions, in the same format
+// mobile.html uses (mSendClickSendSMS / mSendClickSendEmail). In Test Mode the server sends only to you.
+function trkPhone(phone){
+  var raw = String(phone || "").split(/[\/|]/)[0].trim().replace(/\D/g, "");
+  if (raw.length === 11 && raw[0] === "1") raw = raw.slice(1);
+  return raw.length === 10 ? "+1" + raw : "";
+}
+function trkSmsPayload(phone, message, unit){
+  var pu = {}; pu[phone] = unit;
+  var p = { type: "sms", log: { kind: "Compliance reminder", phoneUnits: pu }, messages: [{ to: phone, body: message }] };
+  if (S.me && S.me.sysTestingMode) p.testMode = true;
+  return p;
+}
+function trkEmailPayload(email, name, subject, html){ return { to: [{ email: email, name: name || email }], subject: subject, body: html }; }
 
 /* ════════════════════════════════════════════════════════════════════════ */
-var TRK_VERSION = "1.01";
+var TRK_VERSION = "1.02";
 
 var DEFAULT_SETTINGS = {
   docTypes: [
@@ -317,7 +373,7 @@ function normUnit(u){
   u = String(u || "").trim().toUpperCase().replace(/\s+/g, "");
   var pre = TRK_CONFIG.unitPrefix.toUpperCase();
   var bare = pre.replace(/-$/, "");
-  if (/^\d+$/.test(u)) return pre + (u.length < 2 ? "0" + u : u);
+  if (/^\d+$/.test(u)) return pre + u;   // same as the CAD: "5" → MC-5, "02" → MC-02
   if (u.indexOf(bare) === 0 && u.indexOf(pre) !== 0) u = pre + u.slice(bare.length).replace(/^-/, "");
   return u;
 }
@@ -408,25 +464,56 @@ function memberIssues(u, records, vehicles, bag){
 /* ════════════════════════════════════════════════════════════════════════
    SIGN IN / OUT
    ════════════════════════════════════════════════════════════════════════ */
+function loginErr(msg){ var e = $("login-err"); e.textContent = msg || ""; e.classList.toggle("show", !!msg); }
 async function signIn(){
-  var unit = normUnit($("li-unit").value), pw = $("li-pw").value;
-  $("login-err").textContent = "";
-  if (!unit || !pw){ $("login-err").textContent = "Enter your unit number and password."; return; }
-  $("li-btn").disabled = true; $("li-btn").textContent = "Signing in…";
+  var digits = ($("li-unit").value || "").trim(), pw = $("li-pw").value;
+  loginErr("");
+  if (!digits || !pw){ loginErr("Enter unit number and password."); return; }
+  var unit = normUnit(digits);
+  var btn = $("li-btn"); btn.disabled = true; btn.textContent = "Signing in...";
   try {
     var snap = await db.collection("unitLookup").doc(unit).get();
-    var email = snap.exists ? (snap.data().email || snap.data().authEmail) : null;
-    if (!email) throw { code: "no-unit" };
+    if (!snap.exists) throw { msg: "Unit not found. Check your unit number." };
+    var email = snap.data().email;
+    if (!email) throw { msg: "No email on file for this unit." };
     await auth.signInWithEmailAndPassword(email, pw);
   } catch (e){
     var c = e && e.code;
-    $("login-err").textContent = c === "no-unit" ? "We couldn't find unit " + unit + "."
+    loginErr(e && e.msg ? e.msg
       : (c === "auth/wrong-password" || c === "auth/invalid-credential" || c === "auth/invalid-login-credentials") ? "Wrong password. Use your CallDashboard password."
       : c === "auth/too-many-requests" ? "Too many tries. Wait a few minutes and try again."
-      : "Couldn't sign in (" + (c || (e && e.message) || "unknown") + ").";
+      : (e && e.message) || "Sign in failed.");
   }
-  $("li-btn").disabled = false; $("li-btn").textContent = "Sign in";
+  btn.disabled = false; btn.textContent = "Sign In";
 }
+function togglePw(){
+  var inp = $("li-pw"); inp.type = inp.type === "password" ? "text" : "password";
+  $("li-eye").style.color = inp.type === "text" ? "var(--accent)" : "var(--gray)";
+}
+// Same as CallDashboard's "Forgot password?": the server emails a reset link to the address on file
+async function forgotPw(){
+  var digits = ($("li-unit").value || "").trim();
+  if (!digits){ loginErr("Enter your unit number first."); return; }
+  loginErr(""); toast("Sending…");
+  try {
+    var r = await fetch(TRK_CONFIG.functionsBase + "/textPasswordLink", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ data: { unit: normUnit(digits) } }) });
+    var j = await r.json().catch(function(){ return {}; });
+    if (!r.ok || j.error) throw new Error((j.error && j.error.message) || ("HTTP " + r.status));
+    toast("✓ " + ((j.result && j.result.message) || "If that unit number is registered, a link was emailed to the address on file."), 6000);
+  } catch (e){ toast("Couldn't send the link: " + e.message, 6000); }
+}
+// Logo, name and unit prefix from Admin ▸ Organization (readable before sign-in, like the CAD's login)
+function applyOrgLogin(o){
+  if (!o) return;
+  if (o.logo) $("li-logo").src = o.logo;
+  if (o.unitPrefix){ TRK_CONFIG.unitPrefix = o.unitPrefix; $("li-prefix").textContent = o.unitPrefix; }
+  var short = o.shortName || "";
+  if (short){ var parts = short.split(" "); var last = parts.length > 1 ? parts.pop() : ""; $("li-title").innerHTML = esc(parts.join(" ")) + (last ? " <span>" + esc(last) + "</span>" : ""); }
+}
+try { applyOrgLogin(JSON.parse(localStorage.getItem("orgCfg") || "null")); } catch (e){}
+db.collection("appdata").doc("org").get().then(function(d){ if (d.exists){ S.org = d.data(); applyOrgLogin(S.org); } }).catch(function(){});
+$("li-build").textContent = "v" + TRK_VERSION;
+$("li-unit").addEventListener("keydown", function(e){ if (e.key === "Enter") $("li-pw").focus(); });
 function signOut(){ stopListeners(); auth.signOut(); }
 $("li-pw").addEventListener("keydown", function(e){ if (e.key === "Enter") signIn(); });
 
@@ -1096,8 +1183,9 @@ async function callFn(name, data){
 }
 async function sendOne(u, iss, viaSms, viaEmail){
   var v = reminderVars(u, iss), T = S.settings.templates, sent = [];
-  if (viaSms && u.phone){ await callFn("sendSms", trkSmsPayload([u.phone], fillTpl(T.sms, v), [u.unit])); sent.push("text"); }
-  if (viaEmail && u.email){ var subj = fillTpl(T.emailSubject, v); await callFn("sendEmail", trkEmailPayload([u.email], subj, emailHtml(subj, fillTpl(T.emailBody, v)))); sent.push("email"); }
+  var ph = trkPhone(u.phone);
+  if (viaSms && ph){ var r = await callFn("sendSms", trkSmsPayload(ph, fillTpl(T.sms, v), u.unit)); if (r && r.error) throw new Error(r.error); if (!(r && r.failedCount)) sent.push("text"); }
+  if (viaEmail && u.email){ var subj = fillTpl(T.emailSubject, v); await callFn("sendEmail", trkEmailPayload(u.email, u.name, subj, emailHtml(subj, fillTpl(T.emailBody, v)))); sent.push("email"); }
   return sent;
 }
 async function remindTest(){
@@ -1203,7 +1291,7 @@ setInterval(function(){ if (S.me) render(); }, 600000);
    Everything the page's buttons call (onclick handlers need these on window)
    ════════════════════════════════════════════════════════════════════════ */
 window.App = {
-  signIn: signIn, signOut: signOut, setTab: setTab, openPanel: openPanel, closePanel: closePanel, goNotif: goNotif,
+  signIn: signIn, signOut: signOut, togglePw: togglePw, forgotPw: forgotPw, setTab: setTab, openPanel: openPanel, closePanel: closePanel, goNotif: goNotif,
   goNotifHome: goNotif,
   openUpload: openUpload, saveUpload: saveUpload, closeModal: closeModal,
   addVehicle: addVehicle, editVehicle: editVehicle, saveVehicle: saveVehicle, removeVehicle: removeVehicle,
