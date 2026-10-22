@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<meta name="trk-version" content="1.25">
+<meta name="trk-version" content="1.26">
 <meta name="trk-mode" content="mobile">
 <meta name="theme-color" content="#ffffff">
 <title>Compliance</title>
@@ -273,7 +273,7 @@ td.rep-warn{color:var(--warn);font-weight:700}
     <div class="m-err" id="login-err"></div>
 
     <div style="text-align:center;margin-top:16px"><button class="m-forgot" onclick="App.forgotPw()">Forgot password?</button></div>
-    <div class="m-build">BUILD <span id="li-build">v1.25</span></div>
+    <div class="m-build">BUILD <span id="li-build">v1.26</span></div>
   </div>
 </div>
 <div id="boot" class="empty" style="margin-top:20vh">Signing in…</div>
@@ -352,7 +352,7 @@ function trkSmsPayload(phone, message, unit){
 function trkEmailPayload(email, name, subject, html){ return { to: [{ email: email, name: name || email }], subject: subject, body: html }; }
 
 /* ════════════════════════════════════════════════════════════════════════ */
-var TRK_VERSION = "1.25";
+var TRK_VERSION = "1.26";
 // 1.16: owner asked to block the tracker's notifications for now. While this is true the tracker sends NO texts and
 // NO emails (reminders and test reminders). Sign-in "Forgot password?" still works. Set to false to allow sending again.
 var TRK_SENDING_OFF = true;
@@ -608,15 +608,17 @@ function obExpRows(bid){
   var dates = ((S.allBags["org_" + bid] || {}).expDates) || {};
   return (S.settings.orgBagExpItems || []).map(function(n){ return { item: n, date: dates[n] || "", st: expState(dates[n]) }; });
 }
-function obExpInputs(bid){
+function obExpInputs(bid, px, title){
+  px = px || "oexp-";
   var dates = ((S.allBags["org_" + bid] || {}).expDates) || {};
-  return '<div class="sec"><div class="sec-h"><b>⏳ Expiration Dates (in this bag)</b></div>' + (S.settings.orgBagExpItems || []).map(function(n, i){
-    return '<div class="item"><label class="nm" for="oexp-' + i + '" style="margin:0;font-weight:400;font-size:.92rem">' + esc(n) + '</label><input id="oexp-' + i + '" type="date" style="width:170px" value="' + esc(dates[n] || "") + '"></div>';
+  return '<div class="sec"><div class="sec-h"><b>' + esc(title || "⏳ Expiration Dates (in this bag)") + '</b></div>' + (S.settings.orgBagExpItems || []).map(function(n, i){
+    return '<div class="item"><label class="nm" for="' + px + i + '" style="margin:0;font-weight:400;font-size:.92rem">' + esc(n) + '</label><input id="' + px + i + '" type="date" style="width:170px" value="' + esc(dates[n] || "") + '"></div>';
   }).join("") + '</div>';
 }
-function readObExp(){
+function readObExp(px){
+  px = px || "oexp-";
   var out = {}, missing = 0;
-  (S.settings.orgBagExpItems || []).forEach(function(n, i){ var el = $("oexp-" + i), v = el ? el.value : ""; if (v) out[n] = v; else missing++; });
+  (S.settings.orgBagExpItems || []).forEach(function(n, i){ var el = $(px + i), v = el ? el.value : ""; if (v) out[n] = v; else missing++; });
   return { dates: out, missing: missing };
 }
 function obExpSummary(bid){
@@ -942,10 +944,11 @@ function bagLabel(v){
   return n;
 }
 // [{ veh, bags }] — each vehicle's bags together; bags without a vehicle last
-function bagsByVehicle(){
-  var groups = [], byId = {};
+function bagsByVehicle(standalone){
+  var groups = [], byId = {}, rigIds = standalone ? rigList().map(function(v){ return v.id; }) : [];
   agencyBags().forEach(function(b){
     var veh = bagVehicle(b), k = veh ? veh.id : "";
+    if (standalone && veh && rigIds.indexOf(veh.id) >= 0) return;   // checked with its rig (1.26)
     if (!byId[k]){ byId[k] = { veh: veh, bags: [] }; groups.push(byId[k]); }
     byId[k].bags.push(b);
   });
@@ -1733,8 +1736,8 @@ function viewBag(){
     h += '<div class="note" style="background:#fff4d6;border-color:#e2c27a;color:#5c3c00"><b>Missing from your last check:</b><br>' + S.myBag.missing.map(function(m){ return esc(m.n) + (m.note ? " — " + esc(m.note) : ""); }).join("<br>") + '</div>';
   }
   h += '<div class="row" style="margin-top:12px"><button class="btn gold" onclick="App.startBagCheck(\'mine\')">✓ Start bag check</button><button class="btn" onclick="App.bagHistory()">🕘 History</button></div></div>';
-  var groups = bagsByVehicle();
-  if (groups.length) h += '<h2>🧰 Vehicle Jump Bags</h2><div class="card"><div class="muted" style="margin-bottom:8px">Checking the jump bag on a rig or ERV? Pick it here, or in the Bag box at the top of the check.</div>'
+  var groups = bagsByVehicle(true);
+  if (groups.length) h += '<h2>🧰 Vehicle Jump Bags</h2><div class="card"><div class="muted" style="margin-bottom:8px">Rig jump bags are checked with the rig check (Rig Checks). Other vehicle bags are checked here.</div>'
     + groups.map(function(g){
       return '<div style="margin:8px 0 4px;font-weight:700">' + (g.veh ? (isAmbulance(g.veh) ? "🚑 " : "🚙 ") + esc(vName(g.veh)) : "Other bags") + '</div><div class="row">'
         + g.bags.map(function(v){ var st = S.allBags["org_" + v.id]; return '<button class="btn" data-b="org_' + esc(v.id) + '" onclick="App.startBagCheck(this.dataset.b)">🎒 ' + esc(bagLabel(v)) + (st && st.lastAt ? ' <span class="muted">· ' + fmtTs(st.lastAt).split(" ")[0] + '</span>' : '') + '</button>'; }).join("") + '</div>';
@@ -1818,7 +1821,7 @@ function ckHeader(kind){
   var C = S.check, opts;
   if (kind === "rig") opts = rigList().map(function(v){ return '<option value="' + esc(v.id) + '"' + (v.id === C.pick ? " selected" : "") + '>' + esc(vName(v)) + '</option>'; }).join("");
   else opts = '<option value="mine"' + (C.pick === "mine" ? " selected" : "") + '>' + esc((S.me.unit || "") + " Primary Bag") + '</option>'
-    + bagsByVehicle().map(function(g){
+    + bagsByVehicle(true).map(function(g){
       return '<optgroup label="' + esc(g.veh ? vName(g.veh) : "Other bags") + '">' + g.bags.map(function(v){ return '<option value="org_' + esc(v.id) + '"' + ("org_" + v.id === C.pick ? " selected" : "") + '>' + esc(bagLabel(v)) + '</option>'; }).join("") + '</optgroup>';
     }).join("");
   return '<div class="pf-grid" style="margin-bottom:6px"><div class="pf-f"><label for="ck-what">' + (kind === "rig" ? "Rig" : "Bag") + '</label><select id="ck-what" onchange="App.ckPick(this.value)"><option value="">Select</option>' + opts + '</select></div></div>';
@@ -1826,8 +1829,12 @@ function ckHeader(kind){
 function ckPick(v){
   var C = S.check; if (!C) return;
   C.pick = v;
-  if (C.kind === "rig"){ var r = S.fleet.filter(function(x){ return x.id === v; })[0]; C.vid = v; C.vname = r ? vName(r) : v;
-    var re = $("ck-rexp"); if (re) re.innerHTML = v ? rigExpInputs(v) : '<div class="muted">Pick the rig at the top to see its expiration dates.</div>'; }
+  if (C.kind === "rig"){
+    // another rig = another jump bag, so the sheet is redrawn for it
+    var ticked = Object.keys(C.ans).some(function(k){ return C.ans[k]; }) || Object.keys(C.qa).some(function(k){ return C.qa[k]; });
+    if (ticked && !confirm("Switch to another rig? What you've ticked so far will be cleared.")){ $("ck-what").value = C.vid || ""; C.pick = C.vid; return; }
+    startRigCheck(v); return;
+  }
   var ex = $("ck-exp"); if (ex) ex.hidden = C.pick !== "mine";
   var oe = $("ck-oexp"); if (oe && C.kind === "bag") oe.innerHTML = /^org_/.test(v || "") ? obExpInputs(v.replace(/^org_/, "")) : "";
 }
@@ -1868,15 +1875,23 @@ function viewRigs(){
         + '<div class="muted" style="margin:4px 0 8px">Last check: ' + (bs && bs.lastAt ? fmtTs(bs.lastAt) + (bs.by ? " by " + esc(bs.by) : "") : "Never")
         + (ob.expired ? ' · <span class="pill p-bad">' + ob.expired + ' expired</span>' : '') + (ob.expiring ? ' · <span class="pill p-warn">' + ob.expiring + ' expiring</span>' : '') + '</div>'
         + (bs && bs.missing && bs.missing.length ? '<div class="note" style="background:#fff4d6;border-color:#e2c27a;color:#5c3c00"><b>Missing:</b> ' + bs.missing.map(function(m){ return esc(m.n); }).join(", ") + '</div>' : '')
-        + '<div class="row"><button class="btn sm gold" data-b="org_' + esc(b.id) + '" onclick="App.startBagCheck(this.dataset.b)">Check bag</button><button class="btn sm" data-id="' + esc(b.id) + '" onclick="App.viewObExp(this.dataset.id)">⏳ Dates</button></div></div>';
+        + '<div class="row"><span class="muted grow">Checked together with the rig check.</span><button class="btn sm" data-id="' + esc(b.id) + '" onclick="App.viewObExp(this.dataset.id)">⏳ Dates</button></div></div>';
     });
     h += '<div class="row" style="margin-top:8px"><button class="btn gold" data-id="' + esc(v.id) + '" onclick="App.startRigCheck(this.dataset.id)">Start check</button><button class="btn" data-id="' + esc(v.id) + '" onclick="App.rigHistory(this.dataset.id)">🕘 History</button></div></div>';
   });
   return h + '</div>';
 }
+// 1.26: a rig check also checks that rig's jump bag(s) — the bag's sections follow the rig's, then its dates
+function rigCheckSections(vid){
+  var secs = clone(rigChecklist());
+  if (vid) bagsOfVehicle(vid).forEach(function(b){
+    clone(bagChecklist()).forEach(function(sec){ secs.push({ name: "🎒 " + bagLabel(b) + " — " + sec.name, items: sec.items, questions: sec.questions, bagId: b.id, bagSec: sec.name }); });
+  });
+  return secs;
+}
 function startRigCheck(id){
   var v = id ? S.fleet.filter(function(x){ return x.id === id; })[0] : null;
-  S.check = { kind: "rig", pick: id || "", vid: id || "", vname: v ? vName(v) : "", sections: clone(rigChecklist()), ans: {}, notes: {}, qa: {}, secNotes: {} };
+  S.check = { kind: "rig", pick: id || "", vid: id || "", vname: v ? vName(v) : "", sections: rigCheckSections(id), ans: {}, notes: {}, qa: {}, secNotes: {} };
   openChecklist("🚑 Rig Equipment Checklist", "Tap ✓ when the item is there / stocked, ✗ when there's a problem or it's missing. Answer every Yes / No question.", ckHeader("rig"));
 }
 
@@ -1901,6 +1916,7 @@ function openChecklist(title, help, extraTop){
     b += '</div>';
   });
   if (C.kind === "rig" && (S.settings.rigExpItems || []).length) b += '<div id="ck-rexp">' + (C.vid ? rigExpInputs(C.vid) : '<div class="muted">Pick the rig at the top to see its expiration dates.</div>') + '</div>';
+  if (C.kind === "rig" && C.vid && (S.settings.orgBagExpItems || []).length) b += bagsOfVehicle(C.vid).map(function(bg, n){ return obExpInputs(bg.id, "oexp-" + n + "-", "⏳ Expiration Dates — 🎒 " + bagLabel(bg)); }).join("");
   if (C.kind === "bag" && (S.settings.orgBagExpItems || []).length) b += '<div id="ck-oexp">' + (/^org_/.test(C.pick || "") ? obExpInputs(C.pick.replace(/^org_/, "")) : "") + '</div>';
   if (C.kind === "bag" && (S.settings.expItems || []).length) b += '<div id="ck-exp"' + (C.pick === "mine" ? "" : " hidden") + '>' + expInputs(S.me.uid) + '</div>';
   openModal(title, b, '<span id="ck-count" class="muted grow"></span><button class="btn" onclick="App.closeModal()">Cancel</button><button class="btn gold" id="ck-save" onclick="App.saveCheck()">Submit check</button>');
@@ -1965,6 +1981,11 @@ async function saveCheck(){
   var expR = C.kind === "bag" && what === "mine" && (S.settings.expItems || []).length ? readExpInputs() : null;
   var rexpR = C.kind === "rig" && (S.settings.rigExpItems || []).length ? readRigExp() : null;
   var oexpR = C.kind === "bag" && /^org_/.test(what) && (S.settings.orgBagExpItems || []).length ? readObExp() : null;
+  var rigBags = C.kind === "rig" ? bagsOfVehicle(C.vid) : [], bagExp = {};
+  if (rigBags.length && (S.settings.orgBagExpItems || []).length){
+    var bm = 0; rigBags.forEach(function(bg, n){ var r = readObExp("oexp-" + n + "-"); bagExp[bg.id] = r; bm += r.missing; });
+    if (bm){ toast(bm + " jump bag expiration date" + (bm === 1 ? " is" : "s are") + " empty. Fill in every date at the bottom.", 6000); return; }
+  }
   if (oexpR && oexpR.missing){ toast(oexpR.missing + " expiration date" + (oexpR.missing === 1 ? " is" : "s are") + " empty. Fill in every date at the bottom.", 6000); return; }
   if (rexpR && rexpR.missing){ toast(rexpR.missing + " expiration date" + (rexpR.missing === 1 ? " is" : "s are") + " empty. Fill in every date at the bottom.", 6000); return; }
   if (expR && expR.missing){ toast(expR.missing + " expiration date" + (expR.missing === 1 ? " is" : "s are") + " empty. Fill in every date at the bottom.", 6000); return; }
@@ -1986,8 +2007,24 @@ async function saveCheck(){
       if (oexpR){ ost.expDates = oexpR.dates; ost.expUpdatedAt = now; ost.expUpdatedBy = S.me.unit || ""; }
       batch.set(db.collection("trk_bagStatus").doc("org_" + bid), ost, { merge: true });
     } else {
-      batch.set(db.collection("trk_rigChecks").doc(), Object.assign({}, who, { vehicleId: C.vid, rig: C.vname, at: now, results: results, answers: answers, sectionNotes: secNotes, problems: problems, notes: notes }));
+      // the rig's own sections → the rig check; each jump bag's sections → that bag's own check (as if checked on its own)
+      var part = function(bagId){
+        var secs = {}; C.sections.forEach(function(sec){ if ((sec.bagId || "") === bagId) secs[sec.name] = sec.bagSec || sec.name; });
+        var keep = function(arr){ return arr.filter(function(x){ return secs[x.s] !== undefined; }).map(function(x){ return Object.assign({}, x, { s: secs[x.s] }); }); };
+        return { results: keep(results), answers: keep(answers), sectionNotes: keep(secNotes), problems: keep(problems) };
+      };
+      rigBags.forEach(function(bg){
+        var pb = part(bg.id), bl = bagLabel(bg), bn = pb.sectionNotes.map(function(x){ return x.s + ": " + x.note; }).join(" · ");
+        batch.set(db.collection("trk_bagChecks").doc(), Object.assign({}, who, { at: now, bagId: bg.id, bag: bl, org: true, withRig: C.vid, results: pb.results, answers: pb.answers, sectionNotes: pb.sectionNotes, missing: pb.problems, notes: bn }));
+        var bst = { org: true, bagId: bg.id, bag: bl, unit: bl, lastAt: now, inspDate: inspDate, by: S.me.unit || "", byUid: S.me.uid, missing: pb.problems, notes: bn };
+        if (bagExp[bg.id]){ bst.expDates = bagExp[bg.id].dates; bst.expUpdatedAt = now; bst.expUpdatedBy = S.me.unit || ""; }
+        batch.set(db.collection("trk_bagStatus").doc("org_" + bg.id), bst, { merge: true });
+      });
+      var pr = part(""); results = pr.results; answers = pr.answers; secNotes = pr.sectionNotes;
+      var allProblems = problems; problems = pr.problems; notes = secNotes.map(function(x){ return x.s + ": " + x.note; }).join(" · ");
+      batch.set(db.collection("trk_rigChecks").doc(), Object.assign({}, who, { vehicleId: C.vid, rig: C.vname, at: now, results: results, answers: answers, sectionNotes: secNotes, problems: problems, notes: notes, bags: rigBags.map(function(bg){ return bg.id; }) }));
       var rst = { vehicleId: C.vid, rig: C.vname, lastAt: now, inspDate: inspDate, by: S.me.unit || "", byUid: S.me.uid, problems: problems, notes: notes };
+      problems = allProblems;
       if (rexpR){ rst.expDates = rexpR.dates; rst.expUpdatedAt = now; rst.expUpdatedBy = S.me.unit || ""; }
       batch.set(db.collection("trk_rigStatus").doc(C.vid), rst, { merge: true });
     }
