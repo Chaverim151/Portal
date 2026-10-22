@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<meta name="trk-version" content="1.19">
+<meta name="trk-version" content="1.20">
 <meta name="trk-mode" content="mobile">
 <meta name="theme-color" content="#ffffff">
 <title>Compliance</title>
@@ -267,7 +267,7 @@ td.rep-warn{color:var(--warn);font-weight:700}
     <div class="m-err" id="login-err"></div>
 
     <div style="text-align:center;margin-top:16px"><button class="m-forgot" onclick="App.forgotPw()">Forgot password?</button></div>
-    <div class="m-build">BUILD <span id="li-build">v1.19</span></div>
+    <div class="m-build">BUILD <span id="li-build">v1.20</span></div>
   </div>
 </div>
 <div id="boot" class="empty" style="margin-top:20vh">Signing in…</div>
@@ -345,7 +345,7 @@ function trkSmsPayload(phone, message, unit){
 function trkEmailPayload(email, name, subject, html){ return { to: [{ email: email, name: name || email }], subject: subject, body: html }; }
 
 /* ════════════════════════════════════════════════════════════════════════ */
-var TRK_VERSION = "1.19";
+var TRK_VERSION = "1.20";
 // 1.16: owner asked to block the tracker's notifications for now. While this is true the tracker sends NO texts and
 // NO emails (reminders and test reminders). Sign-in "Forgot password?" still works. Set to false to allow sending again.
 var TRK_SENDING_OFF = true;
@@ -1062,7 +1062,7 @@ function openUpload(btn){
   }
   b += '<label for="up-file">Upload Front Image</label><input id="up-file" type="file" accept="image/bmp,image/jpeg,image/gif,image/png,application/pdf,.bmp,.jpg,.jpeg,.gif,.png,.pdf" onchange="App.upFile()">'
     + '<div class="muted" style="margin-top:4px">Accepted file types: BMP, JPG, GIF, PNG, PDF</div>'
-    + '<label>Image Preview</label><div class="up-prev" id="up-prev"><span class="muted">Not applicable to PDF uploads</span></div>'
+    + '<label>Image Preview</label><div class="up-prev" id="up-prev"><span class="muted">No file picked yet</span></div>'
     + '<div class="row" id="up-rot" hidden style="margin-top:6px"><button class="btn sm" type="button" onclick="App.upRotate(-90)">⟲ Rotate left</button><button class="btn sm" type="button" id="up-crop-btn" hidden onclick="App.upCropToggle()">✂ Undo crop</button><button class="btn sm" type="button" onclick="App.upRotate(90)">⟳ Rotate right</button></div>'
     + '<div class="note" style="background:#fff4d6;border-color:#e2c27a;color:#5c3c00;margin-top:10px"><b>Warning:</b> If image is not in the correct upright orientation it will be rejected</div>'
     + '<div class="scan-box" id="up-scan" hidden><div class="row"><span class="grow" id="up-scan-msg">✨ Reading the document…</span><button class="btn sm" type="button" id="up-scan-btn" onclick="App.upScan()">✨ Scan again</button></div></div>'
@@ -1127,16 +1127,57 @@ function upFile(){
   var f = ($("up-file").files || [])[0], prev = $("up-prev");
   S.upload.file = f || null; S.upload.rot = 0; S.upload.crop = null; S.upload.cropOff = false;
   $("up-bar-fill").style.width = "0"; $("up-prog").textContent = "";
-  if (!f){ prev.innerHTML = '<span class="muted">Not applicable to PDF uploads</span>'; $("up-rot").hidden = true; return; }
+  if (!f){ prev.innerHTML = '<span class="muted">No file picked yet</span>'; $("up-rot").hidden = true; return; }
   if (!/^(image\/(bmp|jpeg|gif|png)|application\/pdf)$/i.test(f.type) && !/\.(bmp|jpe?g|gif|png|pdf)$/i.test(f.name)){
     toast("That file type isn't accepted. Use BMP, JPG, GIF, PNG or PDF."); $("up-file").value = ""; S.upload.file = null; return;
   }
   if (f.size > 15 * 1024 * 1024){ toast("The file must be under 15 MB."); $("up-file").value = ""; S.upload.file = null; return; }
-  if (upIsPdf()){ prev.innerHTML = '<span class="muted">📄 ' + esc(f.name) + ' — Not applicable to PDF uploads</span>'; $("up-rot").hidden = true; upPdfReady(); return; }
+  if (upIsPdf()){ prev.innerHTML = '<span class="muted">📄 ' + esc(f.name) + ' — making a preview…</span>'; $("up-rot").hidden = true; upPdfReady(); upPdfPreview(f); return; }
   var url = URL.createObjectURL(f);
   prev.innerHTML = '<img id="up-img" alt="Preview of the uploaded image" src="' + url + '">';
   $("up-rot").hidden = false;
   upScan();
+}
+// 1.20: PDF preview — a picture of page 1, drawn in the page with pdf.js (loaded only when a PDF is picked)
+var PDFJS_URL = "https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js";
+function loadPdfJs(){
+  if (window.pdfjsLib) return Promise.resolve(window.pdfjsLib);
+  if (loadPdfJs._p) return loadPdfJs._p;
+  loadPdfJs._p = new Promise(function(res, rej){
+    var sc = document.createElement("script"); sc.src = PDFJS_URL;
+    sc.onload = function(){
+      if (!window.pdfjsLib){ loadPdfJs._p = null; return rej(new Error("PDF viewer didn't load")); }
+      window.pdfjsLib.GlobalWorkerOptions.workerSrc = PDFJS_URL.replace("pdf.min.js", "pdf.worker.min.js");
+      res(window.pdfjsLib);
+    };
+    sc.onerror = function(){ loadPdfJs._p = null; rej(new Error("PDF viewer didn't load")); };
+    document.head.appendChild(sc);
+  });
+  return loadPdfJs._p;
+}
+async function pdfFirstPage(file, maxW){
+  var lib = await loadPdfJs();
+  var doc = await lib.getDocument({ data: new Uint8Array(await file.arrayBuffer()) }).promise;
+  try {
+    var page = await doc.getPage(1), v = page.getViewport({ scale: 1 });
+    var vp = page.getViewport({ scale: Math.min(3, (maxW || 1000) / v.width) });
+    var c = document.createElement("canvas"); c.width = Math.round(vp.width); c.height = Math.round(vp.height);
+    var g = c.getContext("2d"); g.fillStyle = "#fff"; g.fillRect(0, 0, c.width, c.height);
+    await page.render({ canvasContext: g, viewport: vp }).promise;
+    return { canvas: c, pages: doc.numPages };
+  } finally { doc.destroy(); }
+}
+async function upPdfPreview(f){
+  var prev = $("up-prev");
+  try {
+    var r = await pdfFirstPage(f, 1000);
+    if (!S.upload || S.upload.file !== f) return;   // a different file was picked meanwhile
+    var bl = await new Promise(function(res){ r.canvas.toBlob(res, "image/jpeg", 0.85); });
+    prev.innerHTML = '<div style="text-align:center;width:100%"><img id="up-pdf-img" alt="Page 1 of the PDF" src="' + URL.createObjectURL(bl) + '" style="border:1px solid var(--line)">'
+      + '<div class="muted" style="margin-top:6px">📄 ' + esc(f.name) + ' · page 1' + (r.pages > 1 ? ' of ' + r.pages : '') + '</div></div>';
+  } catch (e){
+    if (S.upload && S.upload.file === f) prev.innerHTML = '<span class="muted">📄 ' + esc(f.name) + ' — no preview for this PDF' + (/password/i.test(e && e.message) ? ' (it has a password)' : '') + '</span>';
+  }
 }
 function upIsPdf(){ var f = S.upload && S.upload.file; return !!f && (/pdf/i.test(f.type) || /\.pdf$/i.test(f.name)); }
 // 1.17: PDFs aren't read automatically — the member taps "✨ Scan PDF with AI" (photos are still read straight away)
