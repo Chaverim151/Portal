@@ -3,11 +3,13 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<meta name="trk-version" content="1.40">
+<meta name="trk-version" content="1.42">
 <meta name="trk-mode" content="desktop">
 <meta name="theme-color" content="#ffffff">
 <title>Compliance</title>
 <!-- 1.32: the same Hatzolah MC icon as CallDashboard, built in (no extra files to upload) -->
+<!-- 1.42: checks no longer ask for expiration dates (dates are only in the ⏳ Expiration Dates boxes) -->
+<!-- 1.41: ⚙ Admin grouped into main tabs with sub-tabs, like CallDashboard -->
 <!-- 1.40: the "not the latest version — tap to update" bar, same as CallDashboard -->
 <!-- 1.39: My Profile ▸ Home Address ▸ 🪪 Import from driver's license -->
 <!-- 1.38: expiration-date boxes start closed -->
@@ -124,6 +126,11 @@ h2{font-size:1.1rem;margin:18px 0 10px;color:var(--accent)}
 .admin-tabbar{display:flex;overflow-x:auto;border-bottom:1px solid var(--line);margin:0 -16px 14px;padding:0 8px;background:#fff;scrollbar-width:thin}
 .admin-tab{background:none;border:none;border-bottom:3px solid transparent;color:var(--gray);font-family:'Oswald',sans-serif;font-size:.82rem;font-weight:700;letter-spacing:.06em;text-transform:uppercase;padding:12px 14px;cursor:pointer;white-space:nowrap}
 .admin-tab.on{color:var(--accent);border-bottom-color:var(--accent)}
+/* 1.41: sub-tabs inside an admin group (like CallDashboard's Fleet / Users / Security sub-tabs) */
+.admin-subtabs{display:flex;gap:8px;flex-wrap:wrap;margin:-4px 0 14px}
+.admin-subtab{font-family:'Oswald',sans-serif;font-size:.75rem;letter-spacing:.08em;text-transform:uppercase;padding:6px 14px;border-radius:20px;border:1px solid var(--line);background:#fff;color:var(--gray);cursor:pointer;box-shadow:inset 0 0 0 1px rgba(31,35,40,.12)}
+.admin-subtab:hover{color:var(--text)}
+.admin-subtab.on{background:var(--accent);border-color:var(--accent);color:#fff;font-weight:600}
 /* phone version */
 .trk-mobile #topbar{padding:calc(12px + env(safe-area-inset-top)) 12px 12px;gap:8px}
 .trk-mobile .tb-left img{width:34px}
@@ -241,7 +248,7 @@ td.rep-bad{color:var(--bad);font-weight:700}
 td.rep-warn{color:var(--warn);font-weight:700}
 @media print{
   body.printing-report > *:not(#app){display:none!important}
-  body.printing-report #topbar,body.printing-report #pagehead,body.printing-report #banner,body.printing-report .admin-tabbar{display:none!important}
+  body.printing-report #topbar,body.printing-report #pagehead,body.printing-report #banner,body.printing-report .admin-tabbar,body.printing-report .admin-subtabs{display:none!important}
   body.printing-report #view > *:not(#rep-out){display:none!important}
   body.printing-report .report button{display:none!important}
   body.printing-report .tbl-wrap{overflow:visible;border:none}
@@ -298,7 +305,7 @@ td.rep-warn{color:var(--warn);font-weight:700}
     <div class="m-err" id="login-err"></div>
 
     <div style="text-align:center;margin-top:16px"><button class="m-forgot" onclick="App.forgotPw()">Forgot password?</button></div>
-    <div class="m-build">BUILD <span id="li-build">v1.40</span></div>
+    <div class="m-build">BUILD <span id="li-build">v1.42</span></div>
   </div>
 </div>
 <div id="boot" class="empty" style="margin-top:20vh">Signing in…</div>
@@ -377,7 +384,7 @@ function trkSmsPayload(phone, message, unit){
 function trkEmailPayload(email, name, subject, html){ return { to: [{ email: email, name: name || email }], subject: subject, body: html }; }
 
 /* ════════════════════════════════════════════════════════════════════════ */
-var TRK_VERSION = "1.40";
+var TRK_VERSION = "1.42";
 // 1.16: owner asked to block the tracker's notifications for now. While this is true the tracker sends NO texts and
 // NO emails (reminders and test reminders). Sign-in "Forgot password?" still works. Set to false to allow sending again.
 var TRK_SENDING_OFF = true;
@@ -2069,10 +2076,11 @@ function openChecklist(title, help, extraTop){
     b += '<div class="item-note" style="padding-top:10px;border-top:1px solid var(--line)"><label for="cksn-' + si + '" style="margin-top:0">Notes on ' + esc(sec.name) + ' Section</label><textarea id="cksn-' + si + '" rows="2" oninput="App.ckSecNote(' + si + ',this.value)"></textarea></div>';
     b += '</div>';
   });
-  if (C.kind === "rig" && (S.settings.rigExpItems || []).length) b += '<div id="ck-rexp">' + (C.vid ? rigExpInputs(C.vid) : '<div class="muted">Pick the ambulance at the top to see its expiration dates.</div>') + '</div>';
-  if (C.kind === "rig" && C.vid && (S.settings.orgBagExpItems || []).length) b += bagsOfVehicle(C.vid).filter(function(bg){ return C.sections.some(function(x){ return x.bagId === bg.id; }); }).map(function(bg, n){ return obExpInputs(bg.id, "oexp-" + n + "-", "⏳ Expiration Dates — 🎒 " + bagLabel(bg)); }).join("");
-  if (C.kind === "bag" && (S.settings.orgBagExpItems || []).length) b += '<div id="ck-oexp">' + (/^org_/.test(C.pick || "") ? obExpInputs(C.pick.replace(/^org_/, "")) : "") + '</div>';
-  if (C.kind === "bag" && (S.settings.expItems || []).length) b += '<div id="ck-exp"' + (/^mine/.test(C.pick || "") ? "" : " hidden") + '>' + expInputs(S.me.uid, /^mine:/.test(C.pick || "") ? C.pick.slice(5) : "") + '</div>';
+  // 1.42: checks no longer ask for expiration dates — they're kept in the ⏳ Expiration Dates box on each card (DATES_IN_CHECKS = true brings them back)
+  if (DATES_IN_CHECKS && C.kind === "rig" && (S.settings.rigExpItems || []).length) b += '<div id="ck-rexp">' + (C.vid ? rigExpInputs(C.vid) : '<div class="muted">Pick the ambulance at the top to see its expiration dates.</div>') + '</div>';
+  if (DATES_IN_CHECKS && C.kind === "rig" && C.vid && (S.settings.orgBagExpItems || []).length) b += bagsOfVehicle(C.vid).filter(function(bg){ return C.sections.some(function(x){ return x.bagId === bg.id; }); }).map(function(bg, n){ return obExpInputs(bg.id, "oexp-" + n + "-", "⏳ Expiration Dates — 🎒 " + bagLabel(bg)); }).join("");
+  if (DATES_IN_CHECKS && C.kind === "bag" && (S.settings.orgBagExpItems || []).length) b += '<div id="ck-oexp">' + (/^org_/.test(C.pick || "") ? obExpInputs(C.pick.replace(/^org_/, "")) : "") + '</div>';
+  if (DATES_IN_CHECKS && C.kind === "bag" && (S.settings.expItems || []).length) b += '<div id="ck-exp"' + (/^mine/.test(C.pick || "") ? "" : " hidden") + '>' + expInputs(S.me.uid, /^mine:/.test(C.pick || "") ? C.pick.slice(5) : "") + '</div>';
   openModal(title, b, '<span id="ck-count" class="muted grow"></span><button class="btn" onclick="App.closeModal()">Cancel</button><button class="btn gold" id="ck-save" onclick="App.saveCheck()">Submit check</button>');
   ckCount();
 }
@@ -2132,11 +2140,11 @@ async function saveCheck(){
   var what = $("ck-what") ? $("ck-what").value : C.pick;
   if (!what){ toast(C.kind === "rig" ? "Pick the ambulance at the top." : "Pick the bag at the top."); $("ck-what") && $("ck-what").scrollIntoView({ block: "center", behavior: "smooth" }); return; }
   var inspDate = ($("ck-date") && $("ck-date").value) || todayStr();
-  var expR = C.kind === "bag" && /^mine/.test(what) && (S.settings.expItems || []).length ? readExpInputs() : null;
-  var rexpR = C.kind === "rig" && (S.settings.rigExpItems || []).length ? readRigExp() : null;
-  var oexpR = C.kind === "bag" && /^org_/.test(what) && (S.settings.orgBagExpItems || []).length ? readObExp() : null;
+  var expR = DATES_IN_CHECKS && C.kind === "bag" && /^mine/.test(what) && (S.settings.expItems || []).length ? readExpInputs() : null;
+  var rexpR = DATES_IN_CHECKS && C.kind === "rig" && (S.settings.rigExpItems || []).length ? readRigExp() : null;
+  var oexpR = DATES_IN_CHECKS && C.kind === "bag" && /^org_/.test(what) && (S.settings.orgBagExpItems || []).length ? readObExp() : null;
   var rigBags = C.kind === "rig" ? bagsOfVehicle(C.vid).filter(function(bg){ return C.sections.some(function(x){ return x.bagId === bg.id; }); }) : [], bagExp = {};
-  if (rigBags.length && (S.settings.orgBagExpItems || []).length){
+  if (DATES_IN_CHECKS && rigBags.length && (S.settings.orgBagExpItems || []).length){
     var bm = 0; rigBags.forEach(function(bg, n){ var r = readObExp("oexp-" + n + "-"); bagExp[bg.id] = r; bm += r.missing; });
     if (bm){ toast(bm + " jump bag expiration date" + (bm === 1 ? " is" : "s are") + " empty. Fill in every date at the bottom.", 6000); return; }
   }
@@ -2397,13 +2405,33 @@ function adminProfiles(){
    ════════════════════════════════════════════════════════════════════════ */
 // 1.25: one ⚙ Admin page (top bar button) — what was User Compliance + the Admin Panel's settings tabs
 var ADMIN_SETTINGS_TABS = ["rigcl", "bagcl", "docs", "timing", "msg"];
+// 1.41: grouped like CallDashboard's admin — main tabs, each with its own sub-tabs. The sub-tab ids (S.adminTab) didn't change.
+var DATES_IN_CHECKS = false;   // 1.42
+var ADMIN_GROUPS = [
+  ["members", "👥 Members", [["grid", "Compliance"], ["profiles", "Profiles"], ["remind", "Reminders"]]],
+  ["review", "📥 Review", [["review", "Review"]]],
+  ["fleet", "🚑 Vehicles & Bags", [["vehicles", "Members' Vehicles"], ["paper", "Agency Paperwork"], ["bags", "Jump Bags"]]],
+  ["reports", "📊 Reports", [["reports", "Reports"]]],
+  ["settings", "⚙ Settings", [["rigcl", "🚑 Ambulance Checklist"], ["bagcl", "🎒 Jump Bag Checklist"], ["docs", "📄 Documents"], ["timing", "⏱ Timing & Equipment"], ["msg", "✉️ Messages"]]]
+];
+function adminGroupOf(k){ return ADMIN_GROUPS.filter(function(g){ return g[2].some(function(x){ return x[0] === k; }); })[0] || ADMIN_GROUPS[0]; }
+function adminGroup(gid){
+  var g = ADMIN_GROUPS.filter(function(x){ return x[0] === gid; })[0]; if (!g) return;
+  S.admLast = S.admLast || {};
+  S.adminTab = S.admLast[gid] || g[2][0][0]; render(); window.scrollTo(0, 0);
+}
 function viewAdmin(){
-  var tabs = [["grid", "👥 Compliance"], ["review", "📥 Review"], ["vehicles", "🚗 Vehicles"], ["paper", "📄 Agency Paperwork"], ["bags", "🎒 Jump Bags"], ["profiles", "👤 Profiles"], ["reports", "📊 Reports"], ["remind", "📣 Reminders"],
-    ["|", ""], ["rigcl", "🚑 Ambulance Checklist"], ["bagcl", "🎒 Jump Bag Checklist"], ["docs", "📄 Documents"], ["timing", "⏱ Timing & Equipment"], ["msg", "✉️ Messages"]];
   var pend = Object.values(S.allRecords).filter(function(r){ return r.status === "pending"; }).length;
   var dirty = function(k){ var key = k === "rigcl" ? "rigChecklist" : k === "bagcl" ? "bagChecklist" : ""; return key && S.ced && S.ced[key] && S.ced[key].dirty ? " •" : ""; };
-  var h = '<div class="admin-tabbar">' + tabs.map(function(t){
-    if (t[0] === "|") return '<span style="border-left:1px solid var(--line);margin:10px 6px" aria-hidden="true"></span>'; return '<button class="admin-tab' + (S.adminTab === t[0] ? " on" : "") + '" onclick="App.adminTab(\'' + t[0] + '\')">' + t[1] + (t[0] === "review" && pend ? " (" + pend + ")" : "") + dirty(t[0]) + '</button>'; }).join("") + '</div>';
+  var cur = adminGroupOf(S.adminTab);
+  S.admLast = S.admLast || {}; S.admLast[cur[0]] = S.adminTab;
+  var h = '<div class="admin-tabbar">' + ADMIN_GROUPS.map(function(g){
+    var extra = g[0] === "review" && pend ? " (" + pend + ")" : g[0] === "settings" ? (dirty("rigcl") || dirty("bagcl")) : "";
+    return '<button class="admin-tab' + (g === cur ? " on" : "") + '" onclick="App.adminGroup(\'' + g[0] + '\')">' + g[1] + extra + '</button>';
+  }).join("") + '</div>';
+  if (cur[2].length > 1) h += '<div class="admin-subtabs">' + cur[2].map(function(t){
+    return '<button class="admin-subtab' + (S.adminTab === t[0] ? " on" : "") + '" onclick="App.adminTab(\'' + t[0] + '\')">' + t[1] + dirty(t[0]) + '</button>';
+  }).join("") + '</div>';
   return h + ({ grid: adminGrid, review: adminReview, vehicles: adminVehicles, paper: adminPaper, bags: adminBags, profiles: adminProfiles, reports: adminReports, remind: adminRemind,
     rigcl: function(){ return panelChecklist("rigChecklist"); }, bagcl: function(){ return panelChecklist("bagChecklist"); }, docs: panelDocs, timing: panelTiming, msg: panelMsg }[S.adminTab] || adminGrid)();
 }
@@ -2700,7 +2728,7 @@ function cedState(key){
 }
 function panelChecklist(key){
   var E = cedState(key), rig = key === "rigChecklist", K = "\'" + key + "\'";
-  var h = '<div class="card"><h3>' + (rig ? "🚑 Rig Equipment Checklist" : "🎒 Jump Bag Checklist") + '</h3><p class="muted" style="margin:0">'
+  var h = '<div class="card"><h3>' + (rig ? "🚑 Ambulance Equipment Checklist" : "🎒 Jump Bag Checklist") + '</h3><p class="muted" style="margin:0">'
     + (rig ? "What's checked on every ambulance check, section by section." : "What's checked on every jump bag check (members' own bags and the agency bags / cabinets).")
     + ' Each item has a name and how many should be there. Yes / No checks come at the end of their section. Every section gets a Notes box automatically.</p>'
     + (E.dirty ? '<div class="note" style="background:#fff4d6;border-color:#e2c27a;color:#5c3c00;margin-top:8px">Unsaved changes — press 💾 Save at the bottom.</div>' : '') + '</div>';
@@ -2723,9 +2751,9 @@ function panelChecklist(key){
   });
   h += '<div class="row"><button class="btn" onclick="App.cedOp(' + K + ',\'secAdd\')">+ Add section</button><span class="grow"></span>'
     + '<button class="btn sm" onclick="App.cedOp(' + K + ',\'reset\')">Restore the Hatzolah MC form</button></div>';
-  if (rig) h += '<div class="card" style="margin-top:12px"><h3>⏳ Items on the ambulance that expire</h3><p class="muted" style="margin:0 0 6px">Each ambulance keeps its own date for each of these (Vehicle Checks ▸ Expiration dates, and at the end of every ambulance check). One per line.</p><textarea id="st-rigexp" rows="10">' + esc((S.settings.rigExpItems || []).join("\n")) + '</textarea></div>';
+  if (rig) h += '<div class="card" style="margin-top:12px"><h3>⏳ Items on the ambulance that expire</h3><p class="muted" style="margin:0 0 6px">Each ambulance keeps its own date for each of these (Vehicle Checks ▸ ⏳ Expiration Dates on its card). One per line.</p><textarea id="st-rigexp" rows="10">' + esc((S.settings.rigExpItems || []).join("\n")) + '</textarea></div>';
   if (!rig) h += '<div class="card" style="margin-top:12px"><h3>⏳ Items that expire — members\' own bags</h3><p class="muted" style="margin:0 0 6px">Members enter the expiration date of each of these when they check their own bag. One per line.</p><textarea id="st-exp" rows="10">' + esc((S.settings.expItems || []).join("\n")) + '</textarea>'
-    + '<h3 style="margin-top:14px">⏳ Items that expire — agency bags (rig bags, ERV bag…)</h3><p class="muted" style="margin:0 0 6px">Each agency bag keeps its own date for each of these (entered at the end of its check). One per line.</p><textarea id="st-obexp" rows="10">' + esc((S.settings.orgBagExpItems || []).join("\n")) + '</textarea></div>';
+    + '<h3 style="margin-top:14px">⏳ Items that expire — agency bags (rig bags, ERV bag…)</h3><p class="muted" style="margin:0 0 6px">Each agency bag keeps its own date for each of these (Vehicle Checks ▸ ⏳ Expiration Dates on its card). One per line.</p><textarea id="st-obexp" rows="10">' + esc((S.settings.orgBagExpItems || []).join("\n")) + '</textarea></div>';
   return h + saveRow(rig ? "saveRigList" : "saveBagList", "ced-msg");
 }
 function cedSet(key, field, si, ii, val){
@@ -3140,7 +3168,7 @@ window.App = {
   startBagCheck: startBagCheck, bagHistory: bagHistory, startRigCheck: startRigCheck, rigHistory: rigHistory, rigFixed: rigFixed,
   rigSub: function(s){ S.rigSub = s; render(); },
   ck: ck, ckSection: ckSection, ckNote: ckNote, ckQ: ckQ, ckSecNote: ckSecNote, saveCheck: saveCheck,
-  adminTab: function(t){ S.adminTab = t; render(); window.scrollTo(0, 0); }, goHome: goHome, gridFilter: function(v){ S.gridOnlyProblems = v; render(); },
+  adminTab: function(t){ S.adminTab = t; render(); window.scrollTo(0, 0); }, adminGroup: adminGroup, goHome: goHome, gridFilter: function(v){ S.gridOnlyProblems = v; render(); },
   gridCell: gridCell, markNA: markNA, openRecord: openRecord, review: review, deleteRecord: deleteRecord,
   remindTest: remindTest, sendReminders: sendReminders,
   repView: repView, repXlsx: repXlsx, repAll: repAll, repDates: repDates, repPrint: repPrint,
