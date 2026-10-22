@@ -3,11 +3,12 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<meta name="trk-version" content="1.39">
+<meta name="trk-version" content="1.40">
 <meta name="trk-mode" content="desktop">
 <meta name="theme-color" content="#ffffff">
 <title>Compliance</title>
 <!-- 1.32: the same Hatzolah MC icon as CallDashboard, built in (no extra files to upload) -->
+<!-- 1.40: the "not the latest version — tap to update" bar, same as CallDashboard -->
 <!-- 1.39: My Profile ▸ Home Address ▸ 🪪 Import from driver's license -->
 <!-- 1.38: expiration-date boxes start closed -->
 <!-- 1.37: My Vehicles shows just the cars (picture + year make model); tap one for its details and document cards -->
@@ -297,7 +298,7 @@ td.rep-warn{color:var(--warn);font-weight:700}
     <div class="m-err" id="login-err"></div>
 
     <div style="text-align:center;margin-top:16px"><button class="m-forgot" onclick="App.forgotPw()">Forgot password?</button></div>
-    <div class="m-build">BUILD <span id="li-build">v1.39</span></div>
+    <div class="m-build">BUILD <span id="li-build">v1.40</span></div>
   </div>
 </div>
 <div id="boot" class="empty" style="margin-top:20vh">Signing in…</div>
@@ -376,7 +377,7 @@ function trkSmsPayload(phone, message, unit){
 function trkEmailPayload(email, name, subject, html){ return { to: [{ email: email, name: name || email }], subject: subject, body: html }; }
 
 /* ════════════════════════════════════════════════════════════════════════ */
-var TRK_VERSION = "1.39";
+var TRK_VERSION = "1.40";
 // 1.16: owner asked to block the tracker's notifications for now. While this is true the tracker sends NO texts and
 // NO emails (reminders and test reminders). Sign-in "Forgot password?" still works. Set to false to allow sending again.
 var TRK_SENDING_OFF = true;
@@ -3152,6 +3153,50 @@ window.App = {
   asgFleet: function(id, on){ var f = S._asg.fleet, i = f.indexOf(id); if (on && i < 0) f.push(id); if (!on && i >= 0) f.splice(i, 1); }, expOne: expOne, vehPics: vehPics, openVeh: openVeh, importLicAddr: importLicAddr, expOneSave: expOneSave, expOneCancel: expOneCancel, viewObExp: viewObExp, editObExp: editObExp, saveObExp: saveObExp, saveRigExp: saveRigExp, saveTiming: saveTiming, saveMsg: saveMsg, ckPick: ckPick
 };
 window.TRK = { S: S, render: render, memberIssues: memberIssues, recStatus: recStatus, bagState: bagState, rigState: rigState, normUnit: normUnit, smsStamp: smsStamp };
+</script>
+<script>
+// ── 1.40: "Not the latest version" bar — same as CallDashboard (12.05 / 12.19 / 12.20) ─────────────
+// 5 s after opening, then every minute, on every tap (at most every 15 s) and whenever the app comes back on
+// screen, ask the SERVER for the start of this same file (4 KB, no cache) and compare its trk-version with the
+// one running. If it's newer, show a blue bar across the top: tap it to update. Nothing reloads on its own.
+(function () {
+  var mine = (document.querySelector('meta[name="trk-version"]') || {}).content || "";
+  var rx = /<meta name="trk-version" content="([\d.]+)"/;
+  var newer = function (a, b) { a = String(a).split(".").map(Number); b = String(b).split(".").map(Number); for (var i = 0; i < Math.max(a.length, b.length); i++) { var x = a[i] || 0, y = b[i] || 0; if (x !== y) return x > y; } return false; };
+  var last = 0, shown = null;
+  function show(v) {
+    if (shown === v) return; shown = v;
+    var b = document.getElementById("trk-upd-banner");
+    if (!b) {
+      b = document.createElement("button"); b.type = "button"; b.id = "trk-upd-banner";
+      b.style.cssText = "display:block;width:100%;border:none !important;border-radius:0 !important;box-shadow:none !important;margin:0;cursor:pointer;background:#0b5cad;color:#fff;font:700 0.82rem/1.3 Arial,sans-serif;letter-spacing:0.02em;padding:10px 14px;text-align:center;z-index:9995;position:sticky;top:0;left:0;right:0";
+      b.onclick = function () {
+        b.textContent = "Updating…";
+        var p = new URLSearchParams(location.search); p.set("v", shown); p.set("t", String(Date.now()));
+        location.replace(location.pathname + "?" + p.toString() + location.hash);
+      };
+      document.body.insertBefore(b, document.body.firstChild);
+    }
+    b.textContent = "⬆️ You're not running the latest version (v" + v + "). Tap here to update.";
+  }
+  function check(force) {
+    if (!mine || (!force && Date.now() - last < 15000)) return;
+    last = Date.now();
+    try {
+      fetch(location.pathname + "?_=" + Date.now(), { cache: "no-store", headers: { "Range": "bytes=0-4095" } })
+        .then(function (r) { return r.text(); })
+        .then(function (txt) { var m = txt.match(rx); if (m && newer(m[1], mine)) show(m[1]); })
+        .catch(function () {});
+    } catch (e) {}
+  }
+  var start = function () { setTimeout(function () { check(true); }, 5000); setInterval(function () { if (!document.hidden) check(true); }, 60 * 1000); };
+  if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", start); else start();
+  document.addEventListener("visibilitychange", function () { if (!document.hidden) check(false); });
+  document.addEventListener("pointerdown", function () { check(false); }, { passive: true, capture: true });
+  window.addEventListener("focus", function () { check(false); });
+  window.addEventListener("pageshow", function () { check(false); });
+  window.trkCheckForUpdate = function () { check(true); };
+})();
 </script>
 </body>
 </html>
