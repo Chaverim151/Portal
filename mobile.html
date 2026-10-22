@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<meta name="trk-version" content="1.20">
+<meta name="trk-version" content="1.21">
 <meta name="trk-mode" content="mobile">
 <meta name="theme-color" content="#ffffff">
 <title>Compliance</title>
@@ -155,6 +155,10 @@ h2{font-size:1.1rem;margin:18px 0 10px;color:var(--accent)}
 .thumbs{display:flex;gap:6px;flex-wrap:wrap;margin:8px 0}
 .thumbs a{display:block;width:64px;height:64px;border-radius:6px;border:1px solid var(--line);overflow:hidden;background:var(--soft);color:var(--gray);font-size:.7rem;text-align:center;line-height:64px;text-decoration:none}
 .thumbs img{width:100%;height:100%;object-fit:cover}
+/* 1.21: a real preview of the document on its card (photo, or page 1 of a PDF) */
+.thumbs a.big{width:100%;height:auto;line-height:normal;background:var(--soft);position:relative}
+.thumbs a.big img{display:block;width:100%;height:170px;object-fit:contain}
+.thumbs a.big .tag{position:absolute;left:6px;bottom:6px;background:rgba(31,35,40,.75);color:#fff;border-radius:4px;padding:1px 6px;font-size:.7rem}
 .note{font-size:.85rem;background:#fdecea;border:1px solid #f2c4bf;color:#7a1810;border-radius:6px;padding:6px 8px;margin:6px 0}
 
 /* pop-up */
@@ -267,7 +271,7 @@ td.rep-warn{color:var(--warn);font-weight:700}
     <div class="m-err" id="login-err"></div>
 
     <div style="text-align:center;margin-top:16px"><button class="m-forgot" onclick="App.forgotPw()">Forgot password?</button></div>
-    <div class="m-build">BUILD <span id="li-build">v1.20</span></div>
+    <div class="m-build">BUILD <span id="li-build">v1.21</span></div>
   </div>
 </div>
 <div id="boot" class="empty" style="margin-top:20vh">Signing in…</div>
@@ -345,7 +349,7 @@ function trkSmsPayload(phone, message, unit){
 function trkEmailPayload(email, name, subject, html){ return { to: [{ email: email, name: name || email }], subject: subject, body: html }; }
 
 /* ════════════════════════════════════════════════════════════════════════ */
-var TRK_VERSION = "1.20";
+var TRK_VERSION = "1.21";
 // 1.16: owner asked to block the tracker's notifications for now. While this is true the tracker sends NO texts and
 // NO emails (reminders and test reminders). Sign-in "Forgot password?" still works. Set to false to allow sending again.
 var TRK_SENDING_OFF = true;
@@ -925,9 +929,21 @@ function docCard(ownerKey, t, rec, ctx){
 function thumbs(files){
   if (!files || !files.length) return "";
   return '<div class="thumbs">' + files.map(function(f){
-    var img = /^image\//.test(f.type || "");
-    return '<a href="' + esc(f.url) + '" target="_blank" rel="noopener" title="' + esc(f.name || "") + '">' + (img ? '<img src="' + esc(f.url) + '" alt="" loading="lazy">' : "📄 PDF") + '</a>';
+    var pic = /^image\//.test(f.type || "") ? f.url : f.thumb;   // PDFs show the picture of page 1 saved with them (1.21)
+    if (!pic) return '<a href="' + esc(f.url) + '" target="_blank" rel="noopener" title="' + esc(f.name || "") + '">📄 PDF</a>';
+    return '<a class="big" href="' + esc(f.url) + '" target="_blank" rel="noopener" title="Open ' + esc(f.name || "") + '"><img src="' + esc(pic) + '" alt="Preview of ' + esc(f.name || "the document") + '" loading="lazy">'
+      + (pic !== f.url ? '<span class="tag">📄 PDF' + (f.pages > 1 ? ' · ' + f.pages + ' pages' : '') + '</span>' : '') + '</a>';
   }).join("") + '</div>';
+}
+// 1.21: with each PDF, also save a small picture of its first page, so cards and the admin's review can show it
+async function pdfThumbFor(file, path){
+  if (!isPdfFile(file)) return {};
+  try {
+    var r = await pdfFirstPage(file, 700);
+    var bl = await new Promise(function(res){ r.canvas.toBlob(res, "image/jpeg", 0.8); });
+    var tp = path + "_page1.jpg", sn = await storage.ref(tp).put(bl, { contentType: "image/jpeg" });
+    return { thumb: await sn.ref.getDownloadURL(), thumbPath: tp, pages: r.pages };
+  } catch (e){ return {}; }   // no preview is fine — the PDF itself is saved
 }
 
 /* ── My Documents ── */
@@ -973,9 +989,15 @@ function vehicleForm(v){
   var taken = {}; mine.forEach(function(x){ if (!v || x.id !== v.id) taken[x.slot] = x; });
   var freeSlot = !taken[1] ? 1 : !taken[2] ? 2 : 0;
   var slot = v ? (v.slot || "") : freeSlot || "";
-  function inp(id, label, val, extra){ return '<div class="pf-f"><label for="' + id + '">' + label + '</label><input id="' + id + '" value="' + esc(val || "") + '"' + (extra || "") + '></div>'; }
-  function sel(id, label, val, opts, first){ return '<div class="pf-f"><label for="' + id + '">' + label + '</label><select id="' + id + '"><option value="">' + first + '</option>' + opts.map(function(o){ var ov = Array.isArray(o) ? o[0] : o, ol = Array.isArray(o) ? o[1] : o; return '<option value="' + esc(ov) + '"' + (String(ov) === String(val) ? " selected" : "") + '>' + esc(ol) + '</option>'; }).join("") + '</select></div>'; }
-  var b = '<div class="pf-grid" style="margin-top:6px">'
+  function inp(id, label, val, extra){ return '<div class="pf-f"><label for="' + id + '">' + label + '</label><input id="' + id + '" value="' + esc(val || "") + '"' + (extra || "") + ' oninput="this.dataset.typed=1"></div>'; }
+  function sel(id, label, val, opts, first){ return '<div class="pf-f"><label for="' + id + '">' + label + '</label><select id="' + id + '" onchange="this.dataset.typed=1"><option value="">' + first + '</option>' + opts.map(function(o){ var ov = Array.isArray(o) ? o[0] : o, ol = Array.isArray(o) ? o[1] : o; return '<option value="' + esc(ov) + '"' + (String(ov) === String(val) ? " selected" : "") + '>' + esc(ol) + '</option>'; }).join("") + '</select></div>'; }
+  var b = '';
+  // 1.21: a new vehicle starts with its papers (registration, insurance…). The scanner reads them and fills in the
+  // vehicle below; when the vehicle is saved each paper is saved as its own document (it can be updated on its own later).
+  S.vf = { docs: {} };
+  if (!v) b += '<div class="muted" style="margin:8px 0 2px">Add the vehicle\'s papers first — the details below are filled in from them. You can also skip this and add them later.</div>'
+    + docTypes("vehicle").map(vfDocSlot).join("");
+  b += '<div class="pf-grid" style="margin-top:6px">'
     + sel("vf-slot", "Vehicle 1 or 2?", slot, [["1", "Vehicle 1" + (taken[1] ? " — now " + vTitle(taken[1]) : "")], ["2", "Vehicle 2" + (taken[2] ? " — now " + vTitle(taken[2]) : "")]], "Select")
     + inp("vf-plate", "License Plate", v && v.plate, ' autocapitalize="characters" maxlength="10"')
     + inp("vf-vin", "VIN #", v && v.vin, ' autocapitalize="characters" maxlength="17" placeholder="17 characters"')
@@ -999,6 +1021,107 @@ function vehicleForm(v){
     (v ? '<button class="btn red" data-id="' + esc(v.id) + '" onclick="App.removeVehicle(this.dataset.id)">Remove</button><span class="grow"></span>' : '')
     + '<button class="btn" onclick="App.closeModal()">Cancel</button><button class="btn gold" id="vf-save" data-id="' + esc(v ? v.id : "") + '" onclick="App.saveVehicle(this.dataset.id)">Save</button>');
 }
+var TRK_ACCEPT = "image/bmp,image/jpeg,image/gif,image/png,application/pdf,.bmp,.jpg,.jpeg,.gif,.png,.pdf";
+function trkFileProblem(f){
+  if (!/^(image\/(bmp|jpeg|gif|png)|application\/pdf)$/i.test(f.type) && !/\.(bmp|jpe?g|gif|png|pdf)$/i.test(f.name)) return "That file type isn't accepted. Use BMP, JPG, GIF, PNG or PDF.";
+  if (f.size > 15 * 1024 * 1024) return "The file must be under 15 MB.";
+  return "";
+}
+function isPdfFile(f){ return !!f && (/pdf/i.test(f.type) || /\.pdf$/i.test(f.name)); }
+function vfDocSlot(t){
+  var k = "vfd-" + t.id + "-";
+  return '<div class="card" style="padding:10px 12px;margin:8px 0"><div class="row"><b class="grow">📄 ' + esc(t.name) + '</b></div>'
+    + '<input id="' + k + 'file" type="file" accept="' + TRK_ACCEPT + '" style="margin-top:6px" onchange="App.vfDocFile(\'' + t.id + '\')">'
+    + '<div class="up-prev" id="' + k + 'prev" hidden style="margin-top:6px;min-height:0"></div>'
+    + '<div class="scan-box" id="' + k + 'scan" hidden><div class="row"><span class="grow" id="' + k + 'msg"></span><button class="btn sm" type="button" id="' + k + 'btn" onclick="App.vfDocScan(\'' + t.id + '\')">✨ Scan again</button></div></div>'
+    + '<div id="' + k + 'fields" hidden>' + upFieldsHtml(t, null, k) + '</div></div>';
+}
+async function vfDocPreview(tid){
+  var D = S.vf.docs[tid], k = "vfd-" + tid + "-", prev = $(k + "prev"); if (!D || !prev) return;
+  prev.hidden = false;
+  try {
+    var c, cap = "";
+    if (isPdfFile(D.file)){ var r = await pdfFirstPage(D.file, 800); c = r.canvas; cap = "page 1" + (r.pages > 1 ? " of " + r.pages : ""); }
+    else c = await trkProcess(D.file, D.rot || 0, D.crop, 800);
+    if (!S.vf.docs[tid] || S.vf.docs[tid].file !== D.file) return;
+    var bl = await new Promise(function(res){ c.toBlob(res, "image/jpeg", 0.85); });
+    prev.innerHTML = '<div style="text-align:center;width:100%"><img alt="Preview" src="' + URL.createObjectURL(bl) + '" style="max-height:200px;border:1px solid var(--line)">' + (cap ? '<div class="muted">📄 ' + esc(D.file.name) + ' · ' + cap + '</div>' : '') + '</div>';
+  } catch (e){ prev.innerHTML = '<span class="muted">📄 ' + esc(D.file.name) + ' — no preview</span>'; }
+}
+function vfDocFile(tid){
+  var k = "vfd-" + tid + "-", f = ($(k + "file").files || [])[0];
+  if (!f){ delete S.vf.docs[tid]; $(k + "prev").hidden = true; $(k + "scan").hidden = true; $(k + "fields").hidden = true; return; }
+  var bad = trkFileProblem(f); if (bad){ toast(bad); $(k + "file").value = ""; return; }
+  S.vf.docs[tid] = { file: f, rot: 0, crop: null, scanN: 0 };
+  $(k + "fields").hidden = false; $(k + "scan").hidden = false;
+  vfDocPreview(tid);
+  if (isPdfFile(f)){ $(k + "msg").textContent = "📄 PDF ready. Tap the button to read the details from it."; $(k + "btn").textContent = "✨ Scan PDF with AI"; $(k + "btn").disabled = false; }
+  else vfDocScan(tid);
+}
+// what the scanner is asked on a vehicle paper, on top of the paper's own fields: the vehicle's details
+var VF_VEHICLE_FIELDS = [["plate", "License plate"], ["vin", "VIN (17 characters)"], ["make", "Vehicle make"], ["model", "Vehicle model"],
+  ["year", "Vehicle model year (4 digits)"], ["color", "Vehicle color"], ["state", "State the vehicle is registered in (2-letter code)"]];
+function vfFill(id, v){ var el = $(id); if (!el || !v || el.dataset.typed) return false; el.value = v; el.classList.add("scanned"); return el.value === v; }
+async function vfDocScan(tid){
+  var D = S.vf.docs[tid], t = typeById(tid), k = "vfd-" + tid + "-", msg = $(k + "msg"); if (!D || !t) return;
+  var my = (D.scanN = (D.scanN || 0) + 1), pdf = isPdfFile(D.file);
+  msg.textContent = "✨ Reading the " + t.name + "…"; $(k + "btn").disabled = true; $(k + "btn").textContent = "✨ Scan again";
+  try {
+    var blob = pdf ? D.file : await shrinkForScan(D.file, 0);
+    var data = await new Promise(function(res, rej){ var r = new FileReader(); r.onload = function(){ res(String(r.result).split(",")[1]); }; r.onerror = rej; r.readAsDataURL(blob); });
+    var want = [["number", "Document / policy / registration number"], ["issued", "Issue date"]].concat(t.expires ? [["expires", "Expiration date"]] : []).concat(docFields(t));
+    var keys = {}; want.forEach(function(w){ keys[w[0]] = 1; });
+    VF_VEHICLE_FIELDS.forEach(function(w){ if (!keys[w[0]]) want.push(w); });
+    var r = await callFn("docScan", { docType: t.name, fields: want.map(function(w){ return { key: w[0], label: w[1], date: w[0] === "issued" || w[0] === "expires" || w[2] === "date" }; }), mime: pdf ? "application/pdf" : "image/jpeg", data: data });
+    if (!S.vf.docs[tid] || D.scanN !== my) return;
+    var got = (r && r.fields) || {}, filled = 0, vfilled = 0;
+    Object.keys(got).forEach(function(key){ var el = $(k + key), v = got[key]; if (!el || !v || el.dataset.typed) return; el.value = v; el.classList.add("scanned"); filled++; });
+    upAutoExp(k, tid);
+    // the vehicle's own boxes (only ones the member hasn't typed in)
+    var plate = String(got.plate || "").toUpperCase().replace(/\s+/g, ""), vin = String(got.vin || "").toUpperCase().replace(/\s+/g, "");
+    if (plate && vfFill("vf-plate", plate)) vfilled++;
+    if (/^[A-HJ-NPR-Z0-9]{17}$/.test(vin) && vfFill("vf-vin", vin)) vfilled++;
+    if (vfFill("vf-make", got.make)) vfilled++;
+    if (vfFill("vf-model", got.model)) vfilled++;
+    if (/^(19|20)\d\d$/.test(String(got.year || "")) && vfFill("vf-year", String(got.year))) vfilled++;
+    if (vfFill("vf-color", got.color)) vfilled++;
+    var st = String(got.state || "").toUpperCase().trim();
+    if (US_STATES.indexOf(st) >= 0 && vfFill("vf-state", st)) vfilled++;
+    if (tid === "reg" && vfFill("vf-regname", got.regName)) vfilled++;
+    if (!pdf){
+      var bx = r && Array.isArray(r.box) && r.box.length === 4 ? r.box.map(Number) : null;
+      D.crop = bx && bx[2] > bx[0] && bx[3] > bx[1] && (bx[2] - bx[0]) * (bx[3] - bx[1]) >= 100000 && (bx[2] - bx[0]) * (bx[3] - bx[1]) <= 920000 ? { box: bx, rot: 0 } : null;
+      D.rot = r && r.rotate ? ((r.rotate % 360) + 360) % 360 : 0;
+      vfDocPreview(tid);
+    }
+    D.scanned = true;
+    msg.innerHTML = (r && r.matches === false ? "⚠ This doesn't look like a " + esc(t.name) + ". " : "")
+      + (filled || vfilled ? "✨ Filled in " + (filled + vfilled) + " box" + (filled + vfilled === 1 ? "" : "es") + " — please check them." : "✨ Couldn't read any details — please type them in.");
+  } catch (e){
+    if (!S.vf.docs[tid] || D.scanN !== my) return;
+    msg.textContent = /404|Failed to fetch|not.?found/i.test(e.message) ? "✨ Scanning isn't set up on the server yet — type the details in." : "✨ Couldn't scan (" + e.message + ") — type the details in.";
+  }
+  $(k + "btn").disabled = false;
+}
+// Save one paper picked in the vehicle form as its own document (same record as the upload form makes)
+async function vfStoreDoc(vehId, vehName, tid){
+  var D = S.vf.docs[tid], t = typeById(tid), k = "vfd-" + tid + "-", F = {};
+  document.querySelectorAll("#" + k + "fields input[data-k]").forEach(function(el){ F[el.dataset.k] = el.value.trim(); });
+  var ownerKey = "v_" + vehId, key = recKey(ownerKey, t.id), owner = S.me.uid;
+  var f = await shrinkImage(D.file, D.rot || 0, D.crop);
+  var path = "trk/" + owner + "/" + key + "/" + Date.now() + "_" + f.name.replace(/[^\w.\-]/g, "_").slice(-60);
+  var snap = await storage.ref(path).put(f, { contentType: f.type });
+  var data = {
+    uid: owner, unit: S.me.unit || "", memberName: S.me.name || "", owner: ownerKey, vehicle: ownerKey, vehName: vehName, typeId: t.id,
+    number: F.number || "", issued: F.issued || "", expires: t.expires ? (F.expires || "") : "",
+    files: [Object.assign({ url: await snap.ref.getDownloadURL(), path: path, name: f.name, type: f.type, size: f.size, side: "front" }, await pdfThumbFor(f, path))],
+    fields: (function(){ var o = {}; docFields(t).forEach(function(d){ if (F[d[0]]) o[d[0]] = F[d[0]]; }); return o; })(),
+    scanned: !!D.scanned, status: S.isAdmin ? "approved" : "pending", reviewNote: "",
+    updatedAt: Date.now(), updatedBy: S.me.unit || "", updatedByUid: S.me.uid
+  };
+  if (S.isAdmin){ data.reviewedBy = S.me.unit || ""; data.reviewedAt = Date.now(); }
+  await db.collection("trk_records").doc(key).set(data);
+}
 function vfRepl(){
   var yes = $("vf-repl").value === "yes"; $("vf-repl-box").hidden = !yes;
   if (yes && $("vf-repl-which")){ var x = S.myVehicles.filter(function(v){ return v.id === $("vf-repl-which").value; })[0]; if (x && x.slot) $("vf-slot").value = String(x.slot); }
@@ -1020,6 +1143,8 @@ async function saveVehicle(id){
   var other = S.myVehicles.filter(function(x){ return x.id !== id && x.id !== replId && x.slot === d.slot; })[0];
   if (other) bad.push("Vehicle " + d.slot + " is already your " + vTitle(other) + ". Pick the other number, or answer Yes to \"Replacing Vehicle?\"");
   if (!id && !replacing && S.myVehicles.length >= 2) bad.push("You already have two vehicles. Answer Yes to \"Replacing Vehicle?\"");
+  var papers = !id && S.vf ? Object.keys(S.vf.docs).filter(function(tid){ return S.vf.docs[tid] && S.vf.docs[tid].file && typeById(tid); }) : [];
+  papers.forEach(function(tid){ var t = typeById(tid), ex = $("vfd-" + tid + "-expires"); if (t.expires && !(ex && ex.value)) bad.push("Enter the expiration date on the " + t.name); });
   if (bad.length){ toast(bad.join(". ") + ".", 7000); return; }
   d.name = [d.year, d.make, d.model].join(" ");
   $("vf-save").disabled = true;
@@ -1030,8 +1155,19 @@ async function saveVehicle(id){
       batch.set(ref, Object.assign({ uid: S.me.uid, unit: S.me.unit || "", createdAt: Date.now(), replaces: replId || null }, d));
       if (replId) batch.update(db.collection("trk_myVehicles").doc(replId), { replacedAt: Date.now(), replacedBy: ref.id });
       await batch.commit();
+      var failed = [];
+      for (var i = 0; i < papers.length; i++){
+        $("vf-save").textContent = "Uploading " + typeById(papers[i]).name + "…";
+        try { await vfStoreDoc(ref.id, [d.year, d.make, d.model].filter(Boolean).join(" "), papers[i]); }
+        catch (e){ failed.push(typeById(papers[i]).name + " (" + e.message + ")"); }
+      }
+      var missing = docTypes("vehicle").filter(function(t){ return papers.indexOf(t.id) < 0; }).map(function(t){ return t.name.toLowerCase(); });
+      closeModal();
+      if (failed.length) toast("⚠ Vehicle saved, but these didn't upload: " + failed.join(", ") + ". Add them from My Vehicles.", 9000);
+      else toast("✓ Vehicle saved" + (papers.length ? " with " + papers.length + " document" + (papers.length === 1 ? "" : "s") + (S.isAdmin ? "" : " — an admin will review them") : "") + (missing.length ? ". Upload the " + missing.join(" and ") + " from My Vehicles." : ""), 7000);
+      return;
     }
-    closeModal(); toast(replId ? "✓ Saved — upload the new vehicle's insurance and registration" : "✓ Saved");
+    closeModal(); toast("✓ Saved");
   } catch (e){ $("vf-save").disabled = false; toast("⚠ Not saved: " + e.message, 6000); }
 }
 async function removeVehicle(id){
@@ -1079,15 +1215,17 @@ function addYears(ymd, n){
   var y = +p[0] + n, m = +p[1], d = +p[2], last = new Date(y, m, 0).getDate();   // Feb 29 → Feb 28
   return y + "-" + pad(m) + "-" + pad(Math.min(d, last));
 }
-function upAutoExp(){
-  var t = upType(), yrs = t && AUTO_EXPIRE_YEARS[t.id], iss = $("upf-issued"), ex = $("upf-expires");
+function upAutoExp(px, tid){
+  px = px || "upf-";
+  var t = tid ? typeById(tid) : upType(), yrs = t && AUTO_EXPIRE_YEARS[t.id], iss = $(px + "issued"), ex = $(px + "expires");
   if (!yrs || !iss || !ex || ex.dataset.typed || !/^\d{4}-\d{2}-\d{2}$/.test(iss.value)) return;
   ex.value = addYears(iss.value, yrs);
 }
-function upFieldsHtml(t, rec){
+function upFieldsHtml(t, rec, px){
   if (!t) return '';
+  px = px || "upf-";
   var x = (rec && rec.fields) || {}, yrs = AUTO_EXPIRE_YEARS[t.id];
-  function f(id, label, val, type){ return '<div class="pf-f"><label for="upf-' + id + '">' + esc(label) + '</label><input id="upf-' + id + '" data-k="' + id + '"' + (type ? ' type="' + type + '"' : '') + ' value="' + esc(val || "") + '" oninput="this.dataset.typed=1' + (id === "issued" && yrs ? ';App.upAutoExp()' : '') + '"></div>'; }
+  function f(id, label, val, type){ return '<div class="pf-f"><label for="' + px + id + '">' + esc(label) + '</label><input id="' + px + id + '" data-k="' + id + '"' + (type ? ' type="' + type + '"' : '') + ' value="' + esc(val || "") + '" oninput="this.dataset.typed=1' + (id === "issued" && yrs ? ';App.upAutoExp(\'' + px + '\',\'' + t.id + '\')' : '') + '"></div>'; }
   var h = '<div class="pf-grid" style="margin-top:4px">';
   if (t.expires) h += f("expires", "Expiration Date", rec && rec.expires, "date").replace('</div>', yrs ? '<div class="muted" style="margin-top:4px">Set automatically: ' + yrs + ' years from the issue date.</div></div>' : '</div>');
   h += f("number", "Document Number", rec && rec.number) + f("issued", "Issue Date", rec && rec.issued, "date");
@@ -1315,7 +1453,7 @@ async function saveUpload(){
       if (task && task.on) task.on("state_changed", function(sn){ var pct = sn.totalBytes ? Math.round(sn.bytesTransferred / sn.totalBytes * 100) : 0; fill.style.width = pct + "%"; prog.textContent = "Uploading… " + pct + "%"; });
       var snap = await task;
       fill.style.width = "100%"; prog.textContent = "Uploaded 100%";
-      stored = [{ url: await snap.ref.getDownloadURL(), path: path, name: f.name, type: f.type, size: f.size, side: "front" }];
+      stored = [Object.assign({ url: await snap.ref.getDownloadURL(), path: path, name: f.name, type: f.type, size: f.size, side: "front" }, await pdfThumbFor(f, path))];
     }
     var byAdmin = S.isAdmin;
     var data = {
@@ -1777,7 +1915,7 @@ async function deleteRecord(id){
   var rec = S.allRecords[id];
   try {
     await db.collection("trk_records").doc(id).delete();
-    (rec && rec.files || []).forEach(function(f){ if (f.path) storage.ref(f.path).delete().catch(function(){}); });
+    (rec && rec.files || []).forEach(function(f){ [f.path, f.thumbPath].forEach(function(x){ if (x) storage.ref(x).delete().catch(function(){}); }); });
     closeModal(); toast("Deleted");
   } catch (e){ toast("⚠ " + e.message, 6000); }
 }
@@ -2208,7 +2346,7 @@ setInterval(function(){ if (S.me) render(); }, 600000);
 window.App = {
   signIn: signIn, signOut: signOut, togglePw: togglePw, forgotPw: forgotPw, setTab: setTab, openPanel: openPanel, closePanel: closePanel, goNotif: goNotif,
   goNotifHome: goNotif,
-  openUpload: openUpload, saveUpload: saveUpload, upPick: upPick, upFile: upFile, upRotate: upRotate, upAutoExp: upAutoExp, upCropToggle: upCropToggle, upScan: upScan, closeModal: closeModal,
+  openUpload: openUpload, saveUpload: saveUpload, upPick: upPick, upFile: upFile, upRotate: upRotate, upAutoExp: upAutoExp, vfDocFile: vfDocFile, vfDocScan: vfDocScan, upCropToggle: upCropToggle, upScan: upScan, closeModal: closeModal,
   addVehicle: addVehicle, editVehicle: editVehicle, saveVehicle: saveVehicle, removeVehicle: removeVehicle,
   startBagCheck: startBagCheck, bagHistory: bagHistory, startRigCheck: startRigCheck, rigHistory: rigHistory, rigFixed: rigFixed,
   rigSub: function(s){ S.rigSub = s; render(); },
