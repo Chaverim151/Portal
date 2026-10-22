@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<meta name="trk-version" content="1.30">
+<meta name="trk-version" content="1.31">
 <meta name="trk-mode" content="mobile">
 <meta name="theme-color" content="#ffffff">
 <title>Compliance</title>
@@ -273,7 +273,7 @@ td.rep-warn{color:var(--warn);font-weight:700}
     <div class="m-err" id="login-err"></div>
 
     <div style="text-align:center;margin-top:16px"><button class="m-forgot" onclick="App.forgotPw()">Forgot password?</button></div>
-    <div class="m-build">BUILD <span id="li-build">v1.30</span></div>
+    <div class="m-build">BUILD <span id="li-build">v1.31</span></div>
   </div>
 </div>
 <div id="boot" class="empty" style="margin-top:20vh">Signing in…</div>
@@ -352,7 +352,7 @@ function trkSmsPayload(phone, message, unit){
 function trkEmailPayload(email, name, subject, html){ return { to: [{ email: email, name: name || email }], subject: subject, body: html }; }
 
 /* ════════════════════════════════════════════════════════════════════════ */
-var TRK_VERSION = "1.30";
+var TRK_VERSION = "1.31";
 // 1.16: owner asked to block the tracker's notifications for now. While this is true the tracker sends NO texts and
 // NO emails (reminders and test reminders). Sign-in "Forgot password?" still works. Set to false to allow sending again.
 var TRK_SENDING_OFF = true;
@@ -626,7 +626,7 @@ function obExpSummary(bid){
   return { expired: r.filter(function(x){ return x.st.k === "expired"; }).length, expiring: r.filter(function(x){ return x.st.k === "expiring"; }).length, missing: r.filter(function(x){ return x.st.k === "missing"; }).length, total: r.length };
 }
 function viewObExp(bid){
-  var v = S.fleet.filter(function(x){ return x.id === bid; })[0], st = S.allBags["org_" + bid] || {}, rows = obExpRows(bid);
+  var v = fleetBagById(bid), st = S.allBags["org_" + bid] || {}, rows = obExpRows(bid);
   openModal("⏳ " + (v ? bagLabel(v) : bid) + " — Expiration Dates",
     '<div class="tbl-wrap" style="margin-top:10px"><table class="exp-tbl"><thead><tr><th>Item</th><th>Expiration</th><th>Validity</th><th>Action</th></tr></thead><tbody>'
     + rows.map(function(r, i){ return '<tr><td>' + esc(r.item) + '</td><td class="num">' + (r.date ? fmtDash(r.date) : '<span class="muted">—</span>') + '</td><td>' + pillFor(r.st) + '</td>' + '<td><button class="btn sm" title="Update this date" data-k="org" data-id="' + esc(bid) + '" data-i="' + i + '" onclick="App.expOne(this)">✎ Update</button></td>' + '</tr>'; }).join("")
@@ -634,14 +634,14 @@ function viewObExp(bid){
     '<button class="btn" onclick="App.closeModal()">Close</button><button class="btn gold" data-id="' + esc(bid) + '" onclick="App.editObExp(this.dataset.id)">✎ Edit dates</button>');
 }
 function editObExp(bid){
-  var v = S.fleet.filter(function(x){ return x.id === bid; })[0];
+  var v = fleetBagById(bid);
   openModal("⏳ " + (v ? bagLabel(v) : bid) + " — Expiration Dates", '<p class="muted">Enter the expiration date printed on each item in the bag.</p>' + obExpInputs(bid),
     '<button class="btn" onclick="App.closeModal()">Cancel</button><button class="btn gold" data-id="' + esc(bid) + '" onclick="App.saveObExp(this.dataset.id)">Save</button>');
 }
 async function saveObExp(bid){
   var r = readObExp();
   if (r.missing){ toast(r.missing + " item" + (r.missing === 1 ? " has" : "s have") + " no date yet. Fill in every date."); return; }
-  var v = S.fleet.filter(function(x){ return x.id === bid; })[0], bl = v ? bagLabel(v) : bid;
+  var v = fleetBagById(bid), bl = v ? bagLabel(v) : bid;
   try { await db.collection("trk_bagStatus").doc("org_" + bid).set({ org: true, bagId: bid, bag: bl, unit: bl, byUid: S.me.uid, expDates: r.dates, expUpdatedAt: Date.now(), expUpdatedBy: S.me.unit || "" }, { merge: true }); closeModal(); toast("✓ Dates saved"); }
   catch (e){ toast("⚠ Not saved: " + e.message, 6000); }
 }
@@ -668,7 +668,7 @@ function personalBagStatus(uid, bid){ var d = uid === (S.me && S.me.uid) ? S.myB
 function personalBagName(uid, bid){ if (!bid) return "Primary Bag"; var x = bagAssignOf(uid).extra.filter(function(e){ return e.id === bid; })[0]; return x ? x.name : "Bag"; }
 function bagDatesOf(uid, bid){ var e = bagExpFor(uid); return bid ? ((e.bagDates || {})[bid] || null) : (e.updatedAt ? (e.dates || {}) : null); }
 function bagDatesMeta(uid, bid){ var e = bagExpFor(uid); return bid ? ((e.bagDatesMeta || {})[bid] || {}) : { at: e.updatedAt, by: e.updatedBy }; }
-function fleetBagById(id){ return S.fleet.filter(function(v){ return v.id === id; })[0]; }
+function fleetBagById(id){ return agencyBags().filter(function(v){ return v.id === id; })[0] || S.fleet.filter(function(v){ return v.id === id; })[0]; }
 // [{item, date, st}] for every item on the admin's list
 function bagExpRows(uid, bid){
   var dates = bagDatesOf(uid, bid) || {};
@@ -955,8 +955,11 @@ function isBagEquip(v){
 }
 function agencyBags(){
   var ids = S.settings.bagIds;
-  return S.fleet.filter(function(v){ return isBagEquip(v) && (!ids || ids.indexOf(v.id) >= 0); })
-    .sort(function(a, b){ return String(a.id).localeCompare(String(b.id), undefined, { numeric: true }); });
+  var real = S.fleet.filter(function(v){ return isBagEquip(v) && (!ids || ids.indexOf(v.id) >= 0); });
+  // 1.31: every ambulance has its jump bag check — when Fleet has no bag for it, the ambulance's own "<rig> Jump Bag" stands in
+  var linked = {}; real.forEach(function(b){ var v = bagVehicle(b); if (v) linked[v.id] = 1; });
+  rigList().forEach(function(r){ if (!linked[r.id]) real.push({ id: r.id + " Jump Bag", type: "jumpbag", name: vName(r) + " Jump Bag", assignedTo: r.id, virtual: true }); });
+  return real.sort(function(a, b){ return String(a.id).localeCompare(String(b.id), undefined, { numeric: true }); });
 }
 // The vehicle a bag belongs to: the Fleet's own link if there is one, otherwise the vehicle whose ID is in the bag's name ("MC-902 Jump Bag" → MC-902)
 function bagVehicle(b){
@@ -1824,7 +1827,7 @@ async function expOneSave(){
       var v = S.fleet.filter(function(x){ return x.id === b.id; })[0];
       await db.collection("trk_rigStatus").doc(b.id).set({ vehicleId: b.id, rig: v ? vName(v) : b.id, expDates: upd, expUpdatedAt: Date.now(), expUpdatedBy: S.me.unit || "" }, { merge: true });
     } else if (b.kind === "org"){
-      var bv = S.fleet.filter(function(x){ return x.id === b.id; })[0], bl = bv ? bagLabel(bv) : b.id;
+      var bv = fleetBagById(b.id), bl = bv ? bagLabel(bv) : b.id;
       await db.collection("trk_bagStatus").doc("org_" + b.id).set({ org: true, bagId: b.id, bag: bl, unit: bl, byUid: S.me.uid, expDates: upd, expUpdatedAt: Date.now(), expUpdatedBy: S.me.unit || "" }, { merge: true });
     } else {
       await writeBagExp(b.id, Object.assign({}, bagDatesOf(b.id, b.bag) || {}, upd), b.bag);
@@ -1863,14 +1866,17 @@ function writeBagExp(uid, dates, bid){
   return db.collection("trk_bagExp").doc(uid).set(d, { merge: true });
 }
 function startBagCheck(pick){
-  S.check = { kind: "bag", pick: pick || "mine", sections: clone(bagChecklist()), ans: {}, notes: {}, qa: {}, secNotes: {} };
+  S.check = { kind: "bag", pick: pick || "mine", fixed: !!pick, sections: clone(bagChecklist()), ans: {}, notes: {}, qa: {}, secNotes: {} };
   var fb = /^org_/.test(pick || "") ? fleetBagById(pick.slice(4)) : null, fv = fb ? bagVehicle(fb) : null;
-  openChecklist(fv && isAmbulance(fv) ? "🎒 Ambulance Jump Bag Check — " + vName(fv) : "🎒 Jump Bag Check", "Tap ✓ for each item that's there, or ✗ if it's missing or low. Answer every Yes / No question.", ckHeader("bag"));
+  var ttl = fv && isAmbulance(fv) ? "🎒 Ambulance Jump Bag Check — " + vName(fv) : fb ? "🎒 Jump Bag Check — " + bagLabel(fb)
+    : "🎒 Jump Bag Check — " + (S.me.unit || "") + " " + personalBagName(S.me.uid, /^mine:/.test(pick || "") ? pick.slice(5) : "");
+  openChecklist(ttl, "Tap ✓ for each item that's there, or ✗ if it's missing or low. Answer every Yes / No question.", ckHeader("bag"));
 }
 // Top of a check (owner's forms): who, when, and which rig / bag
 // 1.25: who checked and when come from the sign-in and the clock — only the rig / bag is asked
 function ckHeader(kind){
   var C = S.check, opts;
+  if (C.fixed) return '<input type="hidden" id="ck-what" value="' + esc(C.pick) + '">';   // 1.31: started for a specific rig / bag — no box to pick it again
   if (kind === "rig") opts = rigList().map(function(v){ return '<option value="' + esc(v.id) + '"' + (v.id === C.pick ? " selected" : "") + '>' + esc(vName(v)) + '</option>'; }).join("");
   else {
     var asg = bagAssignOf(S.me.uid), o = function(val, txt){ return '<option value="' + esc(val) + '"' + (val === C.pick ? " selected" : "") + '>' + esc(txt) + '</option>'; };
@@ -1921,7 +1927,6 @@ function viewRigs(){
     h += '<div class="row" style="margin-top:8px"><button class="btn gold" data-id="' + esc(v.id) + '" onclick="App.startRigCheck(this.dataset.id)">Start ambulance check</button><button class="btn" data-id="' + esc(v.id) + '" onclick="App.rigHistory(this.dataset.id)">🕘 History</button></div></div>';
     // ── Ambulance Jump Bag
     var bags = bagsOfVehicle(v.id);
-    if (!bags.length) h += '<div class="card" style="margin:0;padding:10px 12px;background:var(--soft)"><b>🎒 Ambulance Jump Bag</b><div class="muted" style="margin-top:4px">No jump bag is linked to this ambulance in CallDashboard ▸ Fleet (name it like "' + esc(v.id) + ' Jump Bag").</div></div>';
     bags.forEach(function(b){
       var bs = S.allBags["org_" + b.id], bst = bagState(bs), ob = obExpSummary(b.id);
       h += '<div class="card" style="margin:0 0 10px;padding:10px 12px;background:var(--soft)"><div class="row"><b class="grow">🎒 Ambulance Jump Bag' + (bags.length > 1 ? ' — ' + esc(bagLabel(b)) : '') + '</b>' + pillFor(bst) + '</div>'
@@ -1944,8 +1949,8 @@ function rigCheckSections(vid){
 }
 function startRigCheck(id){
   var v = id ? S.fleet.filter(function(x){ return x.id === id; })[0] : null;
-  S.check = { kind: "rig", pick: id || "", vid: id || "", vname: v ? vName(v) : "", sections: rigCheckSections(id), ans: {}, notes: {}, qa: {}, secNotes: {} };
-  openChecklist("🚑 Ambulance Check", "Tap ✓ when the item is there / stocked, ✗ when there's a problem or it's missing. Answer every Yes / No question.", ckHeader("rig"));
+  S.check = { kind: "rig", pick: id || "", fixed: !!v, vid: id || "", vname: v ? vName(v) : "", sections: rigCheckSections(id), ans: {}, notes: {}, qa: {}, secNotes: {} };
+  openChecklist("🚑 Ambulance Check" + (v ? " — " + vName(v) : ""), "Tap ✓ when the item is there / stocked, ✗ when there's a problem or it's missing. Answer every Yes / No question.", ckHeader("rig"));
 }
 
 /* ── Checklist sheet (bag + rig) ── */
@@ -2062,7 +2067,7 @@ async function saveCheck(){
       batch.set(db.collection("trk_bagStatus").doc(S.me.uid), sd, { merge: true });
     } else if (C.kind === "bag"){
       // an agency bag / cabinet: its own status, kept as "org_<id>" (needs the 1.24 rules)
-      var bid = what.replace(/^org_/, ""), bv = S.fleet.filter(function(x){ return x.id === bid; })[0], bl = bv ? bagLabel(bv) : bid;
+      var bid = what.replace(/^org_/, ""), bv = fleetBagById(bid), bl = bv ? bagLabel(bv) : bid;
       batch.set(db.collection("trk_bagChecks").doc(), Object.assign({}, who, { at: now, bagId: bid, bag: bl, org: true, results: results, answers: answers, sectionNotes: secNotes, missing: problems, notes: notes }));
       var ost = { org: true, bagId: bid, bag: bl, unit: bl, lastAt: now, inspDate: inspDate, by: S.me.unit || "", byUid: S.me.uid, missing: problems, notes: notes };
       if (oexpR){ ost.expDates = oexpR.dates; ost.expUpdatedAt = now; ost.expUpdatedBy = S.me.unit || ""; }
