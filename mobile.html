@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<meta name="trk-version" content="1.73">
+<meta name="trk-version" content="1.74">
 <meta name="trk-mode" content="mobile">
 <script>
 // 1.58: a phone that opens the computer version (Portal/ = index.html) is sent to the phone version, like CallDashboard
@@ -421,7 +421,7 @@ td.rep-warn{color:var(--warn);font-weight:700}
     <div class="m-err" id="login-err"></div>
 
     <div style="text-align:center;margin-top:16px"><button class="m-forgot" onclick="App.forgotPw()">Forgot password?</button></div>
-    <div class="m-build">BUILD <span id="li-build">v1.73</span></div>
+    <div class="m-build">BUILD <span id="li-build">v1.74</span></div>
   </div>
 </div>
 <div id="boot" class="empty" style="margin-top:20vh">Signing in…</div>
@@ -501,7 +501,7 @@ function trkSmsPayload(phone, message, unit){
 function trkEmailPayload(email, name, subject, html){ return { to: [{ email: email, name: name || email }], subject: subject, body: html }; }
 
 /* ════════════════════════════════════════════════════════════════════════ */
-var TRK_VERSION = "1.73";
+var TRK_VERSION = "1.74";
 // 1.16: owner asked to block the tracker's notifications for now. While this is true the tracker sends NO texts and
 // NO emails (reminders and test reminders). Sign-in "Forgot password?" still works. Set to false to allow sending again.
 var TRK_SENDING_OFF = true;
@@ -2105,7 +2105,7 @@ function expScan(btn){
     try {
       var blob = await shrinkForScan(f, 0);
       var data = await new Promise(function(res, rej){ var r = new FileReader(); r.onload = function(){ res(String(r.result).split(",")[1]); }; r.onerror = rej; r.readAsDataURL(blob); });
-      var r = await callFn("docScan", { docType: "medication / medical supply label (" + n + ")", mime: "image/jpeg", data: data,
+      var r = await callFn("docScan", { purpose: "label", docType: "medication / medical supply label (" + n + ")", mime: "image/jpeg", data: data,   // 1.74: "label" = fast AI, date only
         fields: [{ key: "expires", label: "Expiration or use-by date. Answer YYYY-MM-DD, or YYYY-MM if no day shown" }] });
       var raw = (r && r.fields && r.fields.expires) || "", v = expDateFrom(raw);
       if (v){ el.value = v; el.classList.add("scanned"); note("✓ Read " + fmtDate(v) + (/^\d{4}-\d{2}$/.test(String(raw).trim()) || !/\d{1,2}[\-\/. ]\d{1,2}[\-\/. ]\d{2,4}|\d{4}-\d{2}-\d{2}/.test(raw) ? " (no day on the label — last day of the month)" : "") + " — check it, then Save.", "ok"); }
