@@ -3,11 +3,12 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<meta name="trk-version" content="1.54">
+<meta name="trk-version" content="1.55">
 <meta name="trk-mode" content="mobile">
 <meta name="theme-color" content="#ffffff">
 <title>Compliance</title>
 <!-- 1.32: the same Hatzolah MC icon as CallDashboard, built in (no extra files to upload) -->
+<!-- 1.55: drag & drop files on the computer -->
 <!-- 1.54: phone tidy-up — tables become cards, short attention box (not on Home), no name squeeze in the top bar -->
 <!-- 1.53: 👤 My Profile moved from a home tile to the top bar -->
 <!-- 1.52: documents shown as a table — View opens the document (with Update inside) -->
@@ -113,6 +114,9 @@ h2{font-size:1.1rem;margin:18px 0 10px;color:var(--accent)}
 .tb-who{text-align:center;font-family:'Oswald',sans-serif;font-weight:700;font-size:.8rem;color:var(--gray);letter-spacing:.04em;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .tb-right{display:flex;align-items:center;gap:6px}
 .ban-more{color:inherit;font-weight:700}
+.drop-hint{font-size:.78rem;color:var(--gray);margin-top:3px}
+body.dragging #m-body input[type=file]{outline:2px dashed var(--accent);outline-offset:4px;border-radius:6px}
+body.dragging #m-body .drop-hint{color:var(--accent);font-weight:700}
 .tb-right .btn,#bell{white-space:nowrap;flex-shrink:0}
 @media(max-width:600px){
   .tb-who{display:none}
@@ -345,7 +349,7 @@ td.rep-warn{color:var(--warn);font-weight:700}
     <div class="m-err" id="login-err"></div>
 
     <div style="text-align:center;margin-top:16px"><button class="m-forgot" onclick="App.forgotPw()">Forgot password?</button></div>
-    <div class="m-build">BUILD <span id="li-build">v1.54</span></div>
+    <div class="m-build">BUILD <span id="li-build">v1.55</span></div>
   </div>
 </div>
 <div id="boot" class="empty" style="margin-top:20vh">Signing in…</div>
@@ -425,7 +429,7 @@ function trkSmsPayload(phone, message, unit){
 function trkEmailPayload(email, name, subject, html){ return { to: [{ email: email, name: name || email }], subject: subject, body: html }; }
 
 /* ════════════════════════════════════════════════════════════════════════ */
-var TRK_VERSION = "1.54";
+var TRK_VERSION = "1.55";
 // 1.16: owner asked to block the tracker's notifications for now. While this is true the tracker sends NO texts and
 // NO emails (reminders and test reminders). Sign-in "Forgot password?" still works. Set to false to allow sending again.
 var TRK_SENDING_OFF = true;
@@ -3471,7 +3475,46 @@ function repPrint(){ document.body.classList.add("printing-report"); window.prin
 /* ════════════════════════════════════════════════════════════════════════
    MODAL
    ════════════════════════════════════════════════════════════════════════ */
-function openModal(title, body, foot){ $("m-title").textContent = title; $("m-body").innerHTML = body; $("m-foot").innerHTML = foot || ""; $("modal-bg").hidden = false; $("m-body").scrollTop = 0; stackTables($("m-body")); }
+function openModal(title, body, foot){ $("m-title").textContent = title; $("m-body").innerHTML = body; $("m-foot").innerHTML = foot || ""; $("modal-bg").hidden = false; $("m-body").scrollTop = 0; stackTables($("m-body")); dropHints(); }
+// 1.55: on the computer a file can be dragged onto the window instead of picking it — it goes into the file box
+// under the mouse (or the only one in the pop-up). Dropped on My Documents with nothing open, it starts a new document.
+function dropHints(){
+  if (TRK_MODE !== "desktop") return;
+  document.querySelectorAll('#m-body input[type=file]').forEach(function(inp){
+    if (inp.nextElementSibling && inp.nextElementSibling.classList.contains("drop-hint")) return;
+    inp.insertAdjacentHTML("afterend", '<div class="drop-hint">…or drag &amp; drop a file here</div>');
+  });
+}
+(function(){
+  if (typeof TRK_MODE !== "undefined" && TRK_MODE !== "desktop") return;
+  var n = 0;
+  function hasFiles(e){ var t = e.dataTransfer && e.dataTransfer.types; return !!t && Array.prototype.indexOf.call(t, "Files") !== -1; }
+  function pickInput(e){
+    var bg = $("modal-bg"); if (!bg || bg.hidden) return null;
+    var el = document.elementFromPoint(e.clientX, e.clientY);
+    for (; el && el !== document.body; el = el.parentElement){
+      if (!$("m-body").contains(el) && el !== $("m-body")) continue;
+      var ins = el.querySelectorAll ? el.querySelectorAll('input[type=file]') : [];
+      if (ins.length === 1) return ins[0];
+      if (ins.length > 1) break;
+    }
+    return $("m-body").querySelector('input[type=file]');
+  }
+  document.addEventListener("dragenter", function(e){ if (!hasFiles(e)) return; n++; document.body.classList.add("dragging"); });
+  document.addEventListener("dragleave", function(){ if (--n <= 0){ n = 0; document.body.classList.remove("dragging"); } });
+  document.addEventListener("dragover", function(e){ if (hasFiles(e)) e.preventDefault(); });
+  document.addEventListener("drop", function(e){
+    if (!hasFiles(e)) return;
+    e.preventDefault(); n = 0; document.body.classList.remove("dragging");
+    var f = e.dataTransfer.files && e.dataTransfer.files[0]; if (!f || !S.me) return;
+    var inp = pickInput(e);
+    if (!inp && $("modal-bg").hidden && S.tab === "docs"){ openUpload(); inp = $("up-file"); }
+    if (!inp){ toast("Open the upload first, then drop the file on it."); return; }
+    try { var dt = new DataTransfer(); dt.items.add(f); inp.files = dt.files; } catch (er){ toast("This browser can't take a dropped file — use the file picker."); return; }
+    inp.dispatchEvent(new Event("change", { bubbles: true }));
+    toast("📎 " + f.name);
+  });
+})();
 function closeModal(){ $("modal-bg").hidden = true; $("m-body").innerHTML = ""; S.check = null; }
 $("modal-bg").addEventListener("click", function(e){ if (e.target === this && !S.check) closeModal(); });
 document.addEventListener("keydown", function(e){ if (e.key === "Escape"){ if (!$("panel").hidden) closePanel(); else if (!$("modal-bg").hidden && !S.check) closeModal(); } });
