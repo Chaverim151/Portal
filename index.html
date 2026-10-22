@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<meta name="trk-version" content="1.17">
+<meta name="trk-version" content="1.19">
 <meta name="trk-mode" content="desktop">
 <meta name="theme-color" content="#ffffff">
 <title>Compliance</title>
@@ -267,7 +267,7 @@ td.rep-warn{color:var(--warn);font-weight:700}
     <div class="m-err" id="login-err"></div>
 
     <div style="text-align:center;margin-top:16px"><button class="m-forgot" onclick="App.forgotPw()">Forgot password?</button></div>
-    <div class="m-build">BUILD <span id="li-build">v1.17</span></div>
+    <div class="m-build">BUILD <span id="li-build">v1.19</span></div>
   </div>
 </div>
 <div id="boot" class="empty" style="margin-top:20vh">Signing in…</div>
@@ -345,7 +345,7 @@ function trkSmsPayload(phone, message, unit){
 function trkEmailPayload(email, name, subject, html){ return { to: [{ email: email, name: name || email }], subject: subject, body: html }; }
 
 /* ════════════════════════════════════════════════════════════════════════ */
-var TRK_VERSION = "1.17";
+var TRK_VERSION = "1.19";
 // 1.16: owner asked to block the tracker's notifications for now. While this is true the tracker sends NO texts and
 // NO emails (reminders and test reminders). Sign-in "Forgot password?" still works. Set to false to allow sending again.
 var TRK_SENDING_OFF = true;
@@ -1048,7 +1048,7 @@ function openUpload(btn){
     var t = typeById(btn.dataset.t), ctx = JSON.parse(btn.dataset.c || "{}");
     pre = { ownerKey: btn.dataset.k, type: t, ctx: ctx };
   }
-  S.upload = { pre: pre, file: null, rot: 0 };
+  S.upload = { pre: pre, file: null, rot: 0, crop: null, cropOff: false };
   var rec = pre ? visibleRecords()[recKey(pre.ownerKey, pre.type.id)] : null;
   var b = '';
   if (pre){
@@ -1063,7 +1063,7 @@ function openUpload(btn){
   b += '<label for="up-file">Upload Front Image</label><input id="up-file" type="file" accept="image/bmp,image/jpeg,image/gif,image/png,application/pdf,.bmp,.jpg,.jpeg,.gif,.png,.pdf" onchange="App.upFile()">'
     + '<div class="muted" style="margin-top:4px">Accepted file types: BMP, JPG, GIF, PNG, PDF</div>'
     + '<label>Image Preview</label><div class="up-prev" id="up-prev"><span class="muted">Not applicable to PDF uploads</span></div>'
-    + '<div class="row" id="up-rot" hidden style="margin-top:6px"><button class="btn sm" type="button" onclick="App.upRotate(-90)">⟲ Rotate left</button><button class="btn sm" type="button" onclick="App.upRotate(90)">⟳ Rotate right</button></div>'
+    + '<div class="row" id="up-rot" hidden style="margin-top:6px"><button class="btn sm" type="button" onclick="App.upRotate(-90)">⟲ Rotate left</button><button class="btn sm" type="button" id="up-crop-btn" hidden onclick="App.upCropToggle()">✂ Undo crop</button><button class="btn sm" type="button" onclick="App.upRotate(90)">⟳ Rotate right</button></div>'
     + '<div class="note" style="background:#fff4d6;border-color:#e2c27a;color:#5c3c00;margin-top:10px"><b>Warning:</b> If image is not in the correct upright orientation it will be rejected</div>'
     + '<div class="scan-box" id="up-scan" hidden><div class="row"><span class="grow" id="up-scan-msg">✨ Reading the document…</span><button class="btn sm" type="button" id="up-scan-btn" onclick="App.upScan()">✨ Scan again</button></div></div>'
     + '<div id="up-fields" data-t="' + (pre ? esc(pre.type.id) : "") + '">' + upFieldsHtml(pre ? pre.type : null, rec) + '</div>'
@@ -1071,12 +1071,25 @@ function openUpload(btn){
   openModal(pre ? (rec ? "Update " : "Upload ") + pre.type.name : "Create New Document", b,
     '<button class="btn" onclick="App.closeModal()">Cancel</button><button class="btn gold" id="up-save" onclick="App.saveUpload()">Save</button>');
 }
+// 1.18: documents whose expiration is a fixed time after the issue date (owner: CEVO = 3 years). The expiration date
+// fills in by itself from the issue date (typed or scanned); the member can still change it by hand.
+var AUTO_EXPIRE_YEARS = { cevo: 3 };
+function addYears(ymd, n){
+  var p = String(ymd || "").split("-"); if (p.length !== 3) return "";
+  var y = +p[0] + n, m = +p[1], d = +p[2], last = new Date(y, m, 0).getDate();   // Feb 29 → Feb 28
+  return y + "-" + pad(m) + "-" + pad(Math.min(d, last));
+}
+function upAutoExp(){
+  var t = upType(), yrs = t && AUTO_EXPIRE_YEARS[t.id], iss = $("upf-issued"), ex = $("upf-expires");
+  if (!yrs || !iss || !ex || ex.dataset.typed || !/^\d{4}-\d{2}-\d{2}$/.test(iss.value)) return;
+  ex.value = addYears(iss.value, yrs);
+}
 function upFieldsHtml(t, rec){
   if (!t) return '';
-  var x = (rec && rec.fields) || {};
-  function f(id, label, val, type){ return '<div class="pf-f"><label for="upf-' + id + '">' + esc(label) + '</label><input id="upf-' + id + '" data-k="' + id + '"' + (type ? ' type="' + type + '"' : '') + ' value="' + esc(val || "") + '" oninput="this.dataset.typed=1"></div>'; }
+  var x = (rec && rec.fields) || {}, yrs = AUTO_EXPIRE_YEARS[t.id];
+  function f(id, label, val, type){ return '<div class="pf-f"><label for="upf-' + id + '">' + esc(label) + '</label><input id="upf-' + id + '" data-k="' + id + '"' + (type ? ' type="' + type + '"' : '') + ' value="' + esc(val || "") + '" oninput="this.dataset.typed=1' + (id === "issued" && yrs ? ';App.upAutoExp()' : '') + '"></div>'; }
   var h = '<div class="pf-grid" style="margin-top:4px">';
-  if (t.expires) h += f("expires", "Expiration Date", rec && rec.expires, "date");
+  if (t.expires) h += f("expires", "Expiration Date", rec && rec.expires, "date").replace('</div>', yrs ? '<div class="muted" style="margin-top:4px">Set automatically: ' + yrs + ' years from the issue date.</div></div>' : '</div>');
   h += f("number", "Document Number", rec && rec.number) + f("issued", "Issue Date", rec && rec.issued, "date");
   docFields(t).forEach(function(d){ h += f(d[0], d[1], x[d[0]], d[2]); });
   return h + '</div>';
@@ -1112,7 +1125,7 @@ function upOwnerKey(){
 function upReadFields(){ var o = {}; document.querySelectorAll("#up-fields input[data-k]").forEach(function(el){ o[el.dataset.k] = el.value.trim(); }); return o; }
 function upFile(){
   var f = ($("up-file").files || [])[0], prev = $("up-prev");
-  S.upload.file = f || null; S.upload.rot = 0;
+  S.upload.file = f || null; S.upload.rot = 0; S.upload.crop = null; S.upload.cropOff = false;
   $("up-bar-fill").style.width = "0"; $("up-prog").textContent = "";
   if (!f){ prev.innerHTML = '<span class="muted">Not applicable to PDF uploads</span>'; $("up-rot").hidden = true; return; }
   if (!/^(image\/(bmp|jpeg|gif|png)|application\/pdf)$/i.test(f.type) && !/\.(bmp|jpe?g|gif|png|pdf)$/i.test(f.name)){
@@ -1145,18 +1158,26 @@ async function upScan(){
   msg.textContent = "✨ Reading the " + t.name + "…"; $("up-scan-btn").disabled = true; $("up-scan-btn").textContent = "✨ Scan again";
   try {
     var isPdf = /pdf/i.test(U.file.type) || /\.pdf$/i.test(U.file.name);
-    var blob = isPdf ? U.file : await shrinkForScan(U.file, U.rot || 0);
+    var sentRot = U.rot || 0;
+    var blob = isPdf ? U.file : await shrinkForScan(U.file, sentRot);
     var data = await new Promise(function(res, rej){ var r = new FileReader(); r.onload = function(){ res(String(r.result).split(",")[1]); }; r.onerror = rej; r.readAsDataURL(blob); });
     var want = [["number", "Document / license / certificate / policy number"], ["issued", "Issue date"]].concat(t.expires ? [["expires", "Expiration date"]] : []).concat(docFields(t));
     var r = await callFn("docScan", { docType: t.name, fields: want.map(function(w){ return { key: w[0], label: w[1], date: w[0] === "issued" || w[0] === "expires" || w[2] === "date" }; }), mime: isPdf ? "application/pdf" : "image/jpeg", data: data });
     if (my !== U.scanN) return;   // a newer scan started
     var got = (r && r.fields) || {}, filled = 0;
     Object.keys(got).forEach(function(k){ var el = $("upf-" + k), v = got[k]; if (!el || !v || el.dataset.typed) return; el.value = v; el.classList.add("scanned"); filled++; });
+    upAutoExp();
     var turn = r && r.rotate ? ((r.rotate % 360) + 360) % 360 : 0;
-    if (turn && !isPdf){ U.rot = ((U.rot || 0) + turn) % 360; var img = $("up-img"); if (img) img.style.transform = "rotate(" + U.rot + "deg)"; }
+    // 1.19: auto-crop — the scanner also says where the document's edges are in the photo (0–1000 of the photo as sent)
+    var bx = !isPdf && r && Array.isArray(r.box) && r.box.length === 4 ? r.box.map(Number) : null;
+    var cropped = !!(bx && bx[0] >= 0 && bx[1] >= 0 && bx[2] <= 1000 && bx[3] <= 1000 && bx[2] > bx[0] && bx[3] > bx[1]
+      && (bx[2] - bx[0]) * (bx[3] - bx[1]) >= 100000 && (bx[2] - bx[0]) * (bx[3] - bx[1]) <= 920000);
+    if (!isPdf){ U.crop = cropped ? { box: bx, rot: sentRot } : null; U.cropOff = false; }
+    if (turn && !isPdf) U.rot = (sentRot + turn) % 360;
+    if (!isPdf) upPreview();
     var notType = r && r.matches === false;
     msg.innerHTML = (notType ? "⚠ This doesn't look like a " + esc(t.name) + ". " : "") + (filled ? "✨ Filled in " + filled + " box" + (filled === 1 ? "" : "es") + " from the " + (isPdf ? "PDF" : "photo") + " — please check them." : "✨ Couldn't read any details — please type them in.")
-      + (turn ? " Turned the photo upright." : "");
+      + (turn ? " Turned the photo upright." : "") + (cropped ? " Cropped to the document." : "");
   } catch (e){
     if (my !== U.scanN) return;
     msg.textContent = /404|Failed to fetch|not.?found/i.test(e.message) ? "✨ Scanning isn't set up on the server yet — type the details in." : "✨ Couldn't scan (" + e.message + ") — type the details in.";
@@ -1176,20 +1197,49 @@ async function shrinkForScan(file, rot){
 function upRotate(d){
   S.upload.rot = ((S.upload.rot || 0) + d + 360) % 360;
   clearTimeout(S.upload.rotT); S.upload.rotT = setTimeout(function(){ if (S.upload && S.upload.file) upScan(); }, 900);
-  var img = $("up-img"); if (img) img.style.transform = "rotate(" + S.upload.rot + "deg)";
+  upPreview();
 }
-// Shrink big photos and apply the rotation the member chose (BMP/PNG/JPG become JPG; GIF and PDF are sent as they are)
-async function shrinkImage(file, rot){
+// 1.19: draw the photo the way it will be saved — turned and (if the scanner found the edges) cropped
+function trkRotCanvas(src, deg){
+  var w = src.width, h = src.height, side = deg === 90 || deg === 270;
+  var c = document.createElement("canvas"); c.width = side ? h : w; c.height = side ? w : h;
+  var g = c.getContext("2d"); g.translate(c.width / 2, c.height / 2); g.rotate(deg * Math.PI / 180); g.drawImage(src, -w / 2, -h / 2, w, h);
+  return c;
+}
+async function trkProcess(file, rot, crop, max){
+  var bmp = await createImageBitmap(file), sc = Math.min(1, (max || 2000) / Math.max(bmp.width, bmp.height));
+  var base = document.createElement("canvas"); base.width = Math.round(bmp.width * sc); base.height = Math.round(bmp.height * sc);
+  base.getContext("2d").drawImage(bmp, 0, 0, base.width, base.height);
   rot = rot || 0;
-  if (!/^image\/(jpeg|png|webp|bmp|heic|heif)$/i.test(file.type) && !(rot && /^image\//.test(file.type))) return file;
+  if (!crop) return trkRotCanvas(base, rot);
+  var a = trkRotCanvas(base, crop.rot), b = crop.box, m = 12;   // keep a thin margin (1.2%) so no edge is cut off
+  var x0 = Math.max(0, Math.round((b[1] - m) / 1000 * a.width)), y0 = Math.max(0, Math.round((b[0] - m) / 1000 * a.height));
+  var x1 = Math.min(a.width, Math.round((b[3] + m) / 1000 * a.width)), y1 = Math.min(a.height, Math.round((b[2] + m) / 1000 * a.height));
+  var c = document.createElement("canvas"); c.width = Math.max(1, x1 - x0); c.height = Math.max(1, y1 - y0);
+  c.getContext("2d").drawImage(a, x0, y0, c.width, c.height, 0, 0, c.width, c.height);
+  return trkRotCanvas(c, ((rot - crop.rot) % 360 + 360) % 360);
+}
+function upCrop(){ var U = S.upload; return U && U.crop && !U.cropOff ? U.crop : null; }
+async function upPreview(){
+  var U = S.upload, img = $("up-img");
+  if (!U || !U.file || !img || upIsPdf()) return;
+  var cb = $("up-crop-btn"); if (cb){ cb.hidden = !U.crop; cb.textContent = U.cropOff ? "✂ Crop to the document" : "✂ Undo crop"; }
   try {
-    var bmp = await createImageBitmap(file);
-    var max = 2000, sc = Math.min(1, max / Math.max(bmp.width, bmp.height));
-    var w = Math.round(bmp.width * sc), h = Math.round(bmp.height * sc), side = rot === 90 || rot === 270;
-    var c = document.createElement("canvas"); c.width = side ? h : w; c.height = side ? w : h;
-    var g = c.getContext("2d"); g.translate(c.width / 2, c.height / 2); g.rotate(rot * Math.PI / 180); g.drawImage(bmp, -w / 2, -h / 2, w, h);
+    var c = await trkProcess(U.file, U.rot || 0, upCrop(), 1200);
+    var bl = await new Promise(function(res){ c.toBlob(res, "image/jpeg", 0.85); });
+    if (img._u) URL.revokeObjectURL(img._u);
+    img._u = URL.createObjectURL(bl); img.src = img._u; img.style.transform = "none";
+  } catch (e){ img.style.transform = "rotate(" + (U.rot || 0) + "deg)"; }
+}
+function upCropToggle(){ S.upload.cropOff = !S.upload.cropOff; upPreview(); }
+// Shrink big photos and apply the rotation the member chose (BMP/PNG/JPG become JPG; GIF and PDF are sent as they are)
+async function shrinkImage(file, rot, crop){
+  rot = rot || 0;
+  if (!/^image\/(jpeg|png|webp|bmp|heic|heif)$/i.test(file.type) && !((rot || crop) && /^image\//.test(file.type))) return file;
+  try {
+    var c = await trkProcess(file, rot, crop, 2000);
     var blob = await new Promise(function(res){ c.toBlob(res, "image/jpeg", 0.85); });
-    return blob && (rot || blob.size < file.size || /bmp/i.test(file.type)) ? new File([blob], file.name.replace(/\.\w+$/, "") + ".jpg", { type: "image/jpeg" }) : file;
+    return blob && (rot || crop || blob.size < file.size || /bmp/i.test(file.type)) ? new File([blob], file.name.replace(/\.\w+$/, "") + ".jpg", { type: "image/jpeg" }) : file;
   } catch (e){ return file; }
 }
 async function saveUpload(){
@@ -1218,7 +1268,7 @@ async function saveUpload(){
     var stored = rec && rec.files ? rec.files : [];
     if (U.file){
       prog.textContent = "Preparing…";
-      var f = await shrinkImage(U.file, U.rot);
+      var f = await shrinkImage(U.file, U.rot, upCrop());
       var path = "trk/" + owner + "/" + key + "/" + Date.now() + "_" + f.name.replace(/[^\w.\-]/g, "_").slice(-60);
       var task = storage.ref(path).put(f, { contentType: f.type });
       if (task && task.on) task.on("state_changed", function(sn){ var pct = sn.totalBytes ? Math.round(sn.bytesTransferred / sn.totalBytes * 100) : 0; fill.style.width = pct + "%"; prog.textContent = "Uploading… " + pct + "%"; });
@@ -2117,7 +2167,7 @@ setInterval(function(){ if (S.me) render(); }, 600000);
 window.App = {
   signIn: signIn, signOut: signOut, togglePw: togglePw, forgotPw: forgotPw, setTab: setTab, openPanel: openPanel, closePanel: closePanel, goNotif: goNotif,
   goNotifHome: goNotif,
-  openUpload: openUpload, saveUpload: saveUpload, upPick: upPick, upFile: upFile, upRotate: upRotate, upScan: upScan, closeModal: closeModal,
+  openUpload: openUpload, saveUpload: saveUpload, upPick: upPick, upFile: upFile, upRotate: upRotate, upAutoExp: upAutoExp, upCropToggle: upCropToggle, upScan: upScan, closeModal: closeModal,
   addVehicle: addVehicle, editVehicle: editVehicle, saveVehicle: saveVehicle, removeVehicle: removeVehicle,
   startBagCheck: startBagCheck, bagHistory: bagHistory, startRigCheck: startRigCheck, rigHistory: rigHistory, rigFixed: rigFixed,
   rigSub: function(s){ S.rigSub = s; render(); },
